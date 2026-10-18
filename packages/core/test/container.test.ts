@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { asClass, asFunction, asValue, createAppContainer } from "../src";
+import { asClass, asFunction, asValue } from "awilix";
+import { createAppContainer } from "../src";
 
 class Greeter {
   private readonly name: string;

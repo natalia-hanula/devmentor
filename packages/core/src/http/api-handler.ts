@@ -1,0 +1,114 @@
+import { isDatabaseUnavailableError } from "@devmentor/db";
+import { z } from "zod";
+import { getLogger } from "../logger";
+import { AppError, ForbiddenError, ServiceUnavailableError, ValidationError, type FieldErrors } from "./errors";
+
+/**
+ * Koperta odpowiedzi API. To konwencja kształtu, nie współdzielony typ — `@devmentor/ui`
+ * deklaruje własną kopię w `backend/api/types.ts`, bo `ui` nie importuje `core`.
+ */
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: { code: string; message: string; fieldErrors?: FieldErrors } };
+
+/**
+ * Nagłówek, który `apiCall` (ui) dokleja do każdego żądania. Zwykły formularz HTML ani
+ * żądanie z obcej strony go nie wyśle — to minimalna ochrona CSRF dla tras zmieniających stan.
+ */
+export const REQUEST_MARKER_HEADER = "x-devmentor-request";
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+export interface RouteContext {
+  params: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export type RouteHandler = (request: Request, context: RouteContext) => Promise<Response>;
+
+export interface ApiHandlerOptions {
+  /** Status odpowiedzi przy sukcesie, np. 201 dla tworzenia. */
+  successStatus?: number;
+}
+
+/**
+ * Opakowuje funkcję trasy: weryfikuje nagłówek CSRF, zamienia wynik na kopertę `{ ok, data }`,
+ * a rzucone `AppError` na `{ ok: false, error }` z właściwym statusem. Nieoczekiwane błędy
+ * są logowane i zwracane jako ogólny 500 — bez stack trace'a dla klienta.
+ */
+export function apiHandler<T>(
+  handler: (request: Request, context: RouteContext) => Promise<T>,
+  { successStatus = 200 }: ApiHandlerOptions = {},
+): RouteHandler {
+  return async (request, context) => {
+    try {
+      assertRequestMarker(request);
+      const data = await handler(request, context);
+      return json<T>({ ok: true, data }, successStatus);
+    } catch (error) {
+      return errorResponse(error, request);
+    }
+  };
+}
+
+/** Odczytuje body JSON i waliduje je schematem — do serwisu trafia tylko sparsowany, jawny kształt. */
+export async function parseJsonBody<S extends z.ZodType>(request: Request, schema: S): Promise<z.infer<S>> {
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    throw new ValidationError("Treść żądania nie jest poprawnym JSON-em");
+  }
+  return parseInput(schema, body);
+}
+
+export function parseInput<S extends z.ZodType>(schema: S, input: unknown): z.infer<S> {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    throw new ValidationError("Nieprawidłowe dane", toFieldErrors(result.error));
+  }
+  return result.data;
+}
+
+function toFieldErrors(error: z.ZodError): FieldErrors {
+  const fieldErrors: FieldErrors = {};
+  for (const issue of error.issues) {
+    const key = issue.path.length > 0 ? issue.path.join(".") : "_form";
+    (fieldErrors[key] ??= []).push(issue.message);
+  }
+  return fieldErrors;
+}
+
+function assertRequestMarker(request: Request): void {
+  if (SAFE_METHODS.has(request.method)) {
+    return;
+  }
+  if (request.headers.get(REQUEST_MARKER_HEADER) !== "1") {
+    throw new ForbiddenError("Brak nagłówka żądania aplikacji");
+  }
+}
+
+function errorResponse(caught: unknown, request: Request): Response {
+  const logger = getLogger();
+  const error = isDatabaseUnavailableError(caught)
+    ? new ServiceUnavailableError("Baza danych jest niedostępna", { cause: caught })
+    : caught;
+  const route = `${request.method} ${new URL(request.url).pathname}`;
+
+  if (error instanceof AppError) {
+    if (error.status >= 500) {
+      logger.error({ err: error, route }, "Błąd infrastruktury w trasie API");
+    }
+    const fieldErrors = error instanceof ValidationError ? error.fieldErrors : undefined;
+    return json(
+      { ok: false, error: { code: error.code, message: error.message, ...(fieldErrors && { fieldErrors }) } },
+      error.status,
+    );
+  }
+
+  logger.error({ err: error, route }, "Nieoczekiwany błąd w trasie API");
+  return json({ ok: false, error: { code: "INTERNAL_ERROR", message: "Wystąpił nieoczekiwany błąd" } }, 500);
+}
+
+function json<T>(body: ApiResult<T>, status: number): Response {
+  return Response.json(body, { status });
+}

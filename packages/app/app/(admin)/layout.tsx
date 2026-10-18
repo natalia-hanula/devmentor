@@ -1,7 +1,12 @@
 import Link from "next/link";
 
-/** Wspólny layout stron backendowych (panel admina, mentora, ucznia) — komponenty z `@devmentor/ui`. */
-export default function PanelLayout({ children }: LayoutProps<"/">) {
+const NAV_ITEMS = [
+  { href: "/admin", label: "Przegląd" },
+  { href: "/admin/technologies", label: "Technologie" },
+] as const;
+
+/** Layout panelu admina — komponenty z `@devmentor/ui`. */
+export default function AdminLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-full flex-1 flex-col bg-muted/40">
       <header className="border-b bg-background">
@@ -10,9 +15,11 @@ export default function PanelLayout({ children }: LayoutProps<"/">) {
             DevMentor
           </Link>
           <nav className="flex gap-4 text-sm text-muted-foreground">
-            <Link href="/admin" className="hover:text-foreground">
-              Admin
-            </Link>
+            {NAV_ITEMS.map((item) => (
+              <Link key={item.href} href={item.href} className="hover:text-foreground">
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
       </header>

@@ -11,6 +11,11 @@ Format wpisu (najnowsze na górze):
 
 ## Wpisy
 
+- 2026-10-18 — MikroORM 7 łączy się z bazą leniwie: `MikroORM.init()` przechodzi przy wyłączonej bazie, a błąd pojawia się przy pierwszym zapytaniu jako `DriverException` z kodem `ECONNREFUSED` (nie `ConnectionException`) — do klasyfikacji używaj `isDatabaseUnavailableError` z `@devmentor/db`.
+- 2026-10-18 — MikroORM 7: `Migration.addSql()` przyjmuje tylko SQL, bez parametrów — dane referencyjne w migracjach wpisuj jako stałe literały, nigdy wartości z zewnątrz.
+- 2026-10-18 — Po przeniesieniu lub zmianie nazw tras `npm run typecheck` w `app` może padać na nieaktualnych `.next/dev/types` (z `next dev`), których `next typegen` nie odświeża — usuń `packages/app/.next`.
+- 2026-10-18 — Z `cacheComponents` trasy API (`route.ts`) z dostępem do bazy są dynamiczne bez żadnej konfiguracji, a `export const dynamic` kończy się błędem — nie dodawaj go, nawet jeśli standard lub stary kod tak sugeruje.
+- 2026-10-18 — W zsh niecytowana zmienna (`curl $H …`) nie jest dzielona na słowa — w testach curl podawaj nagłówki jako osobne, cytowane argumenty, inaczej dostaniesz 400 od parsera HTTP zamiast odpowiedzi aplikacji.
 - 2026-10-18 — Next.js czyta `.env` tylko z katalogu aplikacji; w monorepo `packages/app/.env` to symlink do głównego `.env` — `loadEnvConfig()` w `next.config.ts` NIE działa (zmienne giną przy renderowaniu). [→ lessons/2026-10-18-env-w-monorepo-next.md]
 - 2026-10-18 — MikroORM 7 zastąpił `@mikro-orm/knex` pakietem `@mikro-orm/sql`; domyślna lista `serverExternalPackages` w Next 16.4 tego nie uwzględnia, więc `@mikro-orm/postgresql`, `sql` i `migrations` dopisujemy ręcznie. Nigdy nie dodawaj ich do `transpilePackages` (Next rzuci błąd). Turbopack sam transpiluje pakiety workspace.
 - 2026-10-18 — shadcn CLI 4.x importuje `cn` z paczki npm `cn` (shadcn-ui/cn) i sam ją instaluje — to oficjalna zmiana, nie błąd; nie przywracaj `clsx`/`tailwind-merge`.

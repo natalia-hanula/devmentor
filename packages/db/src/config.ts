@@ -16,13 +16,10 @@ export function createOrmConfig({ clientUrl, debug = false }: OrmConfigInput): O
     clientUrl,
     entities,
     debug,
-    discovery: {
-      // Na starcie projektu nie ma jeszcze encji domenowych.
-      warnWhenNoEntities: false,
-    },
   });
 }
 
+/** Odczyt URL bazy dla CLI i testów. Aplikacja bierze go z `env.ts` w `@devmentor/core`. */
 export function requireDatabaseUrl(name = "DATABASE_URL"): string {
   const url = process.env[name];
   if (!url) {

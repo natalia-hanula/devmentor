@@ -1,0 +1,69 @@
+import { asClass, asValue, createContainer, InjectionMode, type AwilixContainer } from "awilix";
+import { initOrm } from "@devmentor/db";
+import { parseEnv } from "../config/env";
+import { ServiceUnavailableError } from "../http/errors";
+import { getLogger } from "../logger";
+import { DatabaseHealthService } from "../services/health/database-health.service";
+import { TechnologyService } from "../services/mentors/technology.service";
+import type { AppCradle, RequestCradle } from "./cradle";
+
+/**
+ * Kontener z ustawieniami projektu: `PROXY` (zależności jako jeden obiekt w konstruktorze)
+ * i `strict` (błąd, gdy singleton zależy od czegoś o krótszym czasie życia).
+ */
+export function createAppContainer<Cradle extends object>(): AwilixContainer<Cradle> {
+  return createContainer<Cradle>({ injectionMode: InjectionMode.PROXY, strict: true });
+}
+
+async function buildContainer(): Promise<AwilixContainer<AppCradle>> {
+  const env = parseEnv();
+  const logger = getLogger();
+  const orm = await initOrm(env.DATABASE_URL).catch((error: unknown) => {
+    throw new ServiceUnavailableError("Baza danych jest niedostępna", { cause: error });
+  });
+
+  const container = createAppContainer<AppCradle>();
+  container.register({
+    env: asValue(env),
+    logger: asValue(logger),
+    orm: asValue(orm),
+  });
+  return container;
+}
+
+const globalForContainer = globalThis as unknown as {
+  __devmentorContainer?: Promise<AwilixContainer<AppCradle>>;
+};
+
+/** Kontener główny, tworzony raz na proces (Promise na `globalThis` przetrwa HMR w `next dev`). */
+export function getContainer(): Promise<AwilixContainer<AppCradle>> {
+  globalForContainer.__devmentorContainer ??= buildContainer().catch((error: unknown) => {
+    globalForContainer.__devmentorContainer = undefined;
+    throw error;
+  });
+  return globalForContainer.__devmentorContainer;
+}
+
+/** Rejestracja zależności żądania — każdy serwis jawnie, bez skanowania folderów. */
+function registerRequestDependencies(scope: AwilixContainer<RequestCradle>, orm: AppCradle["orm"]): void {
+  scope.register({
+    em: asValue(orm.em.fork()),
+    databaseHealthService: asClass(DatabaseHealthService).scoped(),
+    technologyService: asClass(TechnologyService).scoped(),
+  });
+}
+
+/**
+ * Uruchamia `work` w scope jednego żądania (własny `EntityManager`) i sprząta po nim.
+ * Jedyny sposób, w jaki trasy i strony sięgają po serwisy.
+ */
+export async function withScope<T>(work: (cradle: RequestCradle) => Promise<T>): Promise<T> {
+  const container = await getContainer();
+  const scope = container.createScope<RequestCradle>();
+  registerRequestDependencies(scope, container.cradle.orm);
+  try {
+    return await work(scope.cradle);
+  } finally {
+    await scope.dispose();
+  }
+}
