@@ -52,7 +52,7 @@ Zapisuj wnioski, gdy:
 
 - naprawisz błąd, którego przyczyna nie była oczywista;
 - odkryjesz pułapkę w stacku, narzędziach lub konwencjach projektu (np. różnice w tej wersji Next.js);
-- człowiek poprawi Twoje podejście albo potwierdzi nieoczywistą decyzję;
+- człowiek poprawi Twoje podejście albo potwierdzi nieoczywistą decyzję — zapisz to od razu, zanim wrócisz do zadania, tak by ten sam błąd się nie powtórzył;
 - ustalisz coś, co trzeba pamiętać długoterminowo.
 
 Zasady:
@@ -61,3 +61,31 @@ Zasady:
 - Jeśli wniosek wymaga kontekstu (objawy, przyczyna, rozwiązanie, jak zapobiegać), opisz go w `.ai/lessons/YYYY-MM-DD-slug.md` i podlinkuj z wpisu w indeksie.
 - Zanim dodasz nowy wpis, sprawdź, czy podobny już istnieje. Jeśli tak, zaktualizuj go zamiast dublować. Wnioski, które okazały się błędne, usuń.
 - Nie zapisuj tego, co wynika wprost z kodu lub historii gita.
+- Jeśli wniosek to reguła, którą każdy agent musi stosować zawsze, zaproponuj człowiekowi dopisanie jej do `AGENTS.md`.
+
+## Sposób pracy
+
+### Planowanie
+
+- Zadanie złożone (kilka kroków, wiele plików lub decyzja architektoniczna) zaczynaj od planu: kroki, pliki do zmiany, sposób weryfikacji. Specyfikacja mówi *co* zbudować, plan — *jak*.
+- Przy pracy interaktywnej pokaż plan człowiekowi przed implementacją. W autonomicznym przebiegu zapisz go na początku logu w `.ai/runs/`.
+- Gdy coś idzie nie tak (rozwiązanie się komplikuje, kolejne poprawki nie pomagają, założenia okazują się błędne), zatrzymaj się i zaplanuj od nowa zamiast brnąć dalej.
+
+### Naprawianie błędów
+
+- Przy zgłoszeniu błędu (opis, logi, nieprzechodzący test) działaj samodzielnie: odtwórz problem, znajdź przyczynę źródłową i napraw ją. Nie maskuj objawów i nie dopytuj o szczegóły, które da się ustalić z kodu lub logów.
+- Jeśli rozwiązanie działa, ale jest toporne, zaproponuj prostszą, czystszą wersję, zanim uznasz zadanie za skończone.
+
+### Weryfikacja
+
+Nie uznawaj zmiany za gotową, dopóki nie udowodnisz, że działa:
+
+- uruchom `npm run lint` i `npx tsc --noEmit`, a przy większych zmianach także `npm run build`;
+- jeśli w projekcie są testy dotyczące zmienionego kodu, uruchom je; nowa logika powinna dostać testy;
+- zmiany w UI sprawdź w działającej aplikacji (`npm run dev`), a nie tylko w kodzie;
+- sprawdź zmianę z kryteriami akceptacji specyfikacji;
+- raportuj wynik zgodnie z prawdą: jeśli coś nie przeszło albo nie dało się tego sprawdzić, napisz to wprost.
+
+### Subagenci
+
+- Szerokie przeszukiwanie kodu, research i niezależne podzadania zlecaj subagentom, żeby nie zaśmiecać głównego kontekstu. Od subagenta oczekuj wniosków, nie zrzutów plików.
