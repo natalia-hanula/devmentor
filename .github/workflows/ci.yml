@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  lint:
+    name: Lint i typecheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+
+  unit:
+    name: Testy jednostkowe (pokrycie 100%)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # Kończy się błędem, jeśli którykolwiek plik z zakresu ma pokrycie poniżej 100%.
+      - run: npm test
+      - name: Raport pokrycia
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 7
+
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # Bez .env i bez bazy — aplikacja musi się budować bez dostępu do PostgreSQL.
+      - run: npm run build
+
+  integration:
+    name: Testy integracyjne (PostgreSQL w testcontainers + agent-browser)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # AppArmor na ubuntu-24.04 blokuje sandbox Chrome'a; testujemy wyłącznie własną aplikację na localhost.
+      AGENT_BROWSER_ARGS: --no-sandbox
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Przeglądarka dla agent-browser
+        run: npx agent-browser install --with-deps
+      # Build aplikacji, kontener PostgreSQL (testcontainers), migracje, `next start`, testy API i przeglądarki.
+      - run: npm run test:integration

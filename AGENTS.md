@@ -19,7 +19,7 @@ DevMentor to monorepo. Poniższe założenia są wiążące — odstępstwo wyma
 - **PostgreSQL** + **MikroORM 7** (encje, migracje, pula połączeń).
 - **Awilix** — kontener DI. **Zod** — walidacja (wspólna dla klienta i serwera) i konfiguracja środowiska. **pino** — logger.
 - **Tailwind CSS** dla stron publicznych, **shadcn/ui** dla stron backendowych (panele).
-- **Vitest** do testów (`npm test` w katalogu głównym; każdy pakiet z testami ma własny `vitest.config.ts`).
+- **Vitest** do testów jednostkowych (z `@vitest/coverage-v8`, Testing Library i `jsdom`) i integracyjnych (**testcontainers** z PostgreSQL + **agent-browser**). **GitHub Actions** uruchamia CI dla każdego PR (zob. „Testy i CI”).
 
 ### Pakiety (`packages/`)
 
@@ -133,6 +133,17 @@ Gdzie trafia nowy komponent:
 - Diff PR-a wynika w całości z jego celu — bez przypadkowych zmian nazw i formatowania.
 - Przed review przejdź checklistę z sekcji „Code Review Checklist” w `.ai/docs/engineering-standards.md` (struktura, bezpieczeństwo, testy). Zmiana zachowania ma test, który nie przechodzi na starym kodzie; przepływy wrażliwe na wyścigi (rezerwacje) mają test integracyjny przypadku równoczesnego.
 
+### Testy i CI
+
+**Zasada bezwzględna: każda nowa funkcja — i każda zmiana zachowania istniejącego kodu — musi mieć 100% pokrycia testami jednostkowymi: linii, gałęzi, funkcji i instrukcji, liczonego dla każdego pliku osobno.** Zmiana, która zostawia jakikolwiek plik z zakresu poniżej 100%, nie jest skończona: CI ją odrzuca, a PR nie może zostać zmergowany. Testy piszesz razem z kodem, nie „później”.
+
+- **Zakres pokrycia** (`vitest.config.ts` w katalogu głównym): cały kod TS/TSX w `packages/*/src/**` i `packages/app/app/**`, łącznie ze stronami, layoutami, trasami API i komponentami shadcn. Wyłączenia to zamknięta lista: migracje (`packages/db/migrations/**` — wykonuje je setup testów integracyjnych), pliki konfiguracyjne (`*.config.ts`/`*.config.mts`) i `*.d.ts`. Nie dopisuj wyłączeń, nie obniżaj progów i nie używaj komentarzy `v8 ignore`/`istanbul ignore` bez zgody człowieka.
+- Kod, którego nie da się pokryć, to sygnał do zmiany kodu (martwa gałąź do usunięcia, zależność do wstrzyknięcia lub wydzielenia do osobnego modułu), a nie do wyłączenia go z pokrycia.
+- **Testy jednostkowe** (`packages/<pakiet>/test/**/*.test.ts(x)`, `npm test`): bez bazy i bez sieci. Serwisy testuj na atrapie `EntityManager` (`packages/core/test/fake-entity-manager.ts`), komponenty i strony przez Testing Library w `jsdom`, trasy API z podmienionym kontenerem DI. Pokrycie ma wynikać z asercji zachowania, nie z samego wywołania kodu.
+- **Testy integracyjne** (`tests/integration/**/*.int.test.ts`, `npm run test:integration`): `globalSetup` uruchamia PostgreSQL w testcontainers, wykonuje migracje, startuje zbudowaną aplikację (`next start`) i przekazuje `baseUrl`/`databaseUrl` przez `inject()`. Testy sprawdzają API (`fetch`), serwisy na prawdziwej bazie i UI przez `agent-browser` (`support/browser.ts`). Dopisz test integracyjny przy każdej zmianie przepływu, który zależy od bazy, kilku warstw naraz lub zachowania w przeglądarce (m.in. przypadki równoczesne).
+- Lokalnie bez Dockera: `INTEGRATION_DATABASE_URL=postgresql://devmentor:devmentor@localhost:5432/devmentor_integration npm run test:integration` — setup **czyści schemat** tej bazy, więc nigdy nie wskazuj w niej bazy z danymi.
+- **CI** (`.github/workflows/ci.yml`, każdy PR i push do `main`): `lint` (ESLint + typecheck), `unit` (`npm test` z progiem 100%), `build` (bez `.env` i bez bazy), `integration` (testcontainers + agent-browser). Wszystkie zadania muszą przejść przed mergem.
+
 ## Katalog `.ai/` — pamięć i proces pracy agentów
 
 Wszystkie artefakty pracy AI (specyfikacje, logi przebiegów, wnioski, dokumenty referencyjne) trzymamy w `.ai/`. Korzystanie z tej struktury jest **obowiązkowe** — nie twórz takich plików w innych miejscach repozytorium (np. w katalogu głównym, `docs/` czy `tmp/`).
@@ -207,8 +218,8 @@ Zasady:
 
 Nie uznawaj zmiany za gotową, dopóki nie udowodnisz, że działa:
 
-- uruchom w katalogu głównym `npm run lint`, `npm run typecheck` i `npm test`, a przy większych zmianach także `npm run build` i `npm audit` (nowe alerty zgłoś człowiekowi);
-- jeśli w projekcie są testy dotyczące zmienionego kodu, uruchom je; nowa logika powinna dostać testy;
+- uruchom w katalogu głównym `npm run lint`, `npm run typecheck` i `npm test` (musi pokazać 100% pokrycia), a przy większych zmianach także `npm run build`, `npm run test:integration` i `npm audit` (nowe alerty zgłoś człowiekowi);
+- nowa logika dostaje testy jednostkowe ze 100% pokryciem (zob. „Testy i CI”), a przepływy przez bazę lub UI także test integracyjny;
 - zmiany w UI sprawdź w działającej aplikacji (`npm run dev`), a nie tylko w kodzie;
 - sprawdź zmianę z kryteriami akceptacji specyfikacji;
 - raportuj wynik zgodnie z prawdą: jeśli coś nie przeszło albo nie dało się tego sprawdzić, napisz to wprost.

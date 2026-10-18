@@ -77,6 +77,8 @@ const eslintConfig = defineConfig([
     "**/out/**",
     "**/build/**",
     "**/next-env.d.ts",
+    // Raport pokrycia generowany przez `npm test`.
+    "coverage/**",
   ]),
 ]);
 

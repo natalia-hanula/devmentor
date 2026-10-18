@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiCall, apiCallOrThrow, ApiCallError } from "../src/backend/api/api-call";
 
-function mockFetch(response: Response | Error) {
+function mockFetch(response: Response | Error | DOMException) {
   const fetchMock = vi.fn(async () => {
-    if (response instanceof Error) throw response;
+    if (response instanceof Error || response instanceof DOMException) throw response;
     return response;
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -69,5 +69,41 @@ describe("apiCallOrThrow", () => {
 
     mockFetch(Response.json({ ok: false, error: { code: "NOT_FOUND", message: "Brak" } }, { status: 404 }));
     await expect(apiCallOrThrow("/api/x")).rejects.toBeInstanceOf(ApiCallError);
+  });
+});
+
+describe("apiCall — przypadki brzegowe", () => {
+  it("zgłasza ABORTED, gdy żądanie przerwano sygnałem", async () => {
+    mockFetch(new DOMException("aborted", "AbortError"));
+
+    const result = await apiCall("/api/x", { signal: new AbortController().signal });
+
+    expect(result.ok === false && result.error.code).toBe("ABORTED");
+  });
+
+  it("traktuje pustą odpowiedź i nieczytelne body jako INVALID_RESPONSE", async () => {
+    mockFetch(new Response(null, { status: 204 }));
+    expect((await apiCall("/api/x")).ok).toBe(false);
+
+    const unreadable = { status: 500, text: () => Promise.reject(new Error("stream error")) } as unknown as Response;
+    mockFetch(unreadable);
+    const result = await apiCall("/api/x");
+    expect(result.ok === false && result.error.code).toBe("INVALID_RESPONSE");
+  });
+
+  it.each([
+    ["obiekt bez ok", { data: 1 }],
+    ["ok: true bez data", { ok: true }],
+    ["ok inne niż boolean", { ok: "tak", error: { code: "X", message: "Y" } }],
+    ["ok: false bez error", { ok: false }],
+    ["error nie jest obiektem", { ok: false, error: "zły" }],
+    ["error bez code/message", { ok: false, error: { code: "X" } }],
+    ["null", null],
+  ])("odrzuca odpowiedź, która nie jest kopertą API: %s", async (_label, payload) => {
+    mockFetch(Response.json(payload));
+
+    const result = await apiCall("/api/x");
+
+    expect(result.ok === false && result.error.code).toBe("INVALID_RESPONSE");
   });
 });
