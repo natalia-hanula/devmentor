@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DevMentor
 
-## Getting Started
+**DevMentor** to marketplace mentoringowy dla programistów. Łączy doświadczonych mentorów z uczniami, którzy chcą rozwijać swoje umiejętności — od pierwszych kroków w programowaniu po przygotowanie do rozmów rekrutacyjnych i awans na wyższe stanowisko.
 
-First, run the development server:
+> Projekt powstaje w ramach kursu **AI Tech Leaders** i jest rozwijany z pomocą **Claude Code**.
+
+## Funkcjonalności
+
+- **Mentorzy** — publiczne profile z doświadczeniem, technologiami, stawką i dostępnością.
+- **Uczniowie** — konta osób szukających wsparcia, z celami nauki i historią sesji.
+- **Profile** — przeglądanie i wyszukiwanie mentorów po technologiach, poziomie i cenie.
+- **Umawianie sesji** — rezerwacja terminów w kalendarzu mentora.
+- **Wiadomości** — komunikacja między mentorem a uczniem przed sesją i po niej.
+- **Płatności** — opłacanie sesji bezpośrednio na platformie.
+
+> Projekt jest na wczesnym etapie — powyższa lista opisuje docelowy zakres, nie stan obecny.
+
+## Stack technologiczny
+
+- [Next.js](https://nextjs.org) 16 (App Router)
+- [TypeScript](https://www.typescriptlang.org)
+- [Tailwind CSS](https://tailwindcss.com) 4
+- [GitHub](https://github.com/natalia-hanula/devmentor) — repozytorium i kontrola wersji
+- [Claude Code](https://claude.com/claude-code) — asystent AI wspierający development
+
+## Uruchomienie lokalne
+
+Wymagania: Node.js 20+ i npm.
 
 ```bash
+git clone https://github.com/natalia-hanula/devmentor.git
+cd devmentor
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Aplikacja będzie dostępna pod adresem [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Dostępne skrypty
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Skrypt          | Opis                                  |
+| --------------- | ------------------------------------- |
+| `npm run dev`   | Serwer deweloperski z hot reloadem    |
+| `npm run build` | Build produkcyjny                     |
+| `npm run start` | Uruchomienie buildu produkcyjnego     |
+| `npm run lint`  | Sprawdzenie kodu ESLintem             |
 
-## Learn More
+## Struktura projektu
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/        # strony i layouty (Next.js App Router)
+public/     # zasoby statyczne
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## O projekcie
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+DevMentor jest projektem edukacyjnym realizowanym w trakcie kursu **AI Tech Leaders**. Celem jest praktyczne przećwiczenie budowy produktu z wykorzystaniem narzędzi AI — w szczególności Claude Code — na każdym etapie: od planowania, przez implementację, po code review.
