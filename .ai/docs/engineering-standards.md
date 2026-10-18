@@ -67,7 +67,7 @@ genuinely new pattern appears, never re-implement an existing one inline:**
 
 **Client side — `packages/ui/src/backend/`:**
 
-- `api/apiCall.ts` — the only place a `fetch()` call to `/api/*` is allowed. Parses
+- `api/api-call.ts` — the only place a `fetch()` call to `/api/*` is allowed. Parses
   the JSON envelope above defensively (`readJsonSafe`, never `.json().catch(...)`),
   returns a typed `ApiResult<T>`, and `apiCallOrThrow` for call sites that want to
   throw instead of branching on `ok`. No component calls `fetch` directly.
@@ -372,7 +372,7 @@ fetch/validation/auth/error-handling per feature:
   envelope, logs unexpected failures), `makeCrudRoute.ts` (schema + service in,
   `{ GET, POST, PUT, DELETE }` out, for plain CRUD resources), `auth.ts`
   (`requireSession`, `requireRole`, ownership assertions).
-- `packages/ui/src/backend/` — `api/apiCall.ts` (the only sanctioned `fetch()` call
+- `packages/ui/src/backend/` — `api/api-call.ts` (the only sanctioned `fetch()` call
   site), `forms/CrudForm.tsx`, `tables/DataTable.tsx`,
   `feedback/{LoadingMessage,ErrorMessage,EmptyState}.tsx`.
 
@@ -505,7 +505,7 @@ packages/
           review-stars.tsx
       backend/                                        # generic, concept-agnostic panel
         api/                                           # primitives — this is where NEW
-          apiCall.ts                                   # cross-cutting UI patterns land
+          api-call.ts                                  # cross-cutting UI patterns land
           types.ts                                     # (a new field type, a new table
         forms/                                         # cell renderer, a new feedback
           CrudForm.tsx                                  # state) as the app grows —
@@ -542,7 +542,7 @@ commit.
    - Run `npm run typecheck && npm run lint && npm run build`. Table names, migration
      files, and the `Cradle` interface shape are unaffected — only file paths move.
 2. **Add `packages/core/src/http/` (`errors.ts`, `apiHandler.ts`, `makeCrudRoute.ts`,
-   `auth.ts`) and `packages/ui/src/backend/` (`api/apiCall.ts`, `forms/CrudForm.tsx`,
+   `auth.ts`) and `packages/ui/src/backend/` (`api/api-call.ts`, `forms/CrudForm.tsx`,
    `tables/DataTable.tsx`, `feedback/*`) next, before adding a second concept** — every
    concept from here on depends on these existing, and retrofitting them after three
    concepts already have hand-rolled fetch/error code is much more painful than
