@@ -31,9 +31,13 @@ Kroki odpowiadają „Implementation Plan” w specu.
 
 ### Phase 1: Instalator
 
-- [ ] 1.1 Szkielet i narzędzia
-- [ ] 1.2 Kroki plikowe i wymagania (0–4)
-- [ ] 1.3 Kroki bazodanowe (5–8)
-- [ ] 1.4 Adapter systemowy i wejście
+- [x] 1.1 Szkielet i narzędzia — 0e11085
+- [x] 1.2 Kroki plikowe i wymagania (0–4) — e072d95
+- [x] 1.3 Kroki bazodanowe (5–8) — 23cb1c1
+- [x] 1.4 Adapter systemowy i wejście — a31546e
 - [ ] 1.5 Test integracyjny
 - [ ] 1.6 Dokumentacja
+
+## Dziennik
+
+- 1.1–1.4: `node --experimental-strip-types` działa z `allowImportingTsExtensions` + `verbatimModuleSyntax` (osobny `scripts/tsconfig.json`; główny `tsconfig.json` dostał tylko `allowImportingTsExtensions`, bo test integracyjny importuje kod z `scripts/`). Smoke test w worktree na lokalnym PostgreSQL: 1. przebieg tworzy `.env` i symlink, 2. przebieg pomija `.env`, symlink i bazy; `npm install` i migracje bez zmian. `npm test`: 100% (550/550 instrukcji, wcześniej 383).
