@@ -1,6 +1,6 @@
 # Instalator `npm run setup`
 
-- **Status:** szkic do akceptacji: decyzje 1–4 od właścicielki projektu ([#5](https://github.com/natalia-hanula/devmentor/issues/5)), decyzje wykonawcze w „Resolved assumptions” do przeglądu w PR. **A9 wymaga zgody człowieka przed implementacją.**
+- **Status:** zaakceptowana 2026-10-18 — decyzje 1–4 od właścicielki projektu ([#5](https://github.com/natalia-hanula/devmentor/issues/5)); decyzje wykonawcze A1–A9 zatwierdzone przez właścicielkę ([#6](https://github.com/natalia-hanula/devmentor/pull/6#issuecomment-6248813584)).
 - **Issue:** [#5](https://github.com/natalia-hanula/devmentor/issues/5)
 
 ## 📝 TLDR
@@ -111,7 +111,7 @@ Jedna faza, bo instalator jest użyteczny dopiero w całości. Każdy krok planu
 3. **Kroki bazodanowe (5–8).** Odczyt `DATABASE_URL` (env → `.env` przez `util.parseEnv`), połączenie z bazą `postgres` z limitem czasu, tworzenie brakujących baz, `npm run db:migrate`. Testy jednostkowe na atrapie klienta: każda klasa błędu połączenia z osobnym komunikatem, brak `CREATEDB`, baza istnieje / nie istnieje / `42P04`, baza główna o nazwie `devmentor_integration`, nieprawidłowa i zakodowana nazwa bazy, brak wypisywania hasła.
 4. **Adapter systemowy i wejście.** `system.ts` (fs, `spawn` z dziedziczeniem stdio, dynamiczny import `pg`) i `scripts/setup.ts`. Testy z `vi.mock` modułów `node:*` i `pg`, tak aby oba pliki miały 100% pokrycia. Wpis `"setup"` w `package.json`.
 5. **Test integracyjny.** `tests/integration/setup-databases.int.test.ts`: krok tworzenia baz na bazie z testcontainers. Unikalna nazwa bazy, pierwsze wywołanie → `wykonano`, drugie → `pominięto`, na koniec sprzątanie (`DROP DATABASE`).
-6. **Dokumentacja.** `AGENTS.md` → „Baza danych”: wyjątek dla instalatora (zob. A9), jeśli właścicielka go zatwierdzi. README → „Uruchomienie lokalne”: najpierw „Szybko: `npm run setup`” (wymagania: Node, działający PostgreSQL), potem dotychczasowe kroki 1–4 jako „Ręcznie”. Do tego wiersz w „Dostępne skrypty” i `AGENTS.md` → zakres pokrycia. *Weryfikacja ręczna:* świeży klon + Docker → `npm run setup` → `npm run dev` → `/admin` „połączono”; drugie `npm run setup` → same `pominięto` / migracje bez zmian.
+6. **Dokumentacja.** `AGENTS.md` → „Baza danych”: wyjątek dla instalatora (zatwierdzony — zob. A9). README → „Uruchomienie lokalne”: najpierw „Szybko: `npm run setup`” (wymagania: Node, działający PostgreSQL), potem dotychczasowe kroki 1–4 jako „Ręcznie”. Do tego wiersz w „Dostępne skrypty” i `AGENTS.md` → zakres pokrycia. *Weryfikacja ręczna:* świeży klon + Docker → `npm run setup` → `npm run dev` → `/admin` „połączono”; drugie `npm run setup` → `.env`, symlink i bazy `pominięto`, `npm install` i migracje bez zmian.
 
 ## Kryteria akceptacji
 
@@ -130,7 +130,7 @@ Instalacja Node.js, Dockera, Homebrew i PostgreSQL; tworzenie ról; uruchamianie
 
 ## Resolved assumptions (autonomous defaults)
 
-Decyzje 1–4 z [komentarza właścicielki](https://github.com/natalia-hanula/devmentor/issues/5#issuecomment-6248703980) są wiążące. Poniższe decyzje wykonawcze przyjęłam domyślnie i wszystkie da się odwrócić:
+Decyzje 1–4 z [komentarza właścicielki](https://github.com/natalia-hanula/devmentor/issues/5#issuecomment-6248703980) są wiążące. Poniższe decyzje wykonawcze przyjęłam domyślnie, a właścicielka zatwierdziła je 2026-10-18 ([#6](https://github.com/natalia-hanula/devmentor/pull/6#issuecomment-6248813584)), łącznie z tym, że `npm install` i migracje wykonują się przy każdym uruchomieniu:
 
 | # | Pytanie | Przyjęta odpowiedź | Uzasadnienie |
 |---|---------|--------------------|--------------|
@@ -142,4 +142,4 @@ Decyzje 1–4 z [komentarza właścicielki](https://github.com/natalia-hanula/de
 | A6 | Gdzie wypisywać komunikaty? | wstrzykiwany `write()` → `process.stdout` | To interfejs CLI, a nie log aplikacji. `console.log` jest zakazany, a pino w CLI nie ma sensu. |
 | A7 | Gdzie testy? | `scripts/test/**/*.test.ts`, projekt Vitest `scripts` | Ta sama konwencja co `packages/<pakiet>/test/`. |
 | A8 | Rozdzielić spec? | nie | To jedna zdolność, której części osobno nie działają. |
-| A9 | Surowy SQL przez `pg` w `scripts/` mimo reguł `AGENTS.md` („wszystkie zapytania przez API encji/QueryBuilder MikroORM”, „tylko `db` importuje `@mikro-orm/*`”) | dopuścić jako jawny wyjątek tylko dla instalatora: `SELECT … WHERE datname = $1` z parametrem i `CREATE DATABASE` z identyfikatorem walidowanym i cytowanym przez `escapeIdentifier`; wyjątek dopisany do `AGENTS.md` → „Baza danych” w tym samym PR-ze. **⚠ NEEDS HUMAN CONFIRMATION** | `CREATE DATABASE` nie ma odpowiednika w API encji MikroORM, a `scripts/` nie może importować źródeł `@devmentor/db` pod type stripping (importy bez rozszerzeń). Alternatywa — funkcja w `packages/db` uruchamiana przez loader CLI MikroORM — jest niesprawdzona i komplikuje instalator. Odstępstwo od wiążącej reguły wymaga zgody człowieka. |
+| A9 | Surowy SQL przez `pg` w `scripts/` mimo reguł `AGENTS.md` („wszystkie zapytania przez API encji/QueryBuilder MikroORM”, „tylko `db` importuje `@mikro-orm/*`”) | dopuścić jako jawny wyjątek tylko dla instalatora: `SELECT … WHERE datname = $1` z parametrem i `CREATE DATABASE` z identyfikatorem walidowanym i cytowanym przez `escapeIdentifier`; wyjątek dopisany do `AGENTS.md` → „Baza danych” w tym samym PR-ze. **✅ zatwierdzone 2026-10-18** | `CREATE DATABASE` nie ma odpowiednika w API encji MikroORM, a `scripts/` nie może importować źródeł `@devmentor/db` pod type stripping (importy bez rozszerzeń). Alternatywa — funkcja w `packages/db` uruchamiana przez loader CLI MikroORM — jest niesprawdzona i komplikuje instalator. Odstępstwo od wiążącej reguły zatwierdziła właścicielka projektu. |
