@@ -3,9 +3,9 @@
 - Date: 2026-10-18
 - Mode: own; Owner: Natalia (właścicielka zakresu w repo, D02); Pass: full
 - Evidence basis: 7 rozmów z różnymi osobami (3 mentees z blokerem, 1 platform dev bez problemu, 3 seniorów-mentorów; 2026-08-20 – 2026-09-03); 5 z nich ma surowe notatki founderów poprzedniego zespołu, notatki z 2026-08-20 i 2026-08-22 to same podsumowania bez prowadzącego i metody; eksport z Discorda (109 wątków, 2026-08-18 – 2026-08-31) i anonimowa ankieta (54 odpowiedzi) pochodzą z jednej społeczności i od jednej osoby (founder B, moderator), która też nadała etykiety tematu i rozwiązania — traktować jako jedno źródło; 5 benchmarków sprawdzonych 2026-09-04; lista 50 mentorów (nikt nie kontaktowany). Ankieta mierzy deklaracje, nie płatności. Zakres 1.0 i kryteria testów to decyzje Natalii (D01–D16). Najbardziej konsekwentne niesprawdzone przekonanie: że zaproszeni mentorzy opublikują rezerwowalne terminy (A01) i że mentees faktycznie zapłacą (A02).
-- Coverage: 71 claims — 63 sourced (interview 10, data 5, document 46, product 1, benchmark 1), 0 synthetic, 8 assumed; 2 entries on the collection plan
+- Coverage: 71 claims — 63 sourced (interview 10, data 5, document 46, product 1, benchmark 1), 0 synthetic, 8 assumed; 2 entries on the collection plan (stan przed D17–D23; do przeliczenia przy `om-discover --refresh`)
 - Synthetic hypotheses outside Coverage: 0
-- Definition of Ready signed by: Natalia, 2026-10-18 (zatwierdzenie briefu); ready for: etap 1 testu podaży (D09) oraz planowanie implementacji zakresu 1.0 — specyfikacja cennika czeka na Q01; budowa przed wynikiem etapu 1 to świadomie przyjęte ryzyko (D09); pomiar popytu z prawdziwymi płatnościami czeka na regulamin (Q09)
+- Definition of Ready signed by: Natalia, 2026-10-18 (zatwierdzenie briefu); ready for: etap 1 testu podaży (D09) oraz planowanie implementacji zakresu 1.0 — blokery backlogu rozstrzygnięte 2026-10-18 (D17–D23, w tym widełki cen Q01); budowa przed wynikiem etapu 1 to świadomie przyjęte ryzyko (D09); pomiar popytu z prawdziwymi płatnościami czeka na regulamin (Q09)
 - Sources: `.ai/specs/research/` (rozmowy `2026-08-20-*`, `2026-08-22-*`, `2026-09-0[1-3]-interview-*`; dane `2026-09-04-discord-help-requests.csv`, `2026-09-04-data-request-discord-help.md`, `2026-09-04-survey-discord-willingness-to-pay.md`; benchmarki `2026-09-04-benchmark-*.md`; lista `2026-09-04-mentor-list*.{csv,md}`; warsztat `2026-08-26-workshop-export.md`; tablica `2026-09-0*-miro-board-*.md`), `.ai/specs/research/decisions/`
 
 ## Decision summary
@@ -18,7 +18,7 @@ Problem ma oparcie po stronie mentee: trzech programistów bez seniora pod ręk�
 
 Największa niezgodność: mentees opisywali potrzebę „w dwadzieścia minut”, „within the hour”, „tego samego dnia”, a przypadek wyceny wymagał rozmowy, nie tekstu — 1.0 obsłuży najwyżej 2 z 3 opisanych przypadków i żadnego w ich czasie. 1.0 to rezerwacja terminu bez obietnicy czasu odpowiedzi (D05), najwcześniej 2 h przed startem (R16), z wymaganym kontem (R17) — dev z fintechu nie chciał zakładać konta i dawał rezerwacji 5 minut (A05). Czy to wystarczy w pilnej sytuacji, jest niesprawdzone (A03). Podaż jest niezmierzona — nikt z listy 50 nie został zaproszony (A01). Chęć zapłaty to deklaracje dotyczące odpowiedzi tekstowej w ciągu godziny: 37 z 54 zapłaciłoby „coś”, 3 kiedykolwiek komuś zapłaciło; o rezerwacji terminu bez obietnicy czasu ankieta nic nie mówi (A02). Kryteria zatrzymania są ustalone dla podaży i popytu (Kill criteria, D09–D11) — to progi wybrane przez Natalię, nie pomiary. Budowa 1.0 idzie równolegle z etapem 1, zanim wiadomo, czy mentorzy się zgłoszą: świadome ryzyko (D09).
 
-Następny krok: Natalia przygotowuje tekst zaproszenia i wysyła go 20 pierwszym mentorom z prośbą o deklarację ceny, okna dostępności i zgody na katalog; ocena po 2 tygodniach — co najmniej 5 deklaracji albo wstrzymanie i rozmowy z odmawiającymi (D09; data otwarta). Przed specyfikacją cennika Natalia ustala widełki cen po przejrzeniu benchmarku (Q01). Regulamin (Q09) jest poza 1.0 kursowym, ale bez niego nie da się przyjmować prawdziwych płatności, więc kryteria popytu (D11) nie mogą zostać zmierzone.
+Następny krok: Natalia przygotowuje tekst zaproszenia i wysyła go 20 pierwszym mentorom z prośbą o deklarację ceny, okna dostępności i zgody na katalog; ocena po 2 tygodniach — co najmniej 5 deklaracji albo wstrzymanie i rozmowy z odmawiającymi (D09; data otwarta). Widełki cen: 25 min 80–215 PLN, 50 min 150–430 PLN, w konfiguracji operatora (D17, Q01 zamknięte). Regulamin (Q09) jest poza 1.0 kursowym, ale bez niego nie da się przyjmować prawdziwych płatności, więc kryteria popytu (D11) nie mogą zostać zmierzone.
 
 ## Vision
 
@@ -70,7 +70,7 @@ Kierunek zespołu (nie wykazana korzyść): programista utknięty na konkretnym 
 
 ## Scope
 
-- **Now (1.0):** mentor publikuje profil (link do publicznej pracy, opis, R10), cenę w widełkach (R08) i terminy 25/50 min (R01); mentee wchodzi z linku mentora (ze śledzeniem źródła, R14) albo z katalogu opt-in (R11), zakłada konto (R17), rezerwuje termin najpóźniej 2 h przed startem (R16) z obowiązkowym opisem problemu (R04) i płaci z góry przez Stripe (R03, R13); mentor widzi opis i może odwołać (R04, R05); sesja tekstowa na ekranie sesji w DevMentorze (N01, D14); odwołania i nieobecności wg R05–R07; prowizja R09. Źródło każdej rezerwacji (link mentora vs katalog) jest zapisywane (R14). Test podaży w dwóch etapach (D09); budowa nie czeka na etap 1.
+- **Now (1.0):** mentor dostaje rolę z zaproszenia operatora (D18), publikuje profil (link do publicznej pracy, opis, R10), cenę w widełkach (R08, D17, R18) i terminy 25/50 min (R01); mentee wchodzi z linku mentora (ze śledzeniem źródła, R14) albo z katalogu opt-in (R11), zakłada konto (R17), rezerwuje termin najpóźniej 2 h przed startem (R16) z obowiązkowym opisem problemu (R04) i płaci z góry (R13; w 1.0 port płatności z adapterem mock, adapter Stripe test mode jako osobne zadanie — D20, R03); mentor widzi opis i może odwołać (R04, R05); sesja tekstowa na ekranie sesji w DevMentorze w oknie slotu (N01, D14, R19); odwołania i nieobecności wg R05–R07 i R20; prowizja R09. Źródło każdej rezerwacji (link mentora vs katalog) jest zapisywane (R14). Test podaży w dwóch etapach (D09); budowa nie czeka na etap 1.
 - **Later:** skarbiec notatek i subskrypcja (N03), MCP (N04), publikacja notatek z sesji za zgodą mentee (R02), prowizja zależna od źródła klienta (A06), obietnica czasu odpowiedzi (R12), faktury dla pracodawcy (Q07).
 - **Not doing:** see Non-goals
 
@@ -115,6 +115,10 @@ Kierunek zespołu (nie wykazana korzyść): programista utknięty na konkretnym 
 | R15 | Mentor przechodzi Stripe Connect przed pierwszą wypłatą, nie przed publikacją terminów ani rezerwacją. | płatności, onboarding mentora | `[DOCUMENT]` D10 | active | unknown | rekord zastępujący zatwierdzony przez Natalię | Natalia | none |
 | R16 | Slot można zarezerwować najpóźniej 2 h przed jego startem. | rezerwacja | `[DOCUMENT]` D15 | active | gdy test podaży zmierzy czas reakcji | rekord zastępujący zatwierdzony przez Natalię | Natalia | none |
 | R17 | Rezerwacja i płatność wymagają zalogowania; konto przez GitHub lub e-mail + hasło. | rezerwacja, konto mentee | `[DOCUMENT]` D13 | active | po pomiarze porzuceń (A05) | rekord zastępujący zatwierdzony przez Natalię | Natalia | none |
+| R18 | Widełki: 25 min 80–215 PLN, 50 min 150–430 PLN, w konfiguracji operatora; cena spoza nowych widełek pozostaje ważna do następnej edycji mentora, który widzi ostrzeżenie. | cennik | `[DOCUMENT]` D17, D19 | active | po deklaracjach etapu 1 (D09) | | rekord zastępujący zatwierdzony przez Natalię | Natalia | none |
+| R19 | Ekran sesji przyjmuje wiadomości od startu slotu przez 25/50 min, potem jest tylko do odczytu. | sesja | `[DOCUMENT]` D21 | active | unknown | | rekord zastępujący zatwierdzony przez Natalię | Natalia | none |
+| R20 | Nieobecność = brak wiadomości strony w pierwszych 10 min slotu; sesja odbyta = obie strony ≥ 1 wiadomość w oknie sesji; nieobecność mentora (także gdy nikt nie pisze) → pełny zwrot, ma pierwszeństwo przed sesją odbytą. Liczone automatycznie. | nieobecność, wypłaty | `[DOCUMENT]` D22 | active | po pierwszych sesjach | | rekord zastępujący zatwierdzony przez Natalię | Natalia | none |
+| R21 | Rolę mentora nadaje zaproszenie operatora (token lub allowlista e-mail); brak publicznej rejestracji mentora w 1.0. | konto mentora | `[DOCUMENT]` D18 | active | unknown | | rekord zastępujący zatwierdzony przez Natalię | Natalia | none |
 
 ## Non-goals
 
@@ -145,6 +149,13 @@ Kierunek zespołu (nie wykazana korzyść): programista utknięty na konkretnym 
 | D14 | 2026-10-18 | Sesja tekstowa na ekranie sesji w DevMentorze. | alternatywa: zewnętrzny komunikator | Natalia | active | unknown | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D14-in-app-text-session.md` | none |
 | D15 | 2026-10-18 | Rezerwacja najpóźniej 2 h przed startem; rezerwacja < 24 h przed sesją bezzwrotna dla mentee (R07, R16). | domyka R07 | Natalia | active | gdy test podaży zmierzy czas reakcji | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D15-booking-cutoff-and-late-booking.md` | none |
 | D16 | 2026-10-18 | Link mentora z parametrem źródła; wejścia i rezerwacje z linku zapisywane (R14). | alternatywa: deklaracja mentora | Natalia | active | unknown | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D16-mentor-link-source-tracking.md` | none |
+| D17 | 2026-10-18 | Widełki: 25 min 80–215 PLN, 50 min 150–430 PLN; walidacja na serwerze; konfiguracja operatora (R18). | propozycja 80–300 / 150–550 skorygowana po zestawieniu z ankietą | Natalia | active | po deklaracjach etapu 1 i pierwszych sesjach | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D17-price-ranges.md` | none |
+| D18 | 2026-10-18 | Rola mentora z zaproszenia operatora (token / allowlista e-mail); logowanie jak mentee; brak publicznej rejestracji mentora (R21). | alternatywa: publiczna rejestracja „zostań mentorem” | Natalia | active | gdy podaż ma rosnąć poza zaproszonych | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D18-mentor-role-by-invitation.md` | none |
+| D19 | 2026-10-18 | Cena spoza nowych widełek ważna do następnej edycji; mentor widzi ostrzeżenie (R18). | alternatywy: przycięcie ceny, blokada rezerwacji | Natalia | active | unknown | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D19-price-outside-new-range.md` | none |
+| D20 | 2026-10-18 | Port płatności + adapter mock w 1.0; adapter Stripe test mode jako osobne, nieblokujące zadanie. | prawdziwe płatności czekają na Q09 | Natalia | active | unknown | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D20-payment-port-mock-first.md` | none |
+| D21 | 2026-10-18 | Ekran sesji zapisywalny od startu slotu przez 25/50 min, potem tylko do odczytu (R19). | domyka D14 | Natalia | active | unknown | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D21-session-write-window.md` | none |
+| D22 | 2026-10-18 | Nieobecność = brak wiadomości w pierwszych 10 min; odbyta = obie strony ≥ 1 wiadomość; nieobecność mentora ma pierwszeństwo (R20). | alternatywa: późne dołączenie liczy się jako odbyta | Natalia | active | po pierwszych sesjach | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D22-no-show-and-held-session.md` | none |
+| D23 | 2026-10-18 | Kontaktowalni tylko zalogowani odwiedzający link mentora; wizyty anonimowe tylko zliczane (D16). | domyka D11 | Natalia | active | unknown | rekord zastępujący zatwierdzony przez Natalię | `[DOCUMENT]` `decisions/D23-contactable-visitors.md` | none |
 
 ## Riskiest assumptions
 
@@ -172,7 +183,7 @@ Brak — nie przeprowadzono symulacji person.
 
 | Id | Question | Blocking | Who can answer | Status |
 |---|---|---|---|---|
-| Q01 | Jakie są widełki cen sesji 25 i 50 min? | yes — specyfikacja cennika i walidacji ceny | Natalia (operator), po przejrzeniu benchmarku | open |
+| Q01 | Jakie są widełki cen sesji 25 i 50 min? | — | Natalia (operator), po przejrzeniu benchmarku | closed: 25 min 80–215 PLN, 50 min 150–430 PLN (D17) |
 | Q02 | Czy mentee musi założyć konto przed rezerwacją? | — | Natalia | closed: tak, GitHub lub e-mail + hasło (D13) |
 | Q03 | Kiedy mentor podaje dane do wypłat (Stripe)? | — | Natalia | closed: po rezerwacji, przed pierwszą wypłatą (D10, R15); możliwość w Stripe Connect do sprawdzenia w specyfikacji płatności |
 | Q04 | Jaki wynik po stronie popytu oznacza zatrzymanie lub zmianę 1.0? | — | Natalia | closed: D11 |
@@ -185,10 +196,16 @@ Brak — nie przeprowadzono symulacji person.
 | Q11 | Czy beachhead TS/React/Python/AI agents z tablicy obowiązuje dla 1.0 (np. filtry katalogu)? | no | Natalia | open |
 | Q12 | Jaki próg dla podziału rezerwacji link mentora vs katalog? | no — przegląd w 4. tygodniu po starcie | Natalia | open |
 | Q13 | Jak stwierdzić, że mentor udostępnił link własnej publiczności (D10)? | — | Natalia | closed: parametr źródła w linku (D16) |
+| Q14 | Jak konto staje się kontem mentora i czy mentor loguje się jak mentee? (backlog 2026-10-18) | — | Natalia | closed: zaproszenie operatora, logowanie jak mentee (D18) |
+| Q15 | Co z ceną mentora, która wypadła poza nowe widełki? (backlog 2026-10-18) | — | Natalia | closed: ważna do następnej edycji, ostrzeżenie w panelu (D19) |
+| Q16 | Czy 1.0 ma adapter Stripe test mode, czy tylko mock? (backlog 2026-10-18) | — | Natalia | closed: mock w 1.0, Stripe test mode jako osobne zadanie (D20) |
+| Q17 | Kiedy ekran sesji jest zapisywalny? (backlog 2026-10-18) | — | Natalia | closed: od startu slotu przez 25/50 min, potem tylko odczyt (D21) |
+| Q18 | Jak rozpoznać nieobecność i sesję odbytą? (backlog 2026-10-18) | — | Natalia | closed: 10 min bez wiadomości / obie strony ≥ 1 wiadomość; nieobecność ma pierwszeństwo (D22) |
+| Q19 | Kogo da się zidentyfikować wśród odwiedzających bez rezerwacji? (backlog 2026-10-18) | — | Natalia | closed: tylko zalogowanych; anonimowi zliczani (D23) |
 
 ## Definition of Ready addendum (own)
 
-Problems i Target group mają oparcie w rozmowach (3 mentees, 3 mentorów) i w danych z jednej społeczności od jednej osoby; częstotliwość u jednej osoby i faktyczna płatność są nieznane. Decyzje zakresu 1.0 i kryteria testów (D01–D05, D07–D16) są podjęte i przypisane Natalii. A01 ma test (D09), ale budowa 1.0 przed jego wynikiem to ryzyko świadomie przyjęte przez Natalię (D09) — nie dowód podaży. A02, A03 i A05 mają test po starcie (D11, D13). Gotowe do: etapu 1 testu podaży oraz planowania implementacji zakresu 1.0; specyfikacja cennika czeka na Q01. Pomiar popytu (D11) wymaga prawdziwych płatności, a te — regulaminu (Q09), który Natalia stawia poza 1.0 kursowym: do jego rozstrzygnięcia kryteria popytu nie mogą zostać sprawdzone. Podpis: Natalia, 2026-10-18.
+Problems i Target group mają oparcie w rozmowach (3 mentees, 3 mentorów) i w danych z jednej społeczności od jednej osoby; częstotliwość u jednej osoby i faktyczna płatność są nieznane. Decyzje zakresu 1.0 i kryteria testów (D01–D05, D07–D16) są podjęte i przypisane Natalii. A01 ma test (D09), ale budowa 1.0 przed jego wynikiem to ryzyko świadomie przyjęte przez Natalię (D09) — nie dowód podaży. A02, A03 i A05 mają test po starcie (D11, D13). Gotowe do: etapu 1 testu podaży oraz planowania implementacji zakresu 1.0; blokery backlogu (Q01, Q14–Q19) rozstrzygnięte decyzjami D17–D23 (2026-10-18). Pomiar popytu (D11) wymaga prawdziwych płatności, a te — regulaminu (Q09), który Natalia stawia poza 1.0 kursowym: do jego rozstrzygnięcia kryteria popytu nie mogą zostać sprawdzone. Podpis: Natalia, 2026-10-18.
 
 ## Collection plan
 

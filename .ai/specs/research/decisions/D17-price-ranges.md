@@ -1,0 +1,6 @@
+# D17 — Widełki cen: 25 min 80–215 PLN, 50 min 150–430 PLN, w konfiguracji operatora
+- Date, owner: 2026-10-18, Natalia; źródło: odpowiedź na blokery backlogu 2026-10-18 (Q01)
+- Context and the options weighed: propozycja Natalii 80–300 / 150–550 PLN zestawiona z ankietą (`2026-09-04-survey-discord-willingness-to-pay.md`, kwoty w EUR, przeliczenie przybliżone ok. 4,3 PLN/EUR): ≥ 25 EUR deklaruje 23/54, > 50 EUR 11/54, > 100 EUR 3/54; freelancer „poniżej 200 to tak, z wlasnego” (2026-09-02); Preply 137–223 PLN za lekcję (benchmark 2026-09-04). Dolne granice zgodne z danymi; górne (300 ≈ 70 EUR, 550 ≈ 128 EUR) ponad deklaracje niemal wszystkich respondentów. Alternatywa: zostawić 300/550 ze względu na mentorów chcących wysokiej ceny (D08).
+- Decision and why: 25 min: 80–215 PLN, 50 min: 150–430 PLN — maksima na granicach przedziałów ankiety (50 i 100 EUR). Mentor ustawia cenę w tym zakresie; walidacja po stronie serwera; widełki w konfiguracji operatora, zmiana bez zmiany kodu.
+- Consequences, and what would make us revisit it: ankieta pytała o odpowiedź tekstową w ciągu godziny, nie o sesję 25/50 min, i mierzy deklaracje, nie płatności; minimum 50 min (≈ 35 EUR) jest powyżej deklaracji co najmniej 31/54. Rewizja po deklaracjach cen z etapu 1 (D09) i po pierwszych opłaconych sesjach (D11).
+- Status: active
