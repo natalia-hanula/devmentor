@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
+    "setup": "node --experimental-strip-types scripts/setup.ts",
     "dev": "npm run dev -w @devmentor/app",
     "build": "npm run build -w @devmentor/app",
     "start": "npm run start -w @devmentor/app",
