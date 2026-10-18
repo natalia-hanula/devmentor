@@ -7,3 +7,57 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Katalog `.ai/` — pamięć i proces pracy agentów
+
+Wszystkie artefakty pracy AI (specyfikacje, logi przebiegów, wnioski) trzymamy w `.ai/`. Korzystanie z tej struktury jest **obowiązkowe** — nie twórz takich plików w innych miejscach repozytorium (np. w katalogu głównym, `docs/` czy `tmp/`).
+
+```
+.ai/
+├── specs/                 # specyfikacje SDD w toku (szkice i zatwierdzone, jeszcze niewdrożone)
+│   ├── implemented/       # specyfikacje w pełni wdrożone
+│   └── archive/           # specyfikacje porzucone lub zastąpione
+├── runs/                  # logi autonomicznych przebiegów AI
+├── lessons.md             # indeks wniosków — krótkie, jednolinijkowe wpisy
+└── lessons/               # dłuższe opisy wniosków, do których linkuje lessons.md
+```
+
+### Nazewnictwo plików
+
+- Pliki w `specs/` (w tym w podkatalogach), `runs/` i `lessons/` mają nazwę `YYYY-MM-DD-slug.md`, np. `2026-10-18-rezerwacja-sesji.md`.
+- `YYYY-MM-DD` to data utworzenia pliku. Nie zmieniaj jej przy przenoszeniu ani edycji.
+- `slug` pisz małymi literami, bez polskich znaków, ze słowami rozdzielonymi myślnikami (`kebab-case`), i ogranicz go do kilku słów.
+
+### Przed rozpoczęciem pracy
+
+1. Przeczytaj `.ai/lessons.md` i otwórz pliki z `.ai/lessons/`, które dotyczą Twojego zadania.
+2. Sprawdź `.ai/specs/`, czy zadanie nie ma już specyfikacji. Jeśli ma, traktuj ją jako źródło prawdy dla zakresu i kryteriów akceptacji.
+
+### Specyfikacje (SDD)
+
+- Nowa funkcjonalność lub większa zmiana zaczyna się od specyfikacji w `.ai/specs/`. Kod piszesz dopiero po jej akceptacji przez człowieka.
+- Specyfikacja zawiera co najmniej: cel, zakres (co wchodzi, a co nie), wymagania, kryteria akceptacji i otwarte pytania.
+- Jeśli podczas implementacji okaże się, że trzeba odejść od specyfikacji, najpierw ją zaktualizuj i zgłoś zmianę człowiekowi.
+- Po pełnym wdrożeniu przenieś plik do `.ai/specs/implemented/` za pomocą `git mv`. Specyfikację porzuconą lub zastąpioną przenieś do `.ai/specs/archive/` i dopisz na górze pliku powód (oraz odnośnik do specyfikacji, która ją zastąpiła).
+
+### Logi przebiegów (`runs/`)
+
+- Każdy autonomiczny przebieg (praca bez bieżącego nadzoru człowieka, np. wielokrokowa implementacja, pętla, zadanie w tle) **musi** mieć log w `.ai/runs/YYYY-MM-DD-slug.md`. Utwórz go na początku przebiegu i uzupełniaj na bieżąco, nie dopiero na końcu.
+- Log zawiera: cel i powiązaną specyfikację, kolejne kroki z decyzjami i ich uzasadnieniem, napotkane problemy, zmienione pliki, wynik (co działa, co nie, co zostało do zrobienia).
+- Jeśli tego samego dnia jest kilka przebiegów o podobnym temacie, rozróżnij je slugiem (np. `-2`).
+
+### Lessons
+
+Zapisuj wnioski, gdy:
+
+- naprawisz błąd, którego przyczyna nie była oczywista;
+- odkryjesz pułapkę w stacku, narzędziach lub konwencjach projektu (np. różnice w tej wersji Next.js);
+- człowiek poprawi Twoje podejście albo potwierdzi nieoczywistą decyzję;
+- ustalisz coś, co trzeba pamiętać długoterminowo.
+
+Zasady:
+
+- Każdy wniosek to jednolinijkowy wpis w `.ai/lessons.md` (najnowsze na górze, format opisany w pliku).
+- Jeśli wniosek wymaga kontekstu (objawy, przyczyna, rozwiązanie, jak zapobiegać), opisz go w `.ai/lessons/YYYY-MM-DD-slug.md` i podlinkuj z wpisu w indeksie.
+- Zanim dodasz nowy wpis, sprawdź, czy podobny już istnieje. Jeśli tak, zaktualizuj go zamiast dublować. Wnioski, które okazały się błędne, usuń.
+- Nie zapisuj tego, co wynika wprost z kodu lub historii gita.
