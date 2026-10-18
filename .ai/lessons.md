@@ -11,6 +11,7 @@ Format wpisu (najnowsze na górze):
 
 ## Wpisy
 
+- 2026-10-18 — Branch protection / rulesety na `main` są celowo wyłączone: repo jest prywatne na darmowym planie GitHuba (API zwraca 403 „Upgrade to GitHub Pro”), a decyzją właścicielki nie upgradujemy ani nie upubliczniamy repo. Nie próbuj ich włączać — obowiązuje zasada „nie merguj PR-a z czerwonym CI” (`AGENTS.md` → „Testy i CI”).
 - 2026-10-18 — Vitest 5: uruchomienie z `--project <nazwa>` nie zbiera pokrycia (raport „Unknown”) — pokrycie zawsze sprawdzaj pełnym `npm test`.
 - 2026-10-18 — Kod nie do pokrycia testem (np. wywołanie funkcji z tego samego modułu, martwa gałąź `?? ""`) to sygnał do zmiany kodu: wydziel moduł / wstrzyknij zależność / usuń gałąź — nie dopisuj wyłączeń z pokrycia.
 - 2026-10-18 — `agent-browser` ma natywne binarki w paczce npm, a wrapper sam robi `chmod` — `postinstall` (blokowany przez npm 11) nie jest potrzebny. Lokalnie używa zainstalowanego Chrome'a; w CI na ubuntu-24.04 potrzebne `AGENT_BROWSER_ARGS=--no-sandbox`.
