@@ -1,8 +1,11 @@
 export { createOrmConfig, requireDatabaseUrl, type OrmConfigInput } from "./config";
-export { getOrm } from "./orm";
-export { entities } from "./entities";
+export { initOrm } from "./orm";
+export { isDatabaseUnavailableError } from "./errors";
+export { entities, Technology } from "./entities";
+export * from "./constants";
+// `core` korzysta z ORM wyłącznie przez te re-eksporty — tylko `db` importuje `@mikro-orm/*`.
 export {
-  DatabaseHealthService,
-  type DatabaseHealth,
-} from "./database-health-service";
-export type { EntityManager, MikroORM } from "@mikro-orm/postgresql";
+  UniqueConstraintViolationException,
+  type EntityManager,
+  type MikroORM,
+} from "@mikro-orm/postgresql";

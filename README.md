@@ -21,6 +21,8 @@
 - [TypeScript](https://www.typescriptlang.org)
 - [PostgreSQL](https://www.postgresql.org) + [MikroORM](https://mikro-orm.io) — baza danych, encje, migracje, pula połączeń
 - [Awilix](https://github.com/jeffijoe/awilix) — kontener Dependency Injection
+- [Zod](https://zod.dev) — walidacja danych i konfiguracji
+- [pino](https://getpino.io) — logowanie
 - [Tailwind CSS](https://tailwindcss.com) 4 — strony frontendowe
 - [shadcn/ui](https://ui.shadcn.com) — strony backendowe (panele)
 - [Vitest](https://vitest.dev) — testy
@@ -80,7 +82,7 @@ npm run db:migrate
 npm run dev
 ```
 
-Aplikacja będzie dostępna pod adresem [http://localhost:3000](http://localhost:3000), a panel admina (ze stanem połączenia z bazą) pod [http://localhost:3000/admin](http://localhost:3000/admin).
+Aplikacja będzie dostępna pod adresem [http://localhost:3000](http://localhost:3000), panel admina (ze stanem połączenia z bazą) pod [http://localhost:3000/admin](http://localhost:3000/admin), a słownik technologii pod [http://localhost:3000/admin/technologies](http://localhost:3000/admin/technologies). Zapisy wymagają zalogowania, a auth nie jest jeszcze wdrożone, więc na razie serwer odpowiada na nie 401.
 
 ## Dostępne skrypty
 
@@ -107,68 +109,86 @@ DevMentor jest monorepo opartym na npm workspaces. Kod dzieli się na pakiety w 
 
 ```
 packages/
-├── app/    # @devmentor/app  — aplikacja Next.js (trasy, layouty, Server Actions)
-├── core/   # @devmentor/core — logika biznesowa, typy, serwisy, kontener DI
-├── db/     # @devmentor/db   — MikroORM: konfiguracja, encje, repozytoria, migracje
-└── ui/     # @devmentor/ui   — komponenty interfejsu wielokrotnego użytku (shadcn/ui)
+├── app/    # @devmentor/app  — Next.js: strony, layouty, trasy API (tylko HTTP i renderowanie)
+├── core/   # @devmentor/core — logika biznesowa: serwisy, walidatory Zod, warstwa HTTP, kontener DI
+├── db/     # @devmentor/db   — MikroORM: encje, konfiguracja, migracje
+└── ui/     # @devmentor/ui   — komponenty interfejsu (shadcn/ui) i warstwa budowania paneli
 ```
 
-Pakiety wewnętrzne eksportują źródła TypeScript bez kroku budowania — kompilują je Turbopack (w Next.js) i Vitest (w testach).
+Pakiety wewnętrzne eksportują źródła TypeScript bez kroku budowania — kompilują je Turbopack (w Next.js) i Vitest (w testach). Szczegółowe standardy inżynieryjne są w [`.ai/docs/engineering-standards.md`](.ai/docs/engineering-standards.md), a ich wiążąca wersja dla tego repo w [`AGENTS.md`](AGENTS.md).
 
 ### Zależności między pakietami
 
 ```
         ┌──────────────┐
         │     app      │
-        └──┬────┬────┬─┘
-           │    │    │
-           ▼    │    ▼
-        ┌────┐  │  ┌────┐
-        │ ui │  │  │ db │
-        └─┬──┘  │  └─┬──┘
-          ▼     ▼    ▼
-        ┌──────────────┐
-        │     core     │
-        └──────────────┘
+        └───┬──────┬───┘
+            │      │
+            ▼      ▼
+        ┌──────┐ ┌────┐
+        │ core │ │ ui │
+        └──┬───┘ └────┘
+           ▼
+        ┌──────┐
+        │  db  │
+        └──────┘
 ```
 
-Zależności płyną tylko w dół: `core` nie zna żadnego innego pakietu, a `app` składa wszystko w całość.
+`app → core → db` oraz `app → ui`. `ui` i `db` nie importują żadnego pakietu wewnętrznego, `core` nie zna Next.js ani Reacta, a tylko `db` importuje `@mikro-orm/*`. Granice wymusza ESLint (`no-restricted-imports`).
 
 ### Warstwy
 
-- **Prezentacja (`app` + `ui`)** — strony publiczne (katalog mentorów, profile) stylowane Tailwind CSS; panele (admin, mentor, uczeń) w grupie tras `app/(panel)/`, budowane z komponentów shadcn/ui z `@devmentor/ui`. Domyślnie Server Components.
-- **Logika biznesowa (`core`)** — serwisy niezależne od Next.js, łatwe do testowania w izolacji.
-- **Dane (`db`)** — PostgreSQL przez MikroORM 7 (encje definiowane przez `defineEntity`). Jedna pula połączeń na proces (`getOrm()`), osobny `EntityManager` dla każdego żądania. Zmiany schematu wyłącznie przez migracje w `packages/db/migrations`.
+- **Prezentacja (`app` + `ui`)** — grupy tras per persona: `(marketing)` dla stron publicznych (Tailwind), `(admin)`, a z czasem `(auth)`, `(student)` i `(mentor)` dla paneli (shadcn/ui). Strony pobierają dane przez `apiCall`, listy renderują przez `DataTable`, formularze przez `CrudForm`.
+- **HTTP (`core/src/http`)** — `apiHandler` (koperta `{ ok, data | error }`, mapowanie błędów, CSRF, logowanie), `makeCrudRoute` (trasy CRUD z konfiguracji), `auth` (sesja, role, własność rekordów).
+- **Logika biznesowa (`core/src/services`)** — serwisy pogrupowane w foldery koncepcji (`services/mentors/technology.service.ts`). Rzucają typowane błędy (`NotFoundError`, `ConflictError` …), nigdy nie budują odpowiedzi HTTP. Walidatory Zod w `core/src/validators/<koncepcja>/` są wspólne dla trasy API i formularza.
+- **Dane (`db`)** — PostgreSQL przez MikroORM 7 (`defineEntity`, UUID jako ID). Jedna pula połączeń na proces, osobny `EntityManager` dla każdego żądania. Zmiany schematu wyłącznie przez migracje w `packages/db/migrations`.
 
 ### Dependency Injection
 
-Serwisy i repozytoria rejestrowane są w kontenerze **Awilix**. Kontener główny powstaje raz na proces, a dla każdego żądania tworzony jest scope z zależnościami kontekstowymi (np. `EntityManager`, zalogowany użytkownik). Trasy i Server Actions pobierają serwisy z kontenera zamiast tworzyć je ręcznie:
+Kontener **Awilix** w `core/src/container/` powstaje raz na proces (`env`, `logger`, `orm`). Każde żądanie dostaje własny scope z `EntityManager` i serwisami, rejestrowanymi jawnie, bez skanowania folderów. Trasa API to w praktyce konfiguracja:
 
-```tsx
-const scope = await createRequestScope(); // packages/app/lib/container.ts
-const health = await scope.cradle.databaseHealthService.check();
+```ts
+// packages/app/app/api/technologies/route.ts
+export const { GET, POST, PUT, DELETE } = makeCrudRoute({
+  service: "technologyService",
+  createSchema: technologyCreateSchema,
+  updateSchema: technologyUpdateSchema,
+  access: { read: "public" }, // zapisy domyślnie wymagają sesji
+});
+
+// przepływ niestandardowy
+export const GET = apiHandler(async () => withScope((cradle) => cradle.databaseHealthService.check()));
 ```
 
 ### Praca z agentami AI
 
-Założenia architektoniczne i zasady pracy dla agentów kodujących są w [`AGENTS.md`](AGENTS.md). Specyfikacje, logi przebiegów i wnioski trzymamy w katalogu [`.ai/`](.ai/).
+Założenia architektoniczne i zasady pracy dla agentów kodujących są w [`AGENTS.md`](AGENTS.md). Specyfikacje, logi przebiegów, wnioski i dokumenty referencyjne trzymamy w katalogu [`.ai/`](.ai/).
 
 ## Struktura repozytorium
 
 ```
 packages/
-├── app/
-│   ├── app/              # trasy Next.js; app/(panel)/ — strony backendowe
-│   ├── lib/container.ts  # kompozycja kontenera DI (scope na żądanie)
-│   └── public/           # zasoby statyczne
-├── core/src/             # kontener DI, logika biznesowa
+├── app/app/
+│   ├── (marketing)/          # strony publiczne
+│   ├── (admin)/admin/        # panel admina: przegląd, technologie
+│   └── api/                  # trasy API: health, technologies
+├── core/src/
+│   ├── config/env.ts         # walidacja zmiennych środowiskowych (Zod)
+│   ├── container/            # kontener DI: container.ts, cradle.ts
+│   ├── http/                 # errors, api-handler, make-crud-route, auth
+│   ├── services/<koncepcja>/ # serwisy domenowe
+│   ├── validators/<koncepcja>/ # schematy Zod (klient + serwer)
+│   └── logger.ts             # pino z redakcją sekretów
 ├── db/
-│   ├── src/              # konfiguracja ORM, encje, serwisy danych
-│   ├── migrations/       # migracje MikroORM
-│   └── mikro-orm.config.ts  # konfiguracja CLI migracji
-└── ui/src/               # komponenty shadcn/ui, globals.css z tokenami
-docker-compose.yml        # PostgreSQL w Dockerze (alternatywa dla Homebrew)
-.ai/                      # specyfikacje, logi przebiegów AI, wnioski
+│   ├── src/entities/<koncepcja>/ # encje (defineEntity) + base.entity.ts
+│   ├── migrations/           # migracje MikroORM
+│   └── mikro-orm.config.ts   # konfiguracja CLI migracji
+└── ui/src/
+    ├── components/ui/        # prymitywy shadcn/ui
+    ├── backend/              # api-call, crud-form, data-table, feedback
+    └── styles/globals.css    # Tailwind + tokeny shadcn
+docker-compose.yml            # PostgreSQL w Dockerze (alternatywa dla Homebrew)
+.ai/                          # specyfikacje, logi, wnioski, dokumenty (docs/)
 ```
 
 ## O projekcie
