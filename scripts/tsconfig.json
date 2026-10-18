@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // Instalator działa przez type stripping w Node (`node --experimental-strip-types`): importy muszą
+    // mieć rozszerzenie `.ts`, składnia musi być w pełni usuwalna, a importy samych typów — jawnie `import type`.
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true
+  },
+  "include": ["**/*.ts"]
+}

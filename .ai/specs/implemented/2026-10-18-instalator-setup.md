@@ -30,7 +30,7 @@ Pojedynczy skrypt TypeScript uruchamiany przez Node bez kompilacji (type strippi
 | 8 | Migracje `npm run db:migrate` | MikroORM sam pomija wykonane migracje | błąd przekazany dalej, kod 1 |
 | 9 | Podsumowanie | — | — |
 
-Na koniec instalator wypisuje tabelę stanów i podpowiedź `npm run dev`. Nie uruchamia serwera.
+Linie stanów kroków (jedna na krok, wypisywana od razu) są podsumowaniem; na koniec instalator dopisuje podpowiedź `npm run dev` albo, po błędzie, prośbę o ponowne uruchomienie. Nie uruchamia serwera. (Zmiana względem pierwotnej „tabeli stanów” — zgłoszona w review PR #7: osobna tabela powtarzałaby te same linie.)
 
 `DATABASE_URL` jest odczytywany z tą samą precedencją co `packages/db/mikro-orm.config.ts`: najpierw `process.env.DATABASE_URL`, potem główny `.env`. Plik parsuje wbudowane `util.parseEnv` z Node, bez własnego parsera.
 
@@ -115,14 +115,14 @@ Jedna faza, bo instalator jest użyteczny dopiero w całości. Każdy krok planu
 
 ## Kryteria akceptacji
 
-- [ ] Na świeżym klonie z działającym PostgreSQL `npm run setup`, a potem `npm run dev` daje działające `/admin` ze stanem połączenia.
-- [ ] Drugie uruchomienie kończy się kodem 0, kroki 3, 4 i 7 mają stan `pominięto`, `npm install` i migracje nic nie zmieniają, a `.env` jest bajt w bajt taki sam.
-- [ ] Istniejący `packages/app/.env`, który nie jest symlinkiem do `../../.env`, zostaje nietknięty i jest ostrzeżenie.
-- [ ] Gdy PostgreSQL nie odpowiada: kod 1 i instrukcja ręczna. Instalator nie uruchamia `brew` ani `docker`.
-- [ ] Brakująca `devmentor_integration` przy istniejącej bazie głównej zostaje utworzona.
-- [ ] `win32` → odesłanie do ręcznych kroków, kod 1.
-- [ ] `npm test` ma 100% pokrycia z `scripts/**` w zakresie. `npm run test:integration` zawiera test tworzenia baz.
-- [ ] README opisuje obie ścieżki. `AGENTS.md` opisuje nowy zakres pokrycia.
+- [x] Na świeżym klonie z działającym PostgreSQL `npm run setup`, a potem `npm run dev` daje działające `/admin` ze stanem połączenia. (Sprawdzone na świeżym worktree z PostgreSQL z Homebrew: `next dev` czyta `.env` przez symlink, a `/api/health`, z którego `/admin` pokazuje stan połączenia, zwraca `ok: true`. Wariantu Docker nie sprawdzałam lokalnie.)
+- [x] Drugie uruchomienie kończy się kodem 0, kroki 3, 4 i 7 mają stan `pominięto`, `npm install` i migracje nic nie zmieniają, a `.env` jest bajt w bajt taki sam.
+- [x] Istniejący `packages/app/.env`, który nie jest symlinkiem do `../../.env`, zostaje nietknięty i jest ostrzeżenie.
+- [x] Gdy PostgreSQL nie odpowiada: kod 1 i instrukcja ręczna. Instalator nie uruchamia `brew` ani `docker`.
+- [x] Brakująca `devmentor_integration` przy istniejącej bazie głównej zostaje utworzona.
+- [x] `win32` → odesłanie do ręcznych kroków, kod 1.
+- [x] `npm test` ma 100% pokrycia z `scripts/**` w zakresie. `npm run test:integration` zawiera test tworzenia baz.
+- [x] README opisuje obie ścieżki. `AGENTS.md` opisuje nowy zakres pokrycia.
 
 ## Poza zakresem
 
