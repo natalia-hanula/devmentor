@@ -8,6 +8,68 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Architektura i stack
+
+DevMentor to monorepo. Poniższe założenia są wiążące — odstępstwo wymaga zmiany specyfikacji i zgody człowieka.
+
+### Stack
+
+- **npm workspaces** (bez Turborepo/Nx — do decyzji, gdy pakietów przybędzie). Node.js ≥ 22.17 (wymóg MikroORM 7).
+- **Next.js** (najnowsza wersja, App Router, włączone `cacheComponents`), **React**, **TypeScript** w trybie `strict`.
+- **PostgreSQL** jako baza danych, dostęp przez **MikroORM** (encje, migracje, pula połączeń).
+- **Awilix** jako kontener Dependency Injection.
+- **Tailwind CSS** dla stron frontendowych (publicznych).
+- **shadcn/ui** dla stron backendowych (panel administracyjny i panele użytkowników).
+- **Vitest** do testów (`npm test` w katalogu głównym; każdy pakiet z testami ma własny `vitest.config.ts`).
+
+### Pakiety (`packages/`)
+
+| Pakiet | Nazwa | Odpowiedzialność |
+| --- | --- | --- |
+| `packages/app` | `@devmentor/app` | Aplikacja Next.js: trasy, layouty, Server Actions, Route Handlers, kompozycja kontenera DI. |
+| `packages/core` | `@devmentor/core` | Kod wielokrotnego użytku niezależny od frameworka: typy domenowe, logika biznesowa, serwisy, narzędzia, fabryka kontenera Awilix. |
+| `packages/db` | `@devmentor/db` | Konfiguracja MikroORM, encje, repozytoria, migracje, seedy. |
+| `packages/ui` | `@devmentor/ui` | Komponenty interfejsu wielokrotnego użytku (w tym komponenty shadcn/ui). |
+
+Nowe pakiety dodajemy tylko po uzgodnieniu z człowiekiem.
+
+### Reguły zależności
+
+- Dozwolony kierunek: `app → ui, core, db`; `db → core`; `ui → core`. `core` nie importuje żadnego pakietu wewnętrznego ani Next.js/Reacta.
+- Importuj inne pakiety wyłącznie przez nazwę (`@devmentor/db`), nigdy ścieżką względną typu `../../db/src`.
+- Logika biznesowa należy do `core` (lub `db`, jeśli dotyczy dostępu do danych), nie do komponentów i tras w `app`.
+- Zależność instaluj w pakiecie, który jej używa (`npm install <pkg> -w @devmentor/<pakiet>`), a nie w katalogu głównym. Wyjątek: narzędzia całego repo (ESLint, Vitest, TypeScript) są w głównym `package.json`.
+- Pakiety wewnętrzne eksportują źródła TypeScript (pole `exports` → `src/`), bez kroku budowania — Turbopack i Vitest kompilują je same.
+
+### Baza danych (MikroORM)
+
+- MikroORM uruchamiaj wyłącznie po stronie serwera (Server Components, Server Actions, Route Handlers). Nie importuj `@devmentor/db` w komponentach `"use client"`.
+- Jedna instancja `MikroORM` (pula połączeń) na proces; każde żądanie pracuje na własnym `EntityManager` (`em.fork()`), nigdy na globalnym.
+- Encje definiuj przez `defineEntity` / `EntitySchema`, nie przez dekoratory oparte na `emitDecoratorMetadata` (SWC/Turbopack ich nie wspiera).
+- Każda zmiana schematu = migracja wygenerowana w `packages/db` i zacommitowana razem z kodem. Nie używaj `schema:update` poza lokalnymi eksperymentami.
+- Pakiety MikroORM ładujemy natywnie, nie bundlujemy: `@mikro-orm/postgresql`, `@mikro-orm/sql` i `@mikro-orm/migrations` są w `serverExternalPackages` w `packages/app/next.config.ts` (domyślna lista Next.js zna tylko `core` i stary `knex`). Nowy pakiet `@mikro-orm/*` dopisz tam; nigdy nie dodawaj ich do `transpilePackages`.
+- Aplikacja bierze ORM z `getOrm()` (`@devmentor/db`), CLI migracji — z `packages/db/mikro-orm.config.ts`. Wspólne ustawienia trzymaj w `createOrmConfig()`, a nowe encje dopisuj do `packages/db/src/entities/index.ts`.
+- Komponent, który czyta bazę, opakuj w `<Suspense>` i zacznij od `await connection()` (wymóg `cacheComponents`).
+- Zmienne środowiskowe są w jednym `.env` w katalogu głównym; `packages/app/.env` to symlink do niego (Next.js czyta `.env` tylko z katalogu aplikacji). Nie twórz osobnych plików `.env` w pakietach.
+
+### Dependency Injection (Awilix)
+
+- Serwisy i repozytoria rejestruj w kontenerze; nie twórz ich ręcznie przez `new` w trasach i komponentach.
+- Zależności przyjmuj przez konstruktor/parametr fabryki (wstrzykiwanie przez obiekt, `InjectionMode.PROXY`), co ułatwia testy z mockami.
+- Kontener główny tworzony jest raz na proces; zależności związane z żądaniem (np. `em`, bieżący użytkownik) rejestruj w scope tworzonym na żądanie — `createRequestScope()` z `packages/app/lib/container.ts`. Nowe serwisy dopisuj tam i do typu `RequestCradle`.
+- Kontener tworzy `createAppContainer()` z `@devmentor/core` (`PROXY` + `strict`) — nie wywołuj `createContainer` z awilix bezpośrednio.
+- Domyślny czas życia: `SCOPED` dla serwisów korzystających z `em`, `SINGLETON` dla bezstanowych narzędzi i konfiguracji.
+
+### UI
+
+- Strony publiczne (landing, katalog mentorów, profile): Tailwind CSS.
+- Strony backendowe (panel admina, panel mentora/ucznia): komponenty shadcn/ui z `@devmentor/ui`.
+- Strony backendowe żyją w grupie tras `packages/app/app/(panel)/` (np. `(panel)/admin`, `(panel)/mentor`, `(panel)/uczen`) i dzielą jej layout.
+- Komponenty shadcn dodawaj do `packages/ui` przez CLI, uruchamiane w tym katalogu: `cd packages/ui && npx shadcn@latest add <komponent>`. Importuj je jako `@devmentor/ui/components/<nazwa>`. Komponenty używane w jednym miejscu mogą zostać w `app`; przenieś je do `ui`, gdy pojawi się drugie użycie.
+- shadcn 4.x importuje `cn` z paczki npm `cn` (zamiennik `clsx` + `tailwind-merge`) — to oczekiwane, nie poprawiaj tych importów.
+- Style: `packages/app/app/globals.css` importuje `@devmentor/ui/globals.css` (Tailwind + tokeny shadcn). Nie importuj `tailwindcss` drugi raz w innym pliku.
+- Domyślnie Server Components; `"use client"` tylko tam, gdzie potrzebna jest interaktywność.
+
 ## Katalog `.ai/` — pamięć i proces pracy agentów
 
 Wszystkie artefakty pracy AI (specyfikacje, logi przebiegów, wnioski) trzymamy w `.ai/`. Korzystanie z tej struktury jest **obowiązkowe** — nie twórz takich plików w innych miejscach repozytorium (np. w katalogu głównym, `docs/` czy `tmp/`).
@@ -80,7 +142,7 @@ Zasady:
 
 Nie uznawaj zmiany za gotową, dopóki nie udowodnisz, że działa:
 
-- uruchom `npm run lint` i `npx tsc --noEmit`, a przy większych zmianach także `npm run build`;
+- uruchom w katalogu głównym `npm run lint`, `npm run typecheck` i `npm test`, a przy większych zmianach także `npm run build`;
 - jeśli w projekcie są testy dotyczące zmienionego kodu, uruchom je; nowa logika powinna dostać testy;
 - zmiany w UI sprawdź w działającej aplikacji (`npm run dev`), a nie tylko w kodzie;
 - sprawdź zmianę z kryteriami akceptacji specyfikacji;
