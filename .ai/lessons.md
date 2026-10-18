@@ -11,6 +11,7 @@ Format wpisu (najnowsze na górze):
 
 ## Wpisy
 
+- 2026-10-18 — Znane ograniczenie: wariantu Docker instalatora `npm run setup` nikt nie sprawdził ręcznie, bo w środowisku właścicielki nie ma Dockera. Lokalnie przetestowany jest tylko wariant Homebrew, a testcontainers działa wyłącznie w CI (tworzenie baz, nie cały instalator). Przy zmianach instalatora wariant Docker zgłaszaj w PR-ze jako niesprawdzony, chyba że ktoś z Dockerem przejdzie go ręcznie.
 - 2026-10-18 — Type stripping w Node (`node --experimental-strip-types`, `scripts/`) usuwa tylko importy oznaczone `import type`: bez `verbatimModuleSyntax: true` (bazowy tsconfig ma `false`) import samego typu przechodzi typecheck, a w Node kończy się błędem „does not provide an export named”. Do tego importy z rozszerzeniem `.ts` (`allowImportingTsExtensions`) i `erasableSyntaxOnly` — zob. `scripts/tsconfig.json`.
 - 2026-10-18 — Branch protection / rulesety na `main` są celowo wyłączone: repo jest prywatne na darmowym planie GitHuba (API zwraca 403 „Upgrade to GitHub Pro”), a decyzją właścicielki nie upgradujemy ani nie upubliczniamy repo. Nie próbuj ich włączać — obowiązuje zasada „nie merguj PR-a z czerwonym CI” (`AGENTS.md` → „Testy i CI”).
 - 2026-10-18 — Vitest 5: uruchomienie z `--project <nazwa>` nie zbiera pokrycia (raport „Unknown”) — pokrycie zawsze sprawdzaj pełnym `npm test`.
