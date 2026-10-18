@@ -1,0 +1,42 @@
+import { join } from "node:path";
+import type { SetupStep } from "../types.ts";
+
+export const ROOT_ENV = ".env";
+export const ENV_EXAMPLE = ".env.example";
+/** Next.js czyta `.env` tylko z katalogu aplikacji, więc wskazuje on na główny plik. */
+export const APP_ENV = join("packages", "app", ".env");
+export const APP_ENV_TARGET = join("..", "..", ".env");
+
+export const envFileStep: SetupStep = {
+  name: "Plik .env",
+  async run({ system }) {
+    const envPath = join(system.rootDir, ROOT_ENV);
+    if (system.pathKind(envPath) !== "missing") {
+      return { status: "skipped", message: ".env istnieje — nie nadpisuję" };
+    }
+    system.copyFile(join(system.rootDir, ENV_EXAMPLE), envPath);
+    return { status: "done", message: `utworzono .env z ${ENV_EXAMPLE}` };
+  },
+};
+
+export const appEnvLinkStep: SetupStep = {
+  name: "Symlink packages/app/.env",
+  async run({ system }) {
+    const linkPath = join(system.rootDir, APP_ENV);
+    // `pathKind` opiera się na `lstat`, więc „wiszący” symlink też jest wykrywany jako symlink.
+    const kind = system.pathKind(linkPath);
+    if (kind === "missing") {
+      system.symlink(APP_ENV_TARGET, linkPath);
+      return { status: "done", message: `utworzono ${APP_ENV} → ${APP_ENV_TARGET}` };
+    }
+    if (kind === "symlink" && system.readLink(linkPath) === APP_ENV_TARGET) {
+      return { status: "skipped", message: `${APP_ENV} wskazuje na ${APP_ENV_TARGET}` };
+    }
+    return {
+      status: "skipped",
+      message:
+        `uwaga: ${APP_ENV} istnieje, ale nie jest symlinkiem do ${APP_ENV_TARGET} — zostawiam bez zmian. ` +
+        `Jeśli aplikacja nie widzi zmiennych, napraw: rm ${APP_ENV} && ln -s ${APP_ENV_TARGET} ${APP_ENV}`,
+    };
+  },
+};
