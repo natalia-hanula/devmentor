@@ -1,0 +1,6 @@
+# D01 — Zakres 1.0: płatna pomoc tekstowa 25/50 min; skarbiec i MCP później; ręczny test podaży mentorów równolegle
+- Date, owner: 2026-10-18, Natalia (właścicielka zakresu w repo); źródło: sesja om-discover 2026-10-18
+- Context and the options weighed: (a) 1.0 = płatna pomoc tekstowa od kogoś, kto rozwiązał ten sam problem, skarbiec i MCP później; (b) 1.0 ze skarbcem i MCP od początku; (c) nic nie budować przed testem podaży mentorów.
+- Decision and why: (a), z ręcznym testem podaży mentorów równolegle. Rekomendacja agenta przyjęta przez Natalię: potrzeba pilnej pomocy ma oparcie w rozmowach z mentees (2026-08-20, 2026-09-01, 2026-09-02) i w eksporcie Discorda; po stronie mentee subskrypcję odrzuciło 3 z 4 rozmówców (2026-08-20, 2026-09-01, 2026-09-02 platform dev), zapisane odpowiedzi 2 z 4 (2026-09-01, 2026-09-02 platform dev); u pozostałych temat nie padł. (Poprawka agenta 2026-10-18 po recenzji: pierwotny zapis „wszyscy czterej” zawyżał materiał; decyzja bez zmian.)
+- Consequences, and what would make us revisit it: 1.0 nie realizuje wyróżnika „mentors earn twice” ani motywacji mentorów „notatki zarabiają bez calla” (2026-08-22, 2026-09-03). Wracamy do skarbca, gdy mentorzy w teście podaży lub mentees w użyciu 1.0 dadzą sygnał, że notatki mają wartość dla płacącego.
+- Status: active
