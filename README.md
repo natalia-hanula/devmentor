@@ -25,7 +25,9 @@
 - [pino](https://getpino.io) — logowanie
 - [Tailwind CSS](https://tailwindcss.com) 4 — strony frontendowe
 - [shadcn/ui](https://ui.shadcn.com) — strony backendowe (panele)
-- [Vitest](https://vitest.dev) — testy
+- [Vitest](https://vitest.dev) — testy jednostkowe (pokrycie 100%) i integracyjne
+- [testcontainers](https://testcontainers.com) + [agent-browser](https://github.com/vercel-labs/agent-browser) — PostgreSQL i przeglądarka w testach integracyjnych
+- [GitHub Actions](https://docs.github.com/actions) — CI dla każdego pull requesta
 - npm workspaces — monorepo
 - [GitHub](https://github.com/natalia-hanula/devmentor) — repozytorium i kontrola wersji
 - [Claude Code](https://claude.com/claude-code) — asystent AI wspierający development
@@ -52,7 +54,7 @@ brew services start postgresql@17
 psql -h localhost -d postgres <<'SQL'
 CREATE ROLE devmentor WITH LOGIN PASSWORD 'devmentor' CREATEDB;
 CREATE DATABASE devmentor OWNER devmentor;
-CREATE DATABASE devmentor_test OWNER devmentor;
+CREATE DATABASE devmentor_integration OWNER devmentor;
 SQL
 ```
 
@@ -64,7 +66,7 @@ SQL
 docker compose up -d
 ```
 
-`docker-compose.yml` tworzy tę samą rolę oraz bazy `devmentor` i `devmentor_test`, więc ten sam `.env` działa w obu wariantach.
+`docker-compose.yml` tworzy tę samą rolę oraz bazy `devmentor` i `devmentor_integration`, więc ten sam `.env` działa w obu wariantach.
 
 ### 3. Zmienne środowiskowe
 
@@ -95,13 +97,26 @@ Uruchamiane z katalogu głównego:
 | `npm run start`                       | Uruchomienie buildu produkcyjnego                           |
 | `npm run lint`                        | ESLint dla całego monorepo                                  |
 | `npm run typecheck`                   | `tsc --noEmit` we wszystkich pakietach                      |
-| `npm test`                            | Testy (Vitest) wszystkich pakietów                          |
+| `npm test`                            | Testy jednostkowe z pokryciem (próg 100%)                   |
 | `npm run test:watch`                  | Vitest w trybie watch                                       |
+| `npm run test:integration`            | Build + testy integracyjne (PostgreSQL, API, agent-browser) |
 | `npm run db:migrate`                  | Wykonanie oczekujących migracji                             |
 | `npm run db:migration:create`         | Nowa migracja na podstawie zmian w encjach                  |
 | `npm run db:migration:list`           | Lista wykonanych migracji                                   |
 
-Testy integracyjne `db` korzystają z bazy `DATABASE_URL_TEST`. Bez niej są pomijane.
+
+## Testy i CI
+
+- **Jednostkowe** — `npm test`. Vitest z pokryciem v8; każdy plik z zakresu musi mieć 100% linii, gałęzi, funkcji i instrukcji, inaczej polecenie kończy się błędem. Raport HTML: `coverage/index.html`.
+- **Integracyjne** — `npm run test:integration`. Buduje aplikację, uruchamia PostgreSQL w kontenerze (testcontainers), wykonuje migracje, startuje `next start` i testuje API oraz UI przez `agent-browser`. Wymaga Dockera albo zmiennej `INTEGRATION_DATABASE_URL` wskazującej pustą bazę testową (setup czyści jej schemat):
+
+  ```bash
+  INTEGRATION_DATABASE_URL=postgresql://devmentor:devmentor@localhost:5432/devmentor_integration npm run test:integration
+  ```
+
+- **CI** — `.github/workflows/ci.yml` dla każdego pull requesta i pushu do `main`: lint + typecheck, testy jednostkowe (próg 100%), build bez bazy, testy integracyjne.
+
+Zasady pisania testów są w [`AGENTS.md`](AGENTS.md) → „Testy i CI”.
 
 ## Architektura
 
@@ -187,6 +202,8 @@ packages/
     ├── components/ui/        # prymitywy shadcn/ui
     ├── backend/              # api-call, crud-form, data-table, feedback
     └── styles/globals.css    # Tailwind + tokeny shadcn
+tests/integration/            # testy integracyjne: global-setup, support/, *.int.test.ts
+.github/workflows/ci.yml      # CI: lint, testy jednostkowe, build, testy integracyjne
 docker-compose.yml            # PostgreSQL w Dockerze (alternatywa dla Homebrew)
 .ai/                          # specyfikacje, logi, wnioski, dokumenty (docs/)
 ```

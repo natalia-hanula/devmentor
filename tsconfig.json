@@ -1,7 +1,14 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "files": ["vitest.config.ts"]
+  "files": [
+    "vitest.config.ts"
+  ],
+  "include": [
+    "tests/integration/**/*.ts"
+  ]
 }

@@ -1,58 +1,90 @@
-import { initOrm, type MikroORM } from "@devmentor/db";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { Technology, UniqueConstraintViolationException } from "@devmentor/db";
+import { describe, expect, it } from "vitest";
 import { ConflictError, NotFoundError, TechnologyService } from "../src";
+import { createFakeEntityManager } from "./fake-entity-manager";
 
-const testDatabaseUrl = process.env.DATABASE_URL_TEST;
+const ID = "6f1c1f9e-3b8a-4c39-9a51-0c8e7c3a1d2b";
+const NOW = new Date("2026-10-18T10:00:00.000Z");
 
-// Wymaga działającego PostgreSQL i DATABASE_URL_TEST (zob. .env.example).
-describe.skipIf(!testDatabaseUrl)("TechnologyService (integracyjny)", () => {
-  let orm: MikroORM;
-  const service = () => new TechnologyService({ em: orm.em.fork() });
+function storedTechnology(overrides: Partial<Record<string, unknown>> = {}) {
+  return { id: ID, name: "Go", slug: "go", createdAt: NOW, updatedAt: NOW, ...overrides };
+}
 
-  beforeAll(async () => {
-    orm = await initOrm(testDatabaseUrl!);
-    await orm.schema.drop();
-    await orm.schema.create();
-  });
+describe("TechnologyService", () => {
+  it("list zwraca DTO posortowane po nazwie", async () => {
+    const { fake, em } = createFakeEntityManager();
+    fake.find.mockResolvedValue([storedTechnology()]);
 
-  beforeEach(async () => {
-    await orm.schema.clear();
-  });
+    const list = await new TechnologyService({ em }).list();
 
-  afterAll(async () => {
-    await orm?.close(true);
-  });
-
-  it("tworzy technologię z UUID i znacznikami czasu, a lista jest posortowana po nazwie", async () => {
-    await service().create({ name: "TypeScript", slug: "typescript" });
-    await service().create({ name: "Go", slug: "go" });
-
-    const list = await service().list();
-
-    expect(list.map((t) => t.name)).toEqual(["Go", "TypeScript"]);
-    expect(list[0].id).toMatch(/^[0-9a-f-]{36}$/);
-    expect(Date.parse(list[0].createdAt)).not.toBeNaN();
-  });
-
-  it("zgłasza ConflictError przy zduplikowanym slugu — także przy równoczesnym zapisie", async () => {
-    const results = await Promise.allSettled([
-      service().create({ name: "Rust", slug: "rust" }),
-      service().create({ name: "Rust lang", slug: "rust" }),
+    expect(fake.find).toHaveBeenCalledWith(Technology, {}, { orderBy: { name: "asc" } });
+    expect(list).toEqual([
+      { id: ID, name: "Go", slug: "go", createdAt: NOW.toISOString(), updatedAt: NOW.toISOString() },
     ]);
-
-    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    const rejected = results.find((r) => r.status === "rejected");
-    expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(ConflictError);
   });
 
-  it("aktualizuje i usuwa, a dla nieistniejącego ID rzuca NotFoundError", async () => {
-    const created = await service().create({ name: "Jav", slug: "jav" });
+  it("create tworzy encję tylko z jawnych pól i zapisuje ją", async () => {
+    const { fake, em } = createFakeEntityManager();
 
-    const updated = await service().update(created.id, { name: "Java", slug: "java" });
-    await service().delete(created.id);
+    const created = await new TechnologyService({ em }).create({ name: "Rust", slug: "rust" });
 
-    expect(updated).toMatchObject({ name: "Java", slug: "java" });
-    await expect(service().update(created.id, { name: "X" })).rejects.toBeInstanceOf(NotFoundError);
-    await expect(service().delete(created.id)).rejects.toBeInstanceOf(NotFoundError);
+    expect(fake.create).toHaveBeenCalledWith(Technology, { name: "Rust", slug: "rust" });
+    expect(fake.flush).toHaveBeenCalledOnce();
+    expect(created).toMatchObject({ id: ID, name: "Rust", slug: "rust" });
+  });
+
+  it("create zamienia naruszenie unikalności na ConflictError", async () => {
+    const { fake, em } = createFakeEntityManager();
+    fake.flush.mockRejectedValue(new UniqueConstraintViolationException(new Error("duplicate key")));
+
+    await expect(new TechnologyService({ em }).create({ name: "Go", slug: "go" })).rejects.toBeInstanceOf(
+      ConflictError,
+    );
+  });
+
+  it("create przepuszcza inne błędy zapisu bez zmian", async () => {
+    const { fake, em } = createFakeEntityManager();
+    const failure = new Error("disk full");
+    fake.flush.mockRejectedValue(failure);
+
+    await expect(new TechnologyService({ em }).create({ name: "Go", slug: "go" })).rejects.toBe(failure);
+  });
+
+  it("update zmienia tylko przekazane pola", async () => {
+    const { fake, em } = createFakeEntityManager();
+    const entity = storedTechnology();
+    fake.findOne.mockResolvedValue(entity);
+    const service = new TechnologyService({ em });
+
+    await service.update(ID, { name: "Golang" });
+    expect(entity).toMatchObject({ name: "Golang", slug: "go" });
+
+    await service.update(ID, { slug: "golang" });
+    expect(entity).toMatchObject({ name: "Golang", slug: "golang" });
+
+    const unchanged = await service.update(ID, {});
+    expect(unchanged).toMatchObject({ name: "Golang", slug: "golang" });
+    expect(fake.findOne).toHaveBeenCalledWith(Technology, { id: ID });
+  });
+
+  it("delete usuwa istniejącą technologię", async () => {
+    const { fake, em } = createFakeEntityManager();
+    const entity = storedTechnology();
+    fake.findOne.mockResolvedValue(entity);
+
+    await new TechnologyService({ em }).delete(ID);
+
+    expect(fake.remove).toHaveBeenCalledWith(entity);
+    expect(fake.flush).toHaveBeenCalledOnce();
+  });
+
+  it("update i delete rzucają NotFoundError dla nieistniejącego ID", async () => {
+    const { fake, em } = createFakeEntityManager();
+    fake.findOne.mockResolvedValue(null);
+    const service = new TechnologyService({ em });
+
+    await expect(service.update(ID, { name: "X" })).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.delete(ID)).rejects.toBeInstanceOf(NotFoundError);
+    expect(fake.flush).not.toHaveBeenCalled();
   });
 });

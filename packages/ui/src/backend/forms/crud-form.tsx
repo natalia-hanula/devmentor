@@ -65,7 +65,7 @@ export function CrudForm<TValues extends Record<string, unknown>>({
 
     const parsed = schema.safeParse(values);
     if (!parsed.success) {
-      setFieldErrors(toFieldErrors(parsed.error));
+      showErrors(toFieldErrors(parsed.error), null);
       return;
     }
 
@@ -74,15 +74,20 @@ export function CrudForm<TValues extends Record<string, unknown>>({
     setIsSubmitting(false);
 
     if (!result.ok) {
-      const { [FORM_ERROR_KEY]: formLevel, ...perField } = result.error.fieldErrors ?? {};
-      setFieldErrors(perField);
-      setFormError(formLevel?.join(" ") ?? result.error.message);
+      showErrors(result.error.fieldErrors ?? {}, result.error.message);
       return;
     }
 
     setFieldErrors({});
     setValues(emptyValues);
     onSuccess?.();
+  }
+
+  /** Błędy pól przy polach, błędy całego formularza (klucz `_form`) — nad formularzem. */
+  function showErrors(errors: FieldErrors, fallbackFormError: string | null) {
+    const { [FORM_ERROR_KEY]: formLevel, ...perField } = errors;
+    setFieldErrors(perField);
+    setFormError(formLevel?.join(" ") ?? fallbackFormError);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLFormElement>) {
@@ -107,7 +112,7 @@ export function CrudForm<TValues extends Record<string, unknown>>({
         const commonProps = {
           id: inputId,
           name: field.name,
-          value: values[field.name] ?? "",
+          value: values[field.name],
           placeholder: field.placeholder,
           "aria-invalid": errors ? true : undefined,
           "aria-describedby": describedBy,

@@ -73,6 +73,21 @@ describe("makeCrudRoute", () => {
     expect(technologyService.create).toHaveBeenCalledWith({ name: "Go", slug: "go" });
   });
 
+  it("DELETE usuwa rekord i zwraca jego ID", async () => {
+    technologyService.delete.mockResolvedValue(undefined);
+    const routes = makeCrudRoute({
+      service: "technologyService",
+      createSchema: technologyCreateSchema,
+      updateSchema: technologyUpdateSchema,
+      access: { read: "public", write: async () => undefined },
+    });
+
+    const response = await routes.DELETE(request("DELETE", `/api/technologies?id=${ID}`), context);
+
+    expect(await response.json()).toEqual({ ok: true, data: { id: ID } });
+    expect(technologyService.delete).toHaveBeenCalledWith(ID);
+  });
+
   it("PUT i DELETE wymagają poprawnego ?id=", async () => {
     technologyService.update.mockResolvedValue({ id: ID, name: "Golang" });
     const routes = makeCrudRoute({

@@ -11,6 +11,10 @@ Format wpisu (najnowsze na górze):
 
 ## Wpisy
 
+- 2026-10-18 — Vitest 5: uruchomienie z `--project <nazwa>` nie zbiera pokrycia (raport „Unknown”) — pokrycie zawsze sprawdzaj pełnym `npm test`.
+- 2026-10-18 — Kod nie do pokrycia testem (np. wywołanie funkcji z tego samego modułu, martwa gałąź `?? ""`) to sygnał do zmiany kodu: wydziel moduł / wstrzyknij zależność / usuń gałąź — nie dopisuj wyłączeń z pokrycia.
+- 2026-10-18 — `agent-browser` ma natywne binarki w paczce npm, a wrapper sam robi `chmod` — `postinstall` (blokowany przez npm 11) nie jest potrzebny. Lokalnie używa zainstalowanego Chrome'a; w CI na ubuntu-24.04 potrzebne `AGENT_BROWSER_ARGS=--no-sandbox`.
+- 2026-10-18 — Testy integracyjne lokalnie bez Dockera: `INTEGRATION_DATABASE_URL` na osobną bazę (`devmentor_integration`) — setup czyści jej schemat, więc nigdy nie wskazuj bazy z danymi.
 - 2026-10-18 — MikroORM 7 łączy się z bazą leniwie: `MikroORM.init()` przechodzi przy wyłączonej bazie, a błąd pojawia się przy pierwszym zapytaniu jako `DriverException` z kodem `ECONNREFUSED` (nie `ConnectionException`) — do klasyfikacji używaj `isDatabaseUnavailableError` z `@devmentor/db`.
 - 2026-10-18 — MikroORM 7: `Migration.addSql()` przyjmuje tylko SQL, bez parametrów — dane referencyjne w migracjach wpisuj jako stałe literały, nigdy wartości z zewnątrz.
 - 2026-10-18 — Po przeniesieniu lub zmianie nazw tras `npm run typecheck` w `app` może padać na nieaktualnych `.next/dev/types` (z `next dev`), których `next typegen` nie odświeża — usuń `packages/app/.next`.

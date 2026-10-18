@@ -84,6 +84,16 @@ describe("apiHandler", () => {
     expect(malformed.status).toBe(400);
   });
 
+  it("błąd walidacji na poziomie całego obiektu trafia pod klucz _form", async () => {
+    const handler = apiHandler(async (req) => parseJsonBody(req, z.object({ name: z.string() })));
+
+    const response = await handler(request("POST", { body: JSON.stringify(42) }), context);
+    const body = (await response.json()) as { error: { fieldErrors: Record<string, string[]> } };
+
+    expect(response.status).toBe(400);
+    expect(Object.keys(body.error.fieldErrors)).toEqual(["_form"]);
+  });
+
   it("używa successStatus przy sukcesie", async () => {
     const handler = apiHandler(async () => ({ id: 1 }), { successStatus: 201 });
 
