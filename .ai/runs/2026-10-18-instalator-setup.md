@@ -37,6 +37,7 @@ Kroki odpowiadają „Implementation Plan” w specu.
 - [x] 1.4 Adapter systemowy i wejście — a31546e
 - [x] 1.5 Test integracyjny — 4ce04c0
 - [x] 1.6 Dokumentacja — 85cd2f9
+- [x] Post-review fix: błąd zamykania połączenia nie zmienia kodu wyjścia, ścieżka speca, sprzątanie testu integracyjnego, dokładne asercje błędów, nazwa domyślnej roli, spec: linie kroków jako podsumowanie — 727bd5f
 
 ## Dziennik
 
