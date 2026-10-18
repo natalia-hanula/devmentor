@@ -36,7 +36,24 @@
 
 Wymagania: **Node.js 22.17+** (wymóg MikroORM 7), npm oraz PostgreSQL 17.
 
-### 1. Kod i zależności
+### Szybko: `npm run setup`
+
+Uruchom PostgreSQL z rolą `devmentor` (zob. krok 2 poniżej): `docker compose up -d` tworzy ją sam, a przy Homebrew wykonaj `CREATE ROLE` z kroku 2, bez tworzenia baz. Potem:
+
+```bash
+git clone https://github.com/natalia-hanula/devmentor.git
+cd devmentor
+npm run setup
+npm run dev
+```
+
+Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
+
+> Na Node 22 instalator wypisuje ostrzeżenie `ExperimentalWarning` o type stripping. To jest oczekiwane.
+
+### Ręcznie
+
+#### 1. Kod i zależności
 
 ```bash
 git clone https://github.com/natalia-hanula/devmentor.git
@@ -44,7 +61,7 @@ cd devmentor
 npm install
 ```
 
-### 2. Baza danych
+#### 2. Baza danych
 
 **Wariant A — Homebrew (macOS):**
 
@@ -68,7 +85,7 @@ docker compose up -d
 
 `docker-compose.yml` tworzy tę samą rolę oraz bazy `devmentor` i `devmentor_integration`, więc ten sam `.env` działa w obu wariantach.
 
-### 3. Zmienne środowiskowe
+#### 3. Zmienne środowiskowe
 
 ```bash
 cp .env.example .env
@@ -77,7 +94,7 @@ ln -s ../../.env packages/app/.env
 
 `.env` jest jeden, w katalogu głównym. Next.js czyta `.env` tylko z katalogu aplikacji, dlatego `packages/app/.env` jest symlinkiem do pliku głównego.
 
-### 4. Migracje i start
+#### 4. Migracje i start
 
 ```bash
 npm run db:migrate
@@ -92,6 +109,7 @@ Uruchamiane z katalogu głównego:
 
 | Skrypt                                | Opis                                                        |
 | ------------------------------------- | ----------------------------------------------------------- |
+| `npm run setup`                       | Instalator środowiska lokalnego (idempotentny)              |
 | `npm run dev`                         | Serwer deweloperski z hot reloadem                          |
 | `npm run build`                       | Build produkcyjny                                           |
 | `npm run start`                       | Uruchomienie buildu produkcyjnego                           |
