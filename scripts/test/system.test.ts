@@ -122,16 +122,22 @@ describe("pathKind", () => {
     expect(pathKind("/p")).toBe("missing");
   });
 
-  it.each([Object.assign(new Error("brak dostępu"), { code: "EACCES" }), "napis"])(
-    "przekazuje dalej inne błędy (%s)",
-    (error) => {
-      fs.lstatSync.mockImplementation(() => {
-        throw error;
-      });
+  it("przekazuje dalej inne błędy lstat", () => {
+    const denied = Object.assign(new Error("brak dostępu"), { code: "EACCES" });
+    fs.lstatSync.mockImplementation(() => {
+      throw denied;
+    });
 
-      expect(() => pathKind("/p")).toThrow();
-    },
-  );
+    expect(() => pathKind("/p")).toThrow(denied);
+  });
+
+  it("przekazuje dalej wyjątek, który nie jest Error", () => {
+    fs.lstatSync.mockImplementation(() => {
+      throw "napis";
+    });
+
+    expect(() => pathKind("/p")).toThrow("napis");
+  });
 });
 
 describe("connect", () => {

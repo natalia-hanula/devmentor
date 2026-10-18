@@ -30,7 +30,7 @@ Pojedynczy skrypt TypeScript uruchamiany przez Node bez kompilacji (type strippi
 | 8 | Migracje `npm run db:migrate` | MikroORM sam pomija wykonane migracje | błąd przekazany dalej, kod 1 |
 | 9 | Podsumowanie | — | — |
 
-Na koniec instalator wypisuje tabelę stanów i podpowiedź `npm run dev`. Nie uruchamia serwera.
+Linie stanów kroków (jedna na krok, wypisywana od razu) są podsumowaniem; na koniec instalator dopisuje podpowiedź `npm run dev` albo, po błędzie, prośbę o ponowne uruchomienie. Nie uruchamia serwera. (Zmiana względem pierwotnej „tabeli stanów” — zgłoszona w review PR #7: osobna tabela powtarzałaby te same linie.)
 
 `DATABASE_URL` jest odczytywany z tą samą precedencją co `packages/db/mikro-orm.config.ts`: najpierw `process.env.DATABASE_URL`, potem główny `.env`. Plik parsuje wbudowane `util.parseEnv` z Node, bez własnego parsera.
 

@@ -23,7 +23,16 @@ export async function runSetup(system: SetupSystem, steps: readonly SetupStep[])
     system.write("Gotowe. Uruchom aplikację: npm run dev");
     return 0;
   } finally {
-    await context.client?.end();
+    await closeClient(context);
+  }
+}
+
+/** Błąd przy zamykaniu połączenia nie może zmienić wyniku instalacji — tylko go zgłaszamy. */
+async function closeClient({ client, system }: SetupContext) {
+  try {
+    await client?.end();
+  } catch (error) {
+    system.write(`uwaga: nie udało się zamknąć połączenia z PostgreSQL: ${errorMessage(error)}`);
   }
 }
 
@@ -31,6 +40,10 @@ async function runStep(step: SetupStep, context: SetupContext) {
   try {
     return await step.run(context);
   } catch (error) {
-    return { status: "failed" as const, message: error instanceof Error ? error.message : String(error) };
+    return { status: "failed" as const, message: errorMessage(error) };
   }
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

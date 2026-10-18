@@ -92,6 +92,15 @@ describe("connectStep", () => {
     expect(context.client).toBeUndefined();
   });
 
+  it("nazywa rolę domyślną, gdy DATABASE_URL nie ma użytkownika", async () => {
+    const context = withDatabase("postgresql://localhost/devmentor");
+    (context.system.connect as ReturnType<typeof fakeSystem>["connect"]).mockRejectedValue(pgError("28000"));
+
+    const result = await connectStep.run(context);
+
+    expect(result.message).toContain("odrzuca rolę (domyślna rola systemowa)");
+  });
+
   it("wymaga wcześniejszego kroku DATABASE_URL", async () => {
     await expect(connectStep.run(contextFor(fakeSystem()))).rejects.toThrow("krok DATABASE_URL musi poprzedzać");
   });

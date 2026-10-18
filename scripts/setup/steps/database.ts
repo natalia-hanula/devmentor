@@ -80,7 +80,7 @@ export const databasesStep: SetupStep = {
         return {
           status: "failed",
           message:
-            `rola ${decodeURIComponent(url.username)} nie może tworzyć baz — nadaj jej uprawnienie ` +
+            `rola ${roleName(url)} nie może tworzyć baz — nadaj jej uprawnienie ` +
             "(`ALTER ROLE <rola> CREATEDB;`) albo utwórz bazy ręcznie (README → „Uruchomienie lokalne”, krok 2).",
         };
       }
@@ -122,7 +122,7 @@ export async function ensureDatabases(client: DatabaseClient, names: readonly st
 
 function connectionFailure(error: unknown, url: URL): string {
   const code = pgCode(error);
-  const role = decodeURIComponent(url.username);
+  const role = roleName(url);
   if (code === PG_INVALID_PASSWORD || code === PG_INVALID_AUTHORIZATION) {
     return (
       `PostgreSQL odpowiada pod ${hostPort(url)}, ale odrzuca rolę ${role} (złe hasło albo brak roli). ` +
@@ -136,6 +136,11 @@ function connectionFailure(error: unknown, url: URL): string {
     return `PostgreSQL nie odpowiada pod ${hostPort(url)}. ${START_POSTGRES_HINT}`;
   }
   return `nie udało się połączyć z PostgreSQL pod ${hostPort(url)}: ${errorMessage(error)}. ${START_POSTGRES_HINT}`;
+}
+
+/** Rola z `DATABASE_URL`; bez nazwy `pg` łączy się jako użytkownik systemu. */
+function roleName(url: URL): string {
+  return decodeURIComponent(url.username) || "(domyślna rola systemowa)";
 }
 
 /** Host i port bez danych logowania — `DATABASE_URL` zawiera hasło. */

@@ -66,4 +66,35 @@ describe("runSetup", () => {
 
     expect(client.end).toHaveBeenCalledOnce();
   });
+
+  it("nie zmienia wyniku, gdy zamknięcie połączenia się nie powiedzie", async () => {
+    const system = fakeSystem();
+    const client = fakeClient();
+    client.end.mockRejectedValue(new Error("socket zamknięty"));
+
+    const code = await runSetup(system, [
+      step("A", async (context) => {
+        context.client = client;
+        return { status: "done", message: "ok" };
+      }),
+    ]);
+
+    expect(code).toBe(0);
+    expect(system.lines.at(-1)).toBe("uwaga: nie udało się zamknąć połączenia z PostgreSQL: socket zamknięty");
+  });
+
+  it("zgłasza też wyjątek nie-Error przy zamykaniu połączenia", async () => {
+    const system = fakeSystem();
+    const client = fakeClient();
+    client.end.mockRejectedValue("napis");
+
+    await runSetup(system, [
+      step("A", async (context) => {
+        context.client = client;
+        return { status: "done", message: "ok" };
+      }),
+    ]);
+
+    expect(system.lines.at(-1)).toBe("uwaga: nie udało się zamknąć połączenia z PostgreSQL: napis");
+  });
 });

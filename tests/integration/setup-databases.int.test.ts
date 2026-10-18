@@ -16,6 +16,8 @@ describe("instalator: tworzenie baz na prawdziwym PostgreSQL", () => {
   });
 
   afterAll(async () => {
+    // Bez połączenia z `beforeAll` nie ma czego sprzątać — nie zasłaniaj jego błędu.
+    if (!client) return;
     await client.query(`DROP DATABASE IF EXISTS ${client.escapeIdentifier(DATABASE)}`);
     await client.end();
   });
