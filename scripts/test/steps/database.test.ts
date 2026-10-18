@@ -79,8 +79,9 @@ describe("connectStep", () => {
     ["brak bazy postgres", pgError("3D000"), "nie ma bazy postgres"],
     ["odmowa połączenia", pgError("ECONNREFUSED"), "nie odpowiada pod localhost:5432"],
     ["limit czasu", new Error("Connection terminated due to connection timeout"), "nie odpowiada pod localhost:5432"],
-    ["inny błąd", pgError(42, "coś innego"), "nie udało się połączyć z PostgreSQL pod localhost:5432: coś innego"],
-    ["wyjątek nie-Error", "napis", "nie udało się połączyć z PostgreSQL pod localhost:5432: napis"],
+    ["inny błąd z kodem", pgError("SELF_SIGNED_CERT_IN_CHAIN", "treść spoza kodu"), "localhost:5432 (SELF_SIGNED_CERT_IN_CHAIN)"],
+    ["inny błąd bez kodu", pgError(42, "treść spoza kodu"), "localhost:5432 (Error)"],
+    ["wyjątek nie-Error", "treść spoza kodu", "localhost:5432 (nieznany błąd)"],
   ])("rozróżnia przyczynę: %s", async (_, error, expected) => {
     const context = withDatabase();
     (context.system.connect as ReturnType<typeof fakeSystem>["connect"]).mockRejectedValue(error);
@@ -89,6 +90,7 @@ describe("connectStep", () => {
 
     expect(result).toEqual({ status: "failed", message: expect.stringContaining(expected) });
     expect(result.message).not.toContain("sekret");
+    expect(result.message).not.toContain("treść spoza kodu");
     expect(context.client).toBeUndefined();
   });
 

@@ -135,7 +135,8 @@ function connectionFailure(error: unknown, url: URL): string {
   if ((code && UNREACHABLE_CODES.has(code)) || /timeout/i.test(errorMessage(error))) {
     return `PostgreSQL nie odpowiada pod ${hostPort(url)}. ${START_POSTGRES_HINT}`;
   }
-  return `nie udało się połączyć z PostgreSQL pod ${hostPort(url)}: ${errorMessage(error)}. ${START_POSTGRES_HINT}`;
+  // Tekst nieznanego błędu pochodzi spoza naszego kodu — na wyjście trafia tylko jego kod albo klasa.
+  return `nie udało się połączyć z PostgreSQL pod ${hostPort(url)} (${code ?? errorKind(error)}). ${START_POSTGRES_HINT}`;
 }
 
 /** Rola z `DATABASE_URL`; bez nazwy `pg` łączy się jako użytkownik systemu. */
@@ -163,6 +164,10 @@ function pgCode(error: unknown): string | undefined {
     return error.code;
   }
   return undefined;
+}
+
+function errorKind(error: unknown): string {
+  return error instanceof Error ? error.name : "nieznany błąd";
 }
 
 function errorMessage(error: unknown): string {
