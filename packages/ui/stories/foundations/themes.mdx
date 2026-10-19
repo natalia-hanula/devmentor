@@ -1,0 +1,33 @@
+import { Canvas, Meta } from "@storybook/addon-docs/blocks";
+import * as ThemeStories from "./themes.stories";
+
+<Meta of={ThemeStories} />
+
+# Themes
+
+DevMentor has a **light** and a **dark** theme (T3). Both use the same semantic tokens with different raw values; every pair is measured on the Color page.
+
+## How the theme is set
+
+- The theme is a class on the root element: `<html class="dark">` (and `data-theme="dark"`). Light is the default, no class.
+- It is on `<html>`, not on a wrapper, so dialogs, menus and popovers that Radix renders in a portal outside the story inherit it (prompt, rule 9).
+- In Storybook, use **Theme** in the toolbar. Story tests run every story in both themes (`npm run test:storybook`).
+- Tailwind's `dark:` variant follows the class. A `.light` element inside `.dark` resets tokens and `dark:` variants — used only by documentation blocks to show both themes side by side.
+
+## Rules
+
+| Rule | Source |
+| --- | --- |
+| Never hard-code a colour for one theme; use the semantic token and let the theme swap it. | Z14 |
+| `dark:` variants only where a component needs a different token in dark (e.g. a field fill). Prefer fixing the token. | tokeny.md |
+| Check every new screen in both themes before review. | T3 |
+
+## Preview
+
+The current toolbar theme:
+
+<Canvas of={ThemeStories.CurrentTheme} />
+
+Both themes side by side:
+
+<Canvas of={ThemeStories.SideBySide} />

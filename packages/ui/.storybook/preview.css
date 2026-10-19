@@ -1,0 +1,13 @@
+/* Style podglądu Storybooka: tokeny i Tailwind pakietu + klasy użyte w stories i blokach dokumentacji. */
+@import "../src/styles/globals.css";
+
+@source "../stories";
+@source "./blocks";
+
+/* Preflight Tailwinda zeruje listy — przywracamy numerację i punktory w tekście dokumentacji. */
+.sbdocs ol {
+  list-style: decimal;
+}
+.sbdocs ul {
+  list-style: disc;
+}

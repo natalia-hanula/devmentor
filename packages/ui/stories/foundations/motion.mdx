@@ -1,0 +1,27 @@
+import { Meta, Unstyled } from "@storybook/addon-docs/blocks";
+import { TokenTable } from "../../.storybook/blocks/token-table";
+
+<Meta title="Foundations/Motion" />
+
+# Motion
+
+Motion only confirms a change of state. Short transitions, no decoration (W03, T4). Motion is an open family in the references — this page is the agreed minimum.
+
+<Unstyled>
+  <TokenTable
+    rows={[
+      { token: "--motion-short", utility: "transition (default duration)", use: "Hover, focus, opening an overlay", source: "W03, T4" },
+      { token: "--ease-standard", utility: "transition (default easing)", use: "All transitions", source: "W03, T4" },
+    ]}
+  />
+</Unstyled>
+
+| Rule | Source |
+| --- | --- |
+| Transitions use the default `transition` utilities; they read `--motion-short` and `--ease-standard`. Never set a custom duration. | W03, T4 |
+| `tw-animate-css` only for overlays entering and leaving (dialog, menu, popover, toast). | Z8 |
+| No decorative animation: no floating cards, counters that count up, reveal-on-scroll, pulsing dots. | W03, AR01 |
+| With `prefers-reduced-motion: reduce`, `--motion-short` becomes `0ms` and all animations and transitions are switched off. | W03, WCAG 2.3.3 |
+| Nothing moves for more than 5 seconds without a way to pause it. | WCAG 2.2.2 |
+
+To check reduced motion: in Chrome DevTools → Rendering → "Emulate CSS media feature prefers-reduced-motion: reduce". The `--motion-short` value in the table above then reads `0ms`.

@@ -1,0 +1,189 @@
+/*
+ * Tokeny design systemu DevMentor — jedyny plik z surowymi wartościami (kolory, fonty, skale).
+ * Źródło decyzji: lekcja-06/tokeny.md i lekcja-06/referencje.md. Każda zmiana koloru wymaga
+ * ponownego policzenia kontrastu (strona Foundations/Color w Storybooku liczy go na żywo).
+ *
+ * Warstwy:
+ *   1. surowe (--raw-*) — używane tylko w tym pliku;
+ *   2. znaczeniowe — nazwy według przeznaczenia (nazwy kolorów zgodne z shadcn/ui);
+ *   3. komponentów — tylko tam, gdzie komponent potrzebuje własnej wartości.
+ *
+ * Motywy: jasny na :root (i na .light — do podglądu obu motywów obok siebie w dokumentacji),
+ * ciemny na .dark. Motyw ustawia się na <html>, żeby portale Radix (dialogi, menu) go dziedziczyły.
+ */
+
+/* ---------- 1. Surowe ---------- */
+:root {
+  /* Ciepłe szarości: jasność = liczba / 100 (R01.4) */
+  --raw-warm-gray-99: oklch(0.997 0.002 80);
+  --raw-warm-gray-98: oklch(0.985 0.004 80);
+  --raw-warm-gray-96: oklch(0.96 0.006 80);
+  --raw-warm-gray-95: oklch(0.95 0.007 80);
+  --raw-warm-gray-92: oklch(0.915 0.008 75);
+  --raw-warm-gray-72: oklch(0.72 0.01 70);
+  --raw-warm-gray-64: oklch(0.64 0.011 70);
+  --raw-warm-gray-52: oklch(0.52 0.01 65);
+  --raw-warm-gray-50: oklch(0.5 0.011 65);
+  --raw-warm-gray-30: oklch(0.3 0.008 60);
+  --raw-warm-gray-28: oklch(0.285 0.008 60);
+  --raw-warm-gray-26: oklch(0.265 0.008 60);
+  --raw-warm-gray-21: oklch(0.215 0.007 60);
+  --raw-warm-gray-20: oklch(0.2 0.008 60);
+  --raw-warm-gray-17: oklch(0.17 0.006 60);
+
+  /* Kolor akcji: zgaszony petrol (W01, T1). -48 = #2D6870 wybrany przez Natalię. */
+  --raw-petrol-48: oklch(0.482 0.062 207.3);
+  --raw-petrol-75: oklch(0.75 0.065 207.3);
+
+  /* Czerwień błędu (istniejące destructive, przyciemnione / złagodzone) */
+  --raw-red-53: oklch(0.53 0.19 28);
+  --raw-red-72: oklch(0.72 0.15 25);
+
+  /* Wykresy: bez decyzji (T7) — wartości shadcn przeniesione bez zmian */
+  --raw-chart-light-1: oklch(0.646 0.222 41.116);
+  --raw-chart-light-2: oklch(0.6 0.118 184.704);
+  --raw-chart-light-3: oklch(0.398 0.07 227.392);
+  --raw-chart-light-4: oklch(0.828 0.189 84.429);
+  --raw-chart-light-5: oklch(0.769 0.188 70.08);
+  --raw-chart-dark-1: oklch(0.488 0.243 264.376);
+  --raw-chart-dark-2: oklch(0.696 0.17 162.48);
+  --raw-chart-dark-3: oklch(0.769 0.188 70.08);
+  --raw-chart-dark-4: oklch(0.627 0.265 303.9);
+  --raw-chart-dark-5: oklch(0.645 0.246 16.439);
+
+  /* Kroje (W02, T2) — pliki z @fontsource, bez CDN */
+  --raw-font-ibm-plex-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --raw-font-ibm-plex-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* ---------- 2. Znaczeniowe: kolor, jasny motyw ---------- */
+:root,
+.light {
+  --background: var(--raw-warm-gray-98); /* tło strony i panelu — R01.4 */
+  --foreground: var(--raw-warm-gray-20); /* tekst główny — R01.4 */
+  --card: var(--raw-warm-gray-99); /* karta panelu — R01.4 */
+  --card-foreground: var(--foreground);
+  --popover: var(--card); /* popover, menu, dialog — R01.4 */
+  --popover-foreground: var(--foreground);
+  --muted: var(--raw-warm-gray-96); /* opis problemu w sesji, kod inline — R01.4, R02.6 */
+  --muted-foreground: var(--raw-warm-gray-50); /* metadane, autor i godzina, placeholder — R01.5, R02.2 */
+  --secondary: var(--muted); /* przycisk drugorzędny — R01.4 */
+  --secondary-foreground: var(--foreground);
+  --accent: var(--raw-warm-gray-95); /* tło najechania (nie kolor akcentu) — R01.1 */
+  --accent-foreground: var(--foreground);
+  --primary: var(--raw-petrol-48); /* CTA, stan aktywny, link — W01, T1, R01.5 */
+  --primary-foreground: var(--raw-warm-gray-99); /* tekst na primary — W01 */
+  --destructive: var(--raw-red-53); /* błąd, akcja nieodwracalna — istniejący */
+  --border: var(--raw-warm-gray-92); /* linia między wierszami, krawędź karty (dekoracja) — R01.3 */
+  --input: var(--raw-warm-gray-64); /* krawędź kontrolki, ≥ 3:1 — WCAG 1.4.11 */
+  --ring: var(--primary); /* fokus w pełnym kolorze — T1, T6, WCAG 2.4.7 */
+
+  --chart-1: var(--raw-chart-light-1); /* bez decyzji — T7 */
+  --chart-2: var(--raw-chart-light-2);
+  --chart-3: var(--raw-chart-light-3);
+  --chart-4: var(--raw-chart-light-4);
+  --chart-5: var(--raw-chart-light-5);
+}
+
+/* ---------- 2. Znaczeniowe: kolor, ciemny motyw (T3) ---------- */
+.dark {
+  --background: var(--raw-warm-gray-17);
+  --foreground: var(--raw-warm-gray-96);
+  --card: var(--raw-warm-gray-21);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --muted: var(--raw-warm-gray-26);
+  --muted-foreground: var(--raw-warm-gray-72);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --accent: var(--raw-warm-gray-28);
+  --accent-foreground: var(--foreground);
+  --primary: var(--raw-petrol-75); /* jaśniejszy odcień tego samego petrolu — T1 */
+  --primary-foreground: var(--raw-warm-gray-17);
+  --destructive: var(--raw-red-72);
+  --border: var(--raw-warm-gray-30);
+  --input: var(--raw-warm-gray-52);
+  --ring: var(--primary);
+
+  --chart-1: var(--raw-chart-dark-1);
+  --chart-2: var(--raw-chart-dark-2);
+  --chart-3: var(--raw-chart-dark-3);
+  --chart-4: var(--raw-chart-dark-4);
+  --chart-5: var(--raw-chart-dark-5);
+}
+
+/* Nawigacja panelu: aliasy powierzchni i akcji, bez własnych kolorów (T7) */
+:root,
+.light,
+.dark {
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+/* ---------- 2. Znaczeniowe: niezależne od motywu ---------- */
+:root {
+  /* Fonty (W02, T2): UI jednym krojem, monospace dla kodu, nazw plików i cen (R01.2, Z6) */
+  --font-family-ui: var(--raw-font-ibm-plex-sans);
+  --font-family-code: var(--raw-font-ibm-plex-mono);
+
+  /* Role typograficzne: rozmiar / interlinia / grubość.
+     row-title i meta — Z4 (tokeny.md); pozostałe — P1 (zatwierdzone 2026-10-19). */
+  --type-page-title-size: 1.5rem; /* P1 */
+  --type-page-title-leading: 2rem;
+  --type-page-title-weight: 600;
+  --type-section-title-size: 1.125rem; /* P1 */
+  --type-section-title-leading: 1.75rem;
+  --type-section-title-weight: 600;
+  --type-body-size: 0.875rem; /* P1, gęstość paneli (R01.1) */
+  --type-body-leading: 1.25rem;
+  --type-body-public-size: 1rem; /* P1, luźniejsza strona publiczna (W05) */
+  --type-body-public-leading: 1.5rem;
+  --type-label-size: 0.875rem; /* P1 */
+  --type-label-leading: 1.25rem;
+  --type-label-weight: 500;
+  --type-row-title-size: 0.875rem; /* Z4 */
+  --type-row-title-leading: 1.25rem;
+  --type-row-title-weight: 600;
+  --type-meta-size: 0.75rem; /* Z4 */
+  --type-meta-leading: 1rem;
+  --type-code-size: 0.8125rem; /* P1 */
+  --type-code-leading: 1.25rem;
+
+  /* Odstępy: relacje na skali 4–48 px (tokeny.md) */
+  --space-in-group: 0.5rem; /* 8 px: etykieta–pole, awatar–nazwa */
+  --space-between-groups: 1rem; /* 16 px: pola formularza, wiadomości w sesji (R02.1, K2) */
+  --space-panel: 1.5rem; /* 24 px: wnętrze karty i panelu */
+  --space-section: 2rem; /* 32 px: sekcje panelu */
+  --space-section-public: 3rem; /* 48 px: sekcje strony mentora z linku (W05) */
+
+  /* Układ */
+  --measure-text: 65ch; /* tekst ciągły — prompt etapu 1 (ok. 65 znaków) */
+  --layout-panel-max: 72rem; /* P2: maks. szerokość treści panelu */
+  --layout-public-max: 48rem; /* P2: maks. szerokość strony mentora (W05) */
+
+  /* Kształt (T5: bez zmian, obecna wartość) */
+  --radius: 0.625rem;
+
+  /* Ruch (W03, T4) */
+  --motion-short: 150ms;
+  --ease-standard: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-short: 0ms; /* W03, WCAG 2.3.3 */
+  }
+}
+
+/* ---------- 3. Komponentów ---------- */
+:root {
+  --list-row-py: 0.5rem; /* 8 px: gęsty wiersz listy — R01.1, K1 */
+  --list-row-gap: 0.25rem; /* 4 px: tytuł–metadane w wierszu — R01.1, R01.5 */
+}

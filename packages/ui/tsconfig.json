@@ -7,5 +7,5 @@
       "@devmentor/ui/*": ["./src/*"]
     }
   },
-  "include": ["src", "test"]
+  "include": ["src", "test", "stories", ".storybook", "vitest.storybook.config.ts"]
 }

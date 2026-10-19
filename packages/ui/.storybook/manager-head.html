@@ -1,0 +1,14 @@
+<link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+<script>
+  // Storybook wpisuje swoją nazwę na sztywno do tytułu karty i do ukrytego nagłówka dla czytników ekranu;
+  // w interfejsie ma być widać tylko DevMentor (prompt, zasada 10).
+  (function () {
+    var rename = function () {
+      if (document.title.indexOf("Storybook") !== -1) document.title = document.title.replace(/Storybook/g, "DevMentor");
+      var heading = document.getElementById("global-site-h1");
+      if (heading && heading.textContent !== "DevMentor") heading.textContent = "DevMentor";
+    };
+    new MutationObserver(rename).observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+    rename();
+  })();
+</script>
