@@ -1,0 +1,47 @@
+import { Meta, Unstyled } from "@storybook/addon-docs/blocks";
+import { TypeRoles } from "../../.storybook/blocks/type-roles";
+
+<Meta title="Foundations/Typography" />
+
+# Typography
+
+One readable typeface for the whole interface — **IBM Plex Sans** — and **IBM Plex Mono** only for code, file names, versions and prices (W02, R01.2, Z6). Fonts ship with the package (`@fontsource`, includes Polish `latin-ext`); nothing loads from a CDN.
+
+Hierarchy comes from size **and** weight together, so a row title never carries the same weight as its metadata (R01.5, Z4).
+
+## Roles
+
+Use the role class, not a raw size (`text-sm`, `text-2xl`). Values are measured from the live CSS.
+
+<Unstyled>
+  <TypeRoles
+    roles={[
+      { role: "Page title", className: "text-page-title", sample: "Zaproszenia mentorów", use: "One per page, the page h1", source: "P1 (accepted 2026-10-19)" },
+      { role: "Section title", className: "text-section-title", sample: "Dane konta", use: "h2 inside a page or panel", source: "P1" },
+      { role: "Body", className: "text-body", sample: "Opis problemu zobaczy mentor przed sesją. Wklej fragment kodu albo konfiguracji, który nie działa.", use: "Panel text, message text, form text", source: "P1; panel density R01.1" },
+      { role: "Body (public page)", className: "text-body-public", sample: "Robiłem upgrade ingress-nginx na 1.28 w trzech klastrach produkcyjnych.", use: "Mentor page opened from the mentor's link", source: "P1; looser public layout W05" },
+      { role: "Label", className: "text-label", sample: "Adres e-mail", use: "Form labels, column headers", source: "P1" },
+      { role: "Row title", className: "text-row-title", sample: "anna.nowak@example.com", use: "First line of a list row", source: "Z4" },
+      { role: "Metadata", className: "text-meta text-muted-foreground", sample: "Wysłane 18.10.2026 · wygasa 01.11.2026", use: "Second line of a list row, message author and time", source: "Z4, R02.2" },
+      { role: "Numbers and prices", className: "font-code text-body tabular-nums", sample: "150 PLN · 25 min", use: "Prices, durations, counts in tables", source: "W02, Z6" },
+      { role: "Code", className: "font-code text-code", sample: "helm upgrade ingress-nginx --version 4.11.0", use: "Code, file names, versions", source: "R01.2, W02; size P1" },
+    ]}
+  />
+</Unstyled>
+
+## Rules
+
+| Rule | Source |
+| --- | --- |
+| Running text is at most about 65 characters per line: wrap paragraphs in `max-w-measure`. | Prompt stage 1 (≈ 65 ch) |
+| One page title per screen; section titles below it, no skipped heading levels. | WCAG 1.3.1 |
+| Weights in use: 400, 500, 600. No 300 or 700+. | W02 (only these weights are bundled) |
+| Never use monospace for interface text or headings. | W02 |
+| Prices always in `font-code` with `tabular-nums`, currency after the number (`150 PLN`). | Z6 |
+| Text must survive 200 % zoom without clipping: no fixed heights on text containers. | WCAG 1.4.4 |
+
+<Unstyled>
+  <p className="max-w-measure text-body">
+    Przykład tekstu ciągłego ograniczonego do około 65 znaków w linii. Mentor czyta opis problemu przed sesją, więc opis ma być krótki i konkretny: co nie działa, co już sprawdziłeś i jaki jest termin.
+  </p>
+</Unstyled>

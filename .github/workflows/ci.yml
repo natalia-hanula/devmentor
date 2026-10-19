@@ -65,6 +65,23 @@ jobs:
       # Bez .env i bez bazy — aplikacja musi się budować bez dostępu do PostgreSQL.
       - run: npm run build
 
+  storybook:
+    name: Storybook (build + stories jako testy a11y w obu motywach)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Chromium dla testów stories
+        run: npx playwright install --with-deps chromium
+      - run: npm run build-storybook
+      - run: npm run test:storybook
+      # `npm run lint:tokens` dochodzi w etapie 2, gdy prymitywy shadcn przestaną używać wartości spoza tokenów.
+
   integration:
     name: Testy integracyjne (PostgreSQL w testcontainers + agent-browser)
     runs-on: ubuntu-24.04

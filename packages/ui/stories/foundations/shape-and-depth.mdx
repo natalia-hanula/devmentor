@@ -1,0 +1,34 @@
+import { Meta, Unstyled } from "@storybook/addon-docs/blocks";
+import { TokenTable } from "../../.storybook/blocks/token-table";
+
+<Meta title="Foundations/Shape and depth" />
+
+# Shape and depth
+
+Separation comes from **thin lines and space**, not from shadows or nested cards (R01.3, AR01).
+
+## Radius
+
+The radius is unchanged from the base for now (T5: no decision yet). The control shape is an open question before stage 2 — see the POSTEP.md file.
+
+<Unstyled>
+  <TokenTable
+    rows={[
+      { token: "--radius", utility: "rounded-lg", use: "Cards, dialogs", source: "T5 (existing value)", preview: <span className="block size-8 rounded-lg border border-input" /> },
+      { token: "--radius-md", utility: "rounded-md", use: "Buttons, inputs", source: "T5 (derived)", preview: <span className="block size-8 rounded-md border border-input" /> },
+      { token: "--radius-sm", utility: "rounded-sm", use: "Small marks: swatches, checkbox", source: "T5 (derived)", preview: <span className="block size-8 rounded-sm border border-input" /> },
+    ]}
+  />
+</Unstyled>
+
+## Borders and depth
+
+| Rule | Source |
+| --- | --- |
+| Row dividers: 1 px `border` (decoration). | R01.3 |
+| Control edges: 1 px `input` (≥ 3 : 1). | WCAG 1.4.11 |
+| No shadow on list rows or inside panels. A shadow is never the only thing separating content. | R01.3, AR01 |
+| No card inside a card. A panel holds rows, not more cards. | R01.3, AR01 |
+| Only overlays (dialog, menu, popover) may use one small shadow, because they float above the page. The exact value is set in stage 2. | P5 (accepted 2026-10-19) |
+| No pills for everything: full rounding only for avatars and status badges. | P6 (accepted 2026-10-19), AR01 |
+| No glass, blur or translucent surfaces (`backdrop-blur`, `bg-white/10`). | AR01, Z12 |

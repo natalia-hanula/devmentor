@@ -1,0 +1,104 @@
+# Zadanie
+
+Zamień moje referencje w plik decyzji, z którego agent i developer mogą wyprowadzić
+zasady, tokeny i komponenty. Moje opisy są zwykłym językiem. Twoja praca to
+przełożyć je na obserwacje i decyzje, a nie ocenić je lub zastąpić swoimi.
+
+# Kontekst
+
+- Produkt i użytkownicy: DevMentor łączy developerów z doświadczonymi mentorami.
+  Sesje są wyłącznie tekstowe (25 lub 50 minut), po sesji zostaje pisemna odpowiedź.
+- Brief albo wyniki badań: .ai/specs/product-brief.md i wywiady w .ai/specs/research/
+- Referencje: karty na końcu promptu, zrzuty: brak
+
+# Jak pracujesz
+
+1. Przeczytaj brief i otwórz każdy zrzut. Jeśli nie możesz otworzyć linku,
+   napisz „link, nie otwarty” i opieraj się tylko na moim opisie. Bez zrzutu
+   obserwacja będzie parafrazą: zaznacz, czego nie wiadomo, i poproś o zrzut.
+2. Dla każdej referencji oddziel trzy rzeczy:
+   - Obserwacja: co widać, opisane tak, żeby dwie osoby narysowały to samo.
+     Nie „ładne kolory”, tylko np. „jeden nasycony kolor jako tło całego panelu,
+     tekst w kolorze atramentu, bez gradientu”.
+   - Bierzemy: jedna do trzech cech, które przenosimy do produktu.
+   - Nie bierzemy: co z tej referencji odrzucamy. Zawsze wypełnij, także gdy ja
+     nic nie wpisałam, i oznacz to jako propozycję.
+3. Każda cecha dostaje osobny wiersz z własnym numerem (np. R01.1, R01.2)
+   i rodziną: kolor, typografia, kompozycja i gęstość, komponenty, ruch i reakcja,
+   ton wypowiedzi. Dzięki temu każdy token będzie miał dokładne pochodzenie.
+   To, co mi się nie podoba, też jest decyzją: zapisz, co robimy zamiast tego
+   (np. „mało ciepła” → ciepłe szarości), a nie tylko co odrzucamy.
+4. Połącz każdą referencję z produktem: dlaczego ta cecha pasuje do naszych
+   użytkowników albo do tego, co produkt robi. Jeśli nie umiesz tego uzasadnić,
+   napisz to otwarcie. Referencja bez związku z produktem to gust, nie decyzja.
+5. Z moich słów zaproponuj 3 do 5 słów charakteru i tyle samo słów antycharakteru.
+   Antycharakter wyprowadź z antyreferencji.
+6. Dla antyreferencji opisz podpis: konkretne elementy, po których ten wygląd
+   da się rozpoznać na ekranie i w kodzie. Zawsze dodaj antyreferencję
+   „generyczny wygląd AI”, chyba że któraś z moich już ją opisuje: wtedy je połącz.
+7. Szukaj w briefie i badaniach antyreferencji, które wynikają z wiedzy
+   o użytkownikach, a nie z gustu (np. użytkownik mówi „nie chcę kursu, chcę
+   odpowiedzi”, więc odrzucamy paski postępu i certyfikaty). Oznacz je jako propozycje.
+8. Sprawdź spójność: gdzie referencje sobie przeczą (np. dwie różne palety, gęsto
+   i przestronnie), wypisz konflikt i zaproponuj rozstrzygnięcie. Nie rozstrzygaj sam.
+9. Nie wymyślaj referencji ani wartości, których nie podałam. Jeśli czegoś brakuje
+   (np. żadna referencja nie mówi nic o typografii), zapytaj, a jeśli proponujesz,
+   oznacz to jako propozycję.
+
+# Pytania przed zapisaniem
+
+Zanim zapiszesz plik, zadaj mi pytania, najwyżej pięć naraz. Każdą propozycję,
+którą dodałeś od siebie, wypisz osobno, żebym mogła przyjąć albo odrzucić
+każdą z osobna, a nie wszystkie hurtem. Pytaj o:
+- opisy zbyt ogólne, żeby dało się je sprawdzić na ekranie,
+- sprzeczności między referencjami,
+- rodziny bez żadnej referencji,
+- każdą propozycję, którą dodałeś od siebie.
+
+# Wynik
+
+Plik lekcja-06/referencje.md w tym układzie:
+
+# Referencje: DevMentor
+
+Data, kto wybierał. Słowa charakteru (potwierdzone). Antycharakter (potwierdzony).
+
+## Referencje
+| # | Referencja | Źródło | Kto wybrał | Obserwacja | Bierzemy | Nie bierzemy | Robimy zamiast tego | Dlaczego pasuje do produktu | Rodzina | Waga | Status (propozycja / przyjęte) |
+
+## Antyreferencje
+| # | Wygląd | Dlaczego nie | Podpis do uniknięcia | Źródło (gust / badania / propozycja) |
+
+## Konflikty i rozstrzygnięcia
+| Konflikt | Referencje | Rozstrzygnięcie | Kto zdecydował |
+
+## Luki
+Rodziny bez referencji i pytania, na które nie ma jeszcze odpowiedzi.
+
+## Obrazy
+Lista plików obok tego dokumentu. Nazwy: R01-krotki-opis.png.
+
+Nic w tym pliku nie jest jeszcze regułą. Zasady i tokeny powstają w następnym
+kroku, z tego pliku, i każdą z nich zatwierdzam osobno.
+
+# Karty
+
+## R01
+Źródło: GitHub (strona repozytorium i lista pull requestów)
+Podoba mi się: dużo informacji na ekranie, a i tak się czyta. Kod i nazwy plików
+w innym foncie. Cienkie linie między wierszami.
+Nie podoba mi się: wszystko szare, mało ciepła, trudno się zorientować, co jest
+najważniejsze
+Jak bardzo: musi być
+
+## R02
+Źródło: Slack (widok kanału z wątkiem)
+Podoba mi się: rozmowa jest w centrum, szybko się pisze i odpisuje, widać, kto
+co napisał i kiedy
+Nie podoba mi się: za dużo powiadomień, emoji wszędzie, bałagan w bocznym pasku
+Jak bardzo: warto
+
+## A01
+Źródło: typowa strona startupu AI
+Nie chcę tego, bo: wygląda jak wszystko inne
+Po czym to poznać: fioletowy gradient, szklane karty, iskierki

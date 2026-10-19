@@ -17,7 +17,11 @@
     "db:migrate": "npm run migration:up -w @devmentor/db",
     "db:migration:create": "npm run migration:create -w @devmentor/db --",
     "db:migration:list": "npm run migration:list -w @devmentor/db",
-    "test:integration": "npm run build && vitest run --config tests/integration/vitest.config.ts"
+    "test:integration": "npm run build && vitest run --config tests/integration/vitest.config.ts",
+    "storybook": "npm run storybook -w @devmentor/ui",
+    "build-storybook": "npm run build-storybook -w @devmentor/ui",
+    "test:storybook": "npm run test:storybook -w @devmentor/ui",
+    "lint:tokens": "npm run lint:tokens -w @devmentor/ui"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.2.1",

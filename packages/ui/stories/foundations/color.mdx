@@ -1,0 +1,97 @@
+import { Meta, Unstyled } from "@storybook/addon-docs/blocks";
+import { ColorRoles } from "../../.storybook/blocks/color-roles";
+import { ContrastTable } from "../../.storybook/blocks/contrast-table";
+
+<Meta title="Foundations/Color" />
+
+# Color
+
+DevMentor is warm-neutral with **one** muted action colour. The base stays on warm greys; the petrol action colour marks the one thing to do on a screen, active states, links and focus — nothing else.
+
+Sources: warm greys instead of cold ones (R01.4), one muted action colour (W01, T1), one primary element per screen (R01.5, Z1). Values live only in `packages/ui/src/styles/tokens.css`; components use the semantic tokens below through Tailwind classes (`bg-primary`, `text-muted-foreground`, `border-input` …).
+
+## Rules
+
+| Rule | Source |
+| --- | --- |
+| Use semantic tokens only. Raw `--raw-*` values are private to `tokens.css`. | tokeny.md (layers), Z14 |
+| At most one `primary` button (CTA) per screen; other actions are outline or ghost. | R01.5, W01, Z1 |
+| Links inside text use `primary` **and** an underline — colour is never the only signal. | Z2, WCAG 1.4.1 |
+| Active state (selected nav item, selected slot, active tab) = `primary/10` (light) or `primary/15` (dark) background with `foreground` or `primary` text. No new colour. | Z3, T1 |
+| `border` is decoration (row dividers). It never marks the edge of a control — use `input` for that. | R01.3, WCAG 1.4.11 |
+| Status, errors and selection are never shown by colour alone: add text, an icon with a label, or both. | WCAG 1.4.1 |
+| No gradients, glass, glow or translucent cards. | AR01, Z12 |
+| `accent` in shadcn means **hover surface**, not an accent colour. Never use it to highlight. | tokeny.md |
+
+## Roles
+
+Measured from the live CSS variables in both themes.
+
+<Unstyled>
+  <ColorRoles
+    roles={[
+      { token: "--background", role: "Page and panel background", use: "Body, panel canvas", avoid: "Cards, fields", source: "R01.4" },
+      { token: "--card", role: "Raised surface", use: "Panel card, popover, dialog", avoid: "List rows (R01.3: no cards)", source: "R01.4" },
+      { token: "--muted", role: "Quiet surface", use: "Problem description header in a session, inline code, secondary button", avoid: "Whole page background", source: "R01.4, R02.6" },
+      { token: "--accent", role: "Hover surface", use: "Hover on list row and ghost button", avoid: "Highlighting the main element", source: "R01.1" },
+      { token: "--foreground", role: "Primary text", use: "Body text, row titles, message text", avoid: "—", source: "R01.4" },
+      { token: "--muted-foreground", role: "Secondary text", use: "Row metadata, message author and time, placeholder", avoid: "Titles, message body", source: "R01.5, R02.2" },
+      { token: "--primary", role: "Action", use: "One CTA per screen, active state, links in text, focus", avoid: "Decoration, section backgrounds, icons without an action, several CTAs", source: "W01, T1, R01.5" },
+      { token: "--primary-foreground", role: "Text on action", use: "Label and icon on primary", avoid: "—", source: "W01" },
+      { token: "--destructive", role: "Error and irreversible action", use: "Field errors, “Odbierz rolę mentora”", avoid: "Warnings, ordinary actions", source: "existing" },
+      { token: "--border", role: "Divider (decoration)", use: "1 px line between list rows, card edge", avoid: "Edge of a field (too weak), between session messages (K2)", source: "R01.3" },
+      { token: "--input", role: "Control edge", use: "Edge of inputs and outline buttons", avoid: "List dividers", source: "WCAG 1.4.11" },
+      { token: "--ring", role: "Focus ring", use: "Focus indicator at full colour", avoid: "Decorative outlines", source: "T1, T6, WCAG 2.4.7" },
+    ]}
+  />
+</Unstyled>
+
+## Contrast
+
+Every text / background and interface / background pair we use, measured in the browser from the tokens (WCAG 2.x formula). Thresholds: 4.5 : 1 for text (WCAG 1.4.3), 3 : 1 for interface elements (WCAG 1.4.11). A pair that fails shows **FAIL** in words.
+
+<Unstyled>
+  <ContrastTable
+    pairs={[
+      { foreground: "--foreground", background: "--background", kind: "text", usage: "Body text on page" },
+      { foreground: "--foreground", background: "--card", kind: "text", usage: "Text in cards and dialogs" },
+      { foreground: "--foreground", background: "--muted", kind: "text", usage: "Problem description, inline code" },
+      { foreground: "--foreground", background: "--accent", kind: "text", usage: "Hovered row" },
+      { foreground: "--muted-foreground", background: "--background", kind: "text", usage: "Metadata on page" },
+      { foreground: "--muted-foreground", background: "--card", kind: "text", usage: "Metadata in cards, placeholder" },
+      { foreground: "--muted-foreground", background: "--muted", kind: "text", usage: "Metadata on quiet surface" },
+      { foreground: "--muted-foreground", background: "--accent", kind: "text", usage: "Metadata in hovered row" },
+      { foreground: "--primary", background: "--background", kind: "text", usage: "Link on page" },
+      { foreground: "--primary", background: "--card", kind: "text", usage: "Link in card" },
+      { foreground: "--primary", background: "--muted", kind: "text", usage: "Link on quiet surface" },
+      { foreground: "--primary", background: "--accent", kind: "text", usage: "Link in hovered row" },
+      { foreground: "--primary-foreground", background: "--primary", kind: "text", usage: "CTA label" },
+      { foreground: "--primary-foreground", background: "--primary", backgroundAlpha: 0.9, over: "--card", kind: "text", usage: "CTA label on hover (never lighter than /90)" },
+      { foreground: "--foreground", background: "--primary", backgroundAlpha: 0.1, over: "--card", kind: "text", usage: "Active state, light theme value" },
+      { foreground: "--foreground", background: "--primary", backgroundAlpha: 0.15, over: "--card", kind: "text", usage: "Active state, dark theme value" },
+      { foreground: "--destructive", background: "--background", kind: "text", usage: "Error text on page" },
+      { foreground: "--destructive", background: "--card", kind: "text", usage: "Field error in a form card" },
+      { foreground: "--destructive", background: "--muted", kind: "text", usage: "Error on quiet surface" },
+      { foreground: "--primary", background: "--card", kind: "ui", usage: "CTA shape against card" },
+      { foreground: "--input", background: "--background", kind: "ui", usage: "Field edge on page" },
+      { foreground: "--input", background: "--card", kind: "ui", usage: "Field edge in card (dark: 3.18, close to the limit)" },
+      { foreground: "--ring", background: "--background", kind: "ui", usage: "Focus ring on page" },
+      { foreground: "--ring", background: "--card", kind: "ui", usage: "Focus ring in card" },
+      { foreground: "--ring", background: "--muted", kind: "ui", usage: "Focus ring on quiet surface" },
+      { foreground: "--ring", background: "--background", foregroundAlpha: 0.5, kind: "ui", usage: "Reference only: why the ring is never at /50 (Z7)" },
+      { foreground: "--border", background: "--card", kind: "decoration", usage: "Row divider — decoration, never the only edge of a control" },
+    ]}
+  />
+</Unstyled>
+
+**Note on the `/50` row:** it measures a ring at 50 % opacity (blended over the page). shadcn's default `ring-ring/50` fails 3 : 1 in the light theme, which is why the primitives use the ring at full colour (Z7, T6).
+
+**Known limits:** `primary-foreground` on `primary/90` is 4.99 : 1 in light — a hover must not get lighter than `/90`. `input` on `card` is 3.18 : 1 in dark — lightening `card` in dark breaks it.
+
+**Decided, implemented in stage 2:** text on `destructive` gets a semantic `--destructive-foreground` (light `warm-gray-99`, dark `warm-gray-17`) instead of the palette class `text-white`; in the dark theme the destructive button uses full `destructive` instead of `destructive/60` (P9, accepted 2026-10-19). Its contrast pairs are added to the table above when the token is written.
+
+## How to change a colour
+
+1. Change the value in `tokens.css` (raw layer) — never in a component.
+2. Open this page in both themes and check that no pair shows **FAIL**.
+3. Run `npm run lint:tokens` and `npm run test:storybook`.

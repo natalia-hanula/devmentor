@@ -1,0 +1,42 @@
+# Zadanie
+
+Przełóż zatwierdzone decyzje z pliku referencji na tokeny design systemu.
+Nie zapisuj plików, dopóki nie zatwierdzę propozycji. Po zatwierdzeniu zapisz
+tabelę i obie listy spod niej do pliku lekcja-06/tokeny.md.
+
+# Kontekst
+
+- Plik referencji: lekcja-06/referencje.md
+- Istniejące tokeny: packages/ui/src/tokens.css
+
+# Jak pracujesz
+
+1. Weź decyzje przyjęte w pliku referencji: co bierzemy, co robimy zamiast
+   tego i rozstrzygnięte konflikty. Dla każdej zdecyduj, czy jest tokenem
+   (wartość: kolor, odstęp, promień, cień, font, czas animacji),
+   zasadą (kiedy czego używać) czy cechą komponentu.
+2. Tokeny zapisz w trzech warstwach:
+   - surowe wartości (paleta, skala), używane tylko w pliku tokenów,
+   - znaczenia nazwane według przeznaczenia, np. action-primary, surface-card,
+     text-muted, space-section, nigdy według wyglądu, np. blue-500,
+   - tokeny komponentów tylko tam, gdzie komponent potrzebuje własnej wartości.
+3. Przy każdym tokenie znaczeniowym podaj pochodzenie: numer referencji
+   albo decyzję, z której wynika.
+4. Odstępy: jedna skala (np. 4, 8, 12, 16, 24, 32, 48) i przypisanie do relacji:
+   w grupie, między grupami, wewnątrz panelu, między sekcjami.
+5. Kolor: sprawdź kontrast każdej pary tekst i tło, której będziemy używać.
+   Wypisz wynik. Pary poniżej 4,5 : 1 (tekst) i 3 : 1 (elementy interfejsu)
+   oznacz i zaproponuj poprawkę.
+6. Jeśli istnieją już tokeny, najpierw zmapuj decyzje na istniejące nazwy.
+   Nowy token proponuj tylko wtedy, gdy żaden istniejący nie pasuje. Jeśli
+   istniejące nazwy opisują wygląd (np. bg-white-0), traktuj je jako warstwę
+   surową i zaproponuj nad nimi nazwy znaczeniowe.
+7. Jeśli projekt ma ciemny motyw, sprawdzaj oba motywy.
+8. Jeśli zmienię którąś wartość, przed zapisaniem policz kontrast jeszcze raz
+   i pokaż pary, które spadły poniżej progu.
+
+# Wynik
+
+Tabela: token | warstwa | wartość | pochodzenie | gdzie używać | gdzie nie używać.
+Pod tabelą: lista par kolorów z kontrastem i lista decyzji, które nie są
+tokenami (zasady, cechy komponentów).

@@ -1,0 +1,101 @@
+# Zadanie
+
+Sprawdź interfejs pod kątem generycznego wyglądu i typowych błędów UX.
+Niczego nie zmieniaj w plikach. Twoim wynikiem jest raport.
+
+Generyczny wygląd to wybory, których nikt świadomie nie podjął: wartości
+domyślne bibliotek, najczęstsze wzorce z internetu, wymyślone treści i dane.
+Pojedynczy element nie musi być błędem. Problem to wiele takich elementów naraz.
+
+# Co sprawdzasz
+
+- Pliki lub katalogi z interfejsem: lekcja-06/02-rekrutacja.html
+- Adres uruchomionej aplikacji, jeśli jest: brak, otwórz plik w przeglądarce, jeśli ją masz
+- Design system, jeśli istnieje: brak
+- Dane produktu i marka: brak, to fikcyjny produkt wygenerowany przez AI na potrzeby eksperymentu
+
+# Krok 1. Znaki generycznego wyglądu
+
+Przy każdym znaku napisz: występuje / nie występuje / nie da się sprawdzić.
+Liczy się też odpowiednik: ten sam efekt w innej formie, np. inna para
+przycisków o tym samym schemacie. Jeśli występuje, podaj plik i linię albo
+opis elementu na ekranie.
+
+Kolor:
+- indygo lub fiolet jako kolor akcji bez uzasadnienia w marce
+- gradient w tekście nagłówka
+- gradient w tle albo na przycisku
+- ciemnogranatowe tło z poświatą
+
+Kształt i głębia:
+- duże zaokrąglenia i pigułki na większości elementów
+- karty z cieniem jako jedyny sposób oddzielenia treści
+- karta w karcie
+- półprzezroczyste, rozmyte panele
+
+Układ:
+- pigułka z nowością albo liczbą nad nagłówkiem
+- wyróżnione kolorem słowo w nagłówku
+- para przycisków w stylu „Zacznij za darmo” i „Zobacz demo”
+- rząd wielkich liczb
+- trzy identyczne karty z ikoną
+- karty unoszące się nad pierwszym ekranem
+
+Ozdobniki:
+- logo jako kolorowy kwadrat z literą albo ikoną
+- awatary z inicjałami na kolorowym tle
+- emoji zamiast ikon
+- iskierki jako symbol AI
+- ikony na kolorowym tle przy nagłówkach
+
+Tekst i dane:
+- obietnice, które nic nie mówią o produkcie
+- liczby, opinie, oceny, nazwy klientów i firm, których nie ma w danych produktu
+  (jeśli danych produktu nie podano, sprawdź przynajmniej, czy liczby na stronie
+  są ze sobą spójne)
+
+# Krok 2. Błędy UX i dostępności
+
+Sprawdzaj przy szerokościach 1440, 768 i 320 px, jeśli masz przeglądarkę.
+
+- kontrast tekstu poniżej 4,5 : 1, dużego tekstu i elementów interfejsu poniżej
+  3 : 1. Mierz w przeglądarce. Przy gradiencie i tłach z obrazem mierz najgorszy
+  punkt. Jeśli nie masz przeglądarki, napisz, czego nie dało się zmierzyć.
+- klikalne elementy mniejsze niż 24 × 24 px. Zaznacz, czy spełniają wyjątek
+  odstępu z WCAG 2.5.8.
+- pola formularza bez widocznej etykiety (tylko placeholder)
+- kolor jako jedyny nośnik informacji o stanie
+- brak stanów: ładowanie, pusto, błąd
+- niewidoczny fokus przy obsłudze klawiaturą
+- linie tekstu dłuższe niż 75 znaków (podaj, przy jakiej szerokości)
+- komunikaty błędów, które nie mówią, co zrobić
+- treść, która znika albo jest nieczytelna bez JavaScriptu
+
+# Krok 3. Policz rozrzut wartości
+
+Podaj liczby, licząc unikalne wartości:
+- kolory tekstu widoczne na ekranie przy 1440 px
+- rozmiary fontu widoczne na ekranie przy 1440 px
+- promienie zaokrąglenia w kodzie
+- wartości odstępów (padding, margin, gap) w kodzie, i ile z nich jest spoza
+  siatki 4 px
+- kolory wpisane na sztywno (hex, rgb, hsl, oklch, klasy palety Tailwinda
+  typu bg-zinc-900 albo text-white, arbitralne wartości Tailwinda) poza plikiem
+  tokenów
+
+# Wynik
+
+1. Tabela najważniejszych znalezisk, najwyżej 15 wierszy. Podobne znaleziska
+   grupuj w jednym wierszu. Kolumny: znak lub błąd | gdzie | co widać |
+   dlaczego to problem (generyczny wygląd / UX / dostępność) | czym zastąpić |
+   pewność (sprawdzone / przypuszczenie).
+2. Pozostałe znaleziska jako krótka lista.
+3. Liczby z kroku 3.
+4. Pięć decyzji, które trzeba podjąć, żeby ten interfejs przestał wyglądać
+   jak średnia. Przy każdej napisz, czy będzie tokenem, komponentem czy zasadą.
+   To opis w raporcie, nie zmiana w plikach.
+
+Zasady:
+- Nie zgaduj. Jeśli czegoś nie da się sprawdzić, napisz to wprost.
+- Nie oceniaj gustu. Oceniaj, czy wybór ma uzasadnienie w produkcie.
+- Nie zmieniaj plików projektu.

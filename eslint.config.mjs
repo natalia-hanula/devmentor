@@ -79,6 +79,8 @@ const eslintConfig = defineConfig([
     "**/next-env.d.ts",
     // Raport pokrycia generowany przez `npm test`.
     "coverage/**",
+    // Zbudowany Storybook (`npm run build-storybook`).
+    "**/storybook-static/**",
   ]),
 ]);
 

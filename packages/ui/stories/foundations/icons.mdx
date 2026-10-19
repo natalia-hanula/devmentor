@@ -1,0 +1,62 @@
+import { Meta, Unstyled } from "@storybook/addon-docs/blocks";
+import { Copy, ExternalLink, LogOut, Mail, TriangleAlert, Trash2 } from "lucide-react";
+import { Button } from "@devmentor/ui/components/ui/button";
+
+<Meta title="Foundations/Icons" />
+
+# Icons
+
+Library: **lucide-react** (already in the package; shadcn's icon library in `components.json`). Icons are outline, they inherit `currentColor`, and they are decorative unless the control has no text.
+
+## Sizes
+
+| Size | Class | Where | Source |
+| --- | --- | --- | --- |
+| 16 px | `size-4` | Inside buttons, inputs, menu items, next to text | existing (shadcn Button default) |
+| 12 px | `size-3` | Inside status badges | existing (shadcn Badge default) |
+| 20 px | `size-5` | Standalone icon in an alert or empty state | P4 (accepted 2026-10-19) |
+
+<Unstyled>
+  <div className="flex flex-wrap items-center gap-between-groups text-foreground">
+    <Mail className="size-4" aria-hidden="true" />
+    <TriangleAlert className="size-5" aria-hidden="true" />
+    <Button variant="outline">
+      <Copy aria-hidden="true" />
+      Kopiuj link
+    </Button>
+    <Button variant="outline" size="icon" aria-label="Kopiuj link">
+      <Copy aria-hidden="true" />
+    </Button>
+    <Button variant="ghost">
+      <LogOut aria-hidden="true" />
+      Wyloguj
+    </Button>
+  </div>
+</Unstyled>
+
+## When an icon needs a label
+
+| Situation | What to do | Source |
+| --- | --- | --- |
+| Icon next to visible text | Icon is decorative: `aria-hidden="true"`. | WCAG 1.1.1 |
+| Icon-only button (copy, close, row menu) | `aria-label` with verb + object ("Kopiuj link"), plus a tooltip with the same text. Target at least 24 × 24 px. | WCAG 4.1.2, 2.5.3, 2.5.8 |
+| Icon carries meaning (warning, error) | Never alone: pair with text ("Link wygasł"). | WCAG 1.4.1 |
+| External link | `ExternalLink` icon after the text plus "(otwiera się w nowej karcie)" for screen readers if it opens a new tab. | P7 (accepted 2026-10-19), WCAG 3.2.5 |
+
+## Do not
+
+| Avoid | Why | Source |
+| --- | --- | --- |
+| `Sparkles` or any "AI magic" symbol | Generic AI look | AR01, Z12 |
+| Emoji instead of icons, or in interface text | Noisy, inconsistent tone | R02.5, W04 |
+| An icon on a coloured tile next to every heading | Template look | AR01 |
+| A different icon set | One set (lucide), one stroke weight | P8 (accepted 2026-10-19) |
+
+Examples of icons the product will need: `Copy` (mentor link, invitation link), `ExternalLink` (mentor's public work, R10), `Trash2` (remove mentor role — always behind a confirmation), `LogOut`.
+
+<Unstyled>
+  <div className="flex items-center gap-in-group text-muted-foreground">
+    <ExternalLink className="size-4" aria-hidden="true" />
+    <Trash2 className="size-4" aria-hidden="true" />
+  </div>
+</Unstyled>

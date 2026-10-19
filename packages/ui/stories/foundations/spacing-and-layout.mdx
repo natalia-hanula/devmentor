@@ -1,0 +1,52 @@
+import { Meta, Unstyled } from "@storybook/addon-docs/blocks";
+import { TokenTable } from "../../.storybook/blocks/token-table";
+
+<Meta title="Foundations/Spacing and layout" />
+
+# Spacing and layout
+
+One scale — **4, 8, 12, 16, 24, 32, 48 px** (Tailwind steps 1, 2, 3, 4, 6, 8, 12) — and one token per relation. Pick the token by the relation between two things, not by eye (tokeny.md).
+
+"Dense on lists, calm in conversation" (K1, K2): list rows are tight with 1 px dividers; session messages are separated by space, not lines.
+
+## Relations
+
+<Unstyled>
+  <TokenTable
+    rows={[
+      { token: "--space-in-group", utility: "gap-in-group", use: "Inside a group: label ↔ field, avatar ↔ name, buttons side by side", source: "tokeny.md", preview: <span className="block h-2 bg-foreground" style={{ width: "var(--space-in-group)" }} /> },
+      { token: "--space-between-groups", utility: "gap-between-groups", use: "Between groups: form fields, session messages", source: "tokeny.md, R02.1, K2", preview: <span className="block h-2 bg-foreground" style={{ width: "var(--space-between-groups)" }} /> },
+      { token: "--space-panel", utility: "p-panel", use: "Inside a card or panel", source: "tokeny.md (matches current Card)", preview: <span className="block h-2 bg-foreground" style={{ width: "var(--space-panel)" }} /> },
+      { token: "--space-section", utility: "gap-section", use: "Between sections of a panel", source: "tokeny.md", preview: <span className="block h-2 bg-foreground" style={{ width: "var(--space-section)" }} /> },
+      { token: "--space-section-public", utility: "gap-section-public", use: "Between sections of the mentor page opened from a link", source: "W05", preview: <span className="block h-2 bg-foreground" style={{ width: "var(--space-section-public)" }} /> },
+      { token: "--list-row-py", utility: "py-list-row-y", use: "Vertical padding of a list row (component token)", source: "R01.1, K1", preview: <span className="block h-2 bg-foreground" style={{ width: "var(--list-row-py)" }} /> },
+      { token: "--list-row-gap", utility: "gap-list-row-gap", use: "Row title ↔ metadata line (component token)", source: "R01.1, R01.5", preview: <span className="block h-2 bg-foreground" style={{ width: "var(--list-row-gap)" }} /> },
+    ]}
+  />
+</Unstyled>
+
+| Rule | Source |
+| --- | --- |
+| Only the scale steps above. No arbitrary values (`p-[13px]`); `npm run lint:tokens` fails on them. | Prompt, rule 3 |
+| Use the relation tokens first; a plain scale step (`gap-3` = 12 px) only inside a component when no relation fits. | tokeny.md |
+| List rows: no card, no shadow, no row background; hover uses `accent`. | R01.1, R01.3, Z4 |
+
+## Layout
+
+| Width | What changes | Source |
+| --- | --- | --- |
+| 320 px | One column. Tables scroll horizontally inside their container, never the page. Page gutter 16 px (`px-4`). | Prompt stage 1, WCAG 1.4.10 (reflow), P3 (accepted 2026-10-19) |
+| 768 px | Two columns where content allows (form + help). | Prompt stage 1 |
+| 1440 px | Panel content stops at `max-w-panel`; the page does not stretch further. | Prompt stage 1 |
+
+<Unstyled>
+  <TokenTable
+    rows={[
+      { token: "--layout-panel-max", utility: "max-w-panel", use: "Max width of panel content", source: "P2 (accepted 2026-10-19)" },
+      { token: "--layout-public-max", utility: "max-w-public", use: "Max width of the mentor page from a link", source: "P2, W05" },
+      { token: "--measure-text", utility: "max-w-measure", use: "Running text, ≈ 65 characters per line", source: "Prompt stage 1" },
+    ]}
+  />
+</Unstyled>
+
+The Storybook toolbar has 320, 768 and 1440 px viewports for checking stories at each width.

@@ -1,0 +1,58 @@
+# Zadanie
+
+Zbuduj nowy ekran, korzystając wyłącznie z design systemu tego projektu.
+Celem nie jest sam ekran, tylko sprawdzenie, czy design system wystarcza.
+
+# Kontekst
+
+- Ekran do zbudowania: „Ulubieni mentorzy” dla mentee: lista zapisanych
+  mentorów z filtrem po technologii, przy każdym mentorze akcja „Usuń z ulubionych”
+  i przejście do profilu. Stany: ładowanie, pusto (nikogo jeszcze nie zapisano),
+  błąd ładowania, brak wyników dla wybranego filtra.
+- Design system: packages/ui (tokeny: src/tokens.css, src/align-tokens.css,
+  src/foundations.css; komponenty: src/components, src/backend; Storybook i zasady:
+  packages/ui/.storybook, szczególnie Guidelines.mdx), AGENTS.md w katalogu głównym
+- Co ma być na ekranie: na karcie mentora imię, nagłówek zawodowy
+  i technologie; dane przykładowe w story, bez połączenia z backendem
+- Gdzie zapisać ekran: packages/ui/src/components/favorites/FavoriteMentors.tsx
+  oraz story FavoriteMentors.stories.tsx obok
+- Język interfejsu: taki jak w projekcie (sprawdź AGENTS.md)
+
+# Zasady
+
+1. Używaj tylko komponentów, tokenów i wzorców, które istnieją w design systemie.
+2. Nie dodawaj nowych kolorów, odstępów, promieni, wariantów ani komponentów.
+3. Możesz składać ekran z istniejących komponentów i klas. Nie twórz nowego
+   komponentu wielokrotnego użytku. Jeśli czegoś brakuje, nie wymyślaj tego
+   po cichu: zapisz to jako lukę i użyj najbliższego istniejącego rozwiązania.
+4. W tym teście nie dodawaj testów, eksportów ani wpisów w konfiguracji.
+   Wystarczy ekran i jego przykład w Storybooku.
+
+# Krok 1. Zanim napiszesz kod
+
+Wypisz wszystkie decyzje, których wymaga ten ekran: układ, komponenty, stany,
+odstępy, kolory, teksty, zachowanie przy błędzie, zachowanie na telefonie.
+Każdą decyzję oznacz jednym z trzech:
+- REGUŁA: odpowiedź jest zapisana jako zasada (podaj plik i miejsce),
+- PRZYKŁAD: jest tylko przykład w kodzie albo w Storybooku, bez zasady,
+- ZGADUJĘ: nie ma ani zasady, ani przykładu (napisz, co zakładasz).
+
+# Krok 2. Zbuduj ekran
+
+Zbuduj ekran zgodnie z listą. Po zbudowaniu sprawdź, czy w kodzie nie ma
+wartości wpisanych na sztywno (hex, rgb, hsl, oklch, klasy palety
+Tailwinda, arbitralne wartości Tailwinda).
+
+# Wynik
+
+1. Lista luk, pogrupowana:
+   - brakujący komponent
+   - brakujący stan
+   - brakująca zasada (kiedy czego używać)
+   - niejasna albo sprzeczna dokumentacja
+   Przy każdej luce: co zgadłeś, gdzie, i co trzeba dopisać do design systemu,
+   żeby następny agent nie musiał zgadywać.
+2. Liczba decyzji w każdej kategorii: REGUŁA, PRZYKŁAD, ZGADUJĘ.
+3. Wynik sprawdzenia wartości wpisanych na sztywno.
+
+Nie poprawiaj design systemu samodzielnie. Tylko opisz, czego brakuje.
