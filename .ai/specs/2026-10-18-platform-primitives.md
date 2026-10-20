@@ -1,6 +1,6 @@
 # Platform primitives — tożsamość, sesja, role, limiter, port e-mail, konfiguracja operatora
 
-> Status: **zaakceptowana** (Natalia, 2026-10-18), **rewizja 5** (zmiany wynikające z rewizji 1–2 E01 i grill-me, zob. „Revision log”); grill-me zakończony (G1–G11, 2026-10-18). Pierwszy konsument: `2026-10-18-e01-konta-i-role.md` (E01, #11). Kolejni: E02-S02 #22 (widełki), E02 (publikacja oferty tylko z potwierdzonym e-mailem, G7), E03 (rezerwacja tylko dla zalogowanych z potwierdzonym e-mailem), E04 (prowizja), E05 (pomiar zalogowanych odwiedzających, D23).
+> Status: **zaakceptowana** (Natalia, 2026-10-18), **rewizja 8** (rew. 5: zmiany wynikające z rewizji 1–2 E01 i grill-me; rew. 6–8: odstępstwa z implementacji etapu A i review fazy 1, 2026-10-20 — zob. „Revision log”); grill-me zakończony (G1–G11, 2026-10-18). Pierwszy konsument: `2026-10-18-e01-konta-i-role.md` (E01, #11). Kolejni: E02-S02 #22 (widełki), E02 (publikacja oferty tylko z potwierdzonym e-mailem, G7), E03 (rezerwacja tylko dla zalogowanych z potwierdzonym e-mailem), E04 (prowizja), E05 (pomiar zalogowanych odwiedzających, D23).
 
 ## 📝 TLDR
 
