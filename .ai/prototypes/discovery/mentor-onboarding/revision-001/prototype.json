@@ -1,0 +1,94 @@
+{
+  "format": "discovery-prototype-v1",
+  "skill": "om-mockup-prototype",
+  "slug": "mentor-onboarding",
+  "revision": 1,
+  "revisionPath": ".ai/prototypes/discovery/mentor-onboarding/revision-001",
+  "previousRevision": null,
+  "brief": ".ai/specs/product-brief.md",
+  "flow": "Future state 1.0 (mentor) — onboarding mentora: zaproszenie → profil → cena → terminy → katalog → publikacja",
+  "panelReport": null,
+  "verification": "passed",
+  "files": [
+    {
+      "path": "index.html",
+      "sha256": "672c4d5ddbc0130e82876e4bceedc583b6d690f466a0091b395066d834cd541d"
+    },
+    {
+      "path": "README.md",
+      "sha256": "ede2a016711237167e908726960b4d483b9618b93f4c7f2573e5b1d62c4cfb47"
+    },
+    {
+      "path": "evidence/01-zaproszenie.png",
+      "sha256": "a56a20c81f419ce1fc6bef5310971ce789910c16e20cc44b767a1b3ca0ca3926"
+    },
+    {
+      "path": "evidence/02-zaproszenie-niewazne.png",
+      "sha256": "04e905f053994c672aae62df779e7f9009f67bac80f915967a536f65cea0189d"
+    },
+    {
+      "path": "evidence/03-panel-start.png",
+      "sha256": "a06fdb102f8645bf05cb5e9cc0fe1ff26f9a40769fcd15640c88a3bc19495bae"
+    },
+    {
+      "path": "evidence/04-publikacja-braki.png",
+      "sha256": "1386e283a53bb10bd95fb578164e9bd44bb757f9c0270446ee51c7df981ddf2a"
+    },
+    {
+      "path": "evidence/05-profil-bledy.png",
+      "sha256": "177aff4d4ab5348ee2a8d3ef97a50f52b43c03d8aec70caf9d6f084557f5e039"
+    },
+    {
+      "path": "evidence/06-cena-poza-widelkami.png",
+      "sha256": "c38c5637b8db7207ac5eeb3445d63221b027df83ef1d4d2124a0227387351bff"
+    },
+    {
+      "path": "evidence/07-terminy-puste.png",
+      "sha256": "fe72ffd691e9c64a094e49e8f2bd8506dc7ae0c10abb00d2fd235e55a04b86ab"
+    },
+    {
+      "path": "evidence/08-termin-za-wczesnie.png",
+      "sha256": "88b89821a51c666262f2f51013254010e8ea37740573ec016efd52428d3347b8"
+    },
+    {
+      "path": "evidence/09-termin-nachodzi.png",
+      "sha256": "a763037fe5f1f8ed2a9d2fa1104d8ba652f0d090aca195d222f12d2cc1ae51b9"
+    },
+    {
+      "path": "evidence/10-zapis-nieudany.png",
+      "sha256": "475c5c60ff6c8881e8cfe6e3f5d9f4151e921907fdd288b123878dc69bd94c42"
+    },
+    {
+      "path": "evidence/11-opublikowany.png",
+      "sha256": "bfcf7ca8a0f1d39727fa1b035500c4fd482682fa023dfa7acbbe1650878e7d9c"
+    },
+    {
+      "path": "evidence/12-cena-poza-nowymi-widelkami.png",
+      "sha256": "1c8e0a07ee692a31b1b2405dbb8539ce824071572b2418ccd1181b2a93031d8c"
+    },
+    {
+      "path": "evidence/13-opublikowany-bez-terminow.png",
+      "sha256": "81381e3496cb0b1b21544d6ce167a3a88d9651a165711fd53699f210aaf6b8e1"
+    },
+    {
+      "path": "evidence/14-nieznany-adres.png",
+      "sha256": "fbbe01231efe1ff0a3b3b71b75995bf43a2dff68bbba686539462d0144a7900d"
+    },
+    {
+      "path": "evidence/15-opublikowany-po-poprawce.png",
+      "sha256": "77bdce9ceb023dfdea9aad7a6f78c099f1d95012de556fe1c637d153dc178d71"
+    },
+    {
+      "path": "evidence/16-waski-ekran-panel.png",
+      "sha256": "4a7cafb3a3e4397d3dd2f1495c0753f4b2f6e33151dbc7af3f962dcff0ff679c"
+    },
+    {
+      "path": "evidence/17-waski-ekran-terminy.png",
+      "sha256": "6427281ea352276a18e06d91067074926596f4f1da8f619a0c1c1e4d6cd4bc3e"
+    },
+    {
+      "path": "evidence/18-po-resecie.png",
+      "sha256": "7d7c7e87fcdfacbc363b490bb49aa40423f1bc60bd987585a9395d22e7a9b8c8"
+    }
+  ]
+}

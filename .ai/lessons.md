@@ -11,6 +11,9 @@ Format wpisu (najnowsze na górze):
 
 ## Wpisy
 
+- 2026-10-20 — W `packages/ui` klasa `max-w-panel` daje 24 px, nie 72 rem: Tailwind 4 rozwiązuje `max-w-*` najpierw z `--spacing-*`, a DS ma i `--spacing-panel`, i `--container-panel`. Dopóki nazwy się nie rozjadą (luka DS20 z prototypu E01), używaj `max-w-(--layout-panel-max)`; ta sama pułapka grozi każdej parze `--spacing-X`/`--container-X`.
+- 2026-10-20 — Storybook dev (`staticDirs`) serwuje przebudowany prototyp, ale przeglądarka trzyma stary `index.html` z cache — po `vite build` otwieraj adres z `?v=<cokolwiek>` albo rób twarde odświeżenie, zanim uznasz, że poprawka nie działa.
+- 2026-10-20 — Decyzja Natalii (mapa ekranów E01, L18): teksty interfejsu piszemy w formie neutralnej płciowo („Masz zaproszenie…”, nie „Zostałeś zaproszony”) — zasada dla całego UI; teksty w spec E01 do podmiany po lekcji 07.
 - 2026-10-19 — Storybook 10 wpisuje „Storybook” na sztywno do tytułu karty i ukrytego `h1#global-site-h1` (brandTitle tego nie zmienia) — podmieniamy oba w `packages/ui/.storybook/manager-head.html`. Preflight Tailwinda w podglądzie zeruje listy w MDX (przywrócone w `preview.css`), a pierwszy `<h1>` w iframe docs to ukryte „No Preview” — sprawdzając strony w przeglądarce, szukaj `.sbdocs-h1`.
 - 2026-10-19 — Testy stories (`npm run test:storybook`) i `npm test` to osobne światy: stories nie liczą się do 100% pokrycia, więc każdy nowy plik w `packages/ui/src/**` potrzebuje też testu jsdom w `packages/ui/test/`. Konfiguracja stories ma nazwę `vitest.storybook.config.ts`, żeby nie łapał jej glob projektów `packages/*/vitest.config.*`.
 - 2026-10-18 — Next 16: `forbidden()` / `unauthorized()` wymagają flagi `experimental.authInterrupts` (`node_modules/next/dist/docs/01-app/03-api-reference/04-functions/unauthorized.md`) — bramki ról na stronach robimy zwykłym widokiem „Brak dostępu”, autorytetem jest 403 z API; nie włączaj eksperymentalnej flagi dla bezpieczeństwa.
