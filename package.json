@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit && tsc -p scripts && npm run typecheck --workspaces --if-present",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
-    "db:up": "docker compose up -d",
+    "db:up": "docker compose up -d --wait",
     "db:migrate": "npm run migration:up -w @devmentor/db",
     "db:migration:create": "npm run migration:create -w @devmentor/db --",
     "db:migration:list": "npm run migration:list -w @devmentor/db",

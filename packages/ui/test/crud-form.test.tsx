@@ -1,6 +1,6 @@
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { z } from "zod";
 import type { ApiResult } from "../src/backend/api/types";
 import { CrudForm, type CrudFormField } from "../src/backend/forms/crud-form";
@@ -132,6 +132,55 @@ describe("CrudForm", () => {
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeEnabled();
   });
 
+  it("teksty przepływu z propsów: tytuł błędu, stan wysyłania i podpowiedź skrótu", async () => {
+    let resolve: (value: ApiResult<unknown>) => void = () => undefined;
+    const onSubmit = vi.fn(() => new Promise<ApiResult<unknown>>((r) => (resolve = r)));
+    renderForm({
+      onSubmit,
+      initialValues: { name: "Go" },
+      submitLabel: "Zaloguj",
+      submittingLabel: "Logowanie…",
+      errorTitle: "Nie zalogowano",
+      shortcutHint: "Ctrl/⌘ + Enter, aby się zalogować",
+    });
+
+    expect(screen.getByText("Ctrl/⌘ + Enter, aby się zalogować")).toBeInTheDocument();
+    expect(screen.queryByText("Ctrl/⌘ + Enter, aby zapisać")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+    expect(screen.getByRole("button", { name: "Logowanie…" })).toBeDisabled();
+
+    await act(async () => resolve({ ok: false, error: { code: "UNAUTHORIZED", message: "Nieprawidłowe dane logowania" } }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Nie zalogowano");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Nie zapisano");
+  });
+
+  it("odblokowuje formularz, gdy onSubmit rzuci wyjątek, i nie połyka błędu", async () => {
+    // Wyjątek leci dalej z handlera zdarzenia jako nieobsłużone odrzucenie — przechwytujemy je zamiast Vitesta.
+    const vitestListeners = process.listeners("unhandledRejection");
+    process.removeAllListeners("unhandledRejection");
+    const unhandled = new Promise<unknown>((resolve) => process.once("unhandledRejection", resolve));
+    onTestFinished(() => {
+      process.removeAllListeners("unhandledRejection");
+      vitestListeners.forEach((listener) => process.on("unhandledRejection", listener));
+    });
+
+    let reject: (reason: Error) => void = () => undefined;
+    const onSubmit = vi.fn(() => new Promise<ApiResult<unknown>>((_, r) => (reject = r)));
+    const onSuccess = vi.fn();
+    renderForm({ onSubmit, onSuccess, initialValues: { name: "Go" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+    expect(screen.getByRole("button", { name: "Zapisywanie…" })).toBeDisabled();
+
+    await act(async () => reject(new Error("Brak sieci")));
+
+    expect(await unhandled).toEqual(new Error("Brak sieci"));
+    expect(screen.getByRole("button", { name: "Zapisz" })).toBeEnabled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+  });
+
   it("Ctrl+Enter i ⌘+Enter wysyłają formularz, zwykły Enter w textarea nie", async () => {
     const { onSubmit } = renderForm({ initialValues: { name: "Go" } });
     const bio = screen.getByLabelText("Opis");
@@ -202,20 +251,42 @@ describe("CrudForm — pola e-mail i hasło (DS01)", () => {
     expect(screen.getByLabelText("Hasło")).toHaveAttribute("autocomplete", "new-password");
   });
 
-  it("bez autoComplete nie renderuje atrybutu autocomplete; pole bez typu nie dostaje atrybutu type", () => {
+  it("e-mail bez autoComplete nie renderuje atrybutu autocomplete; hasło bez autoComplete to błąd typu", () => {
     renderCredentials([
       { name: "email", label: "E-mail", type: "email" },
-      { name: "password", label: "Hasło", type: "password" },
+      { name: "password", label: "Hasło", type: "password", autoComplete: "current-password" },
     ]);
 
     expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("autocomplete");
-    expect(screen.getByLabelText("Hasło")).not.toHaveAttribute("autocomplete");
-    cleanup();
 
+    // @ts-expect-error — pole hasła musi mieć autoComplete (logowanie i rejestracja potrzebują różnych wartości)
+    const passwordWithoutAutoComplete: CrudFormField<Credentials> = { name: "password", label: "Hasło", type: "password" };
+    expect(passwordWithoutAutoComplete.type).toBe("password");
+  });
+
+  it("pole bez typu nie dostaje atrybutów type ani autocomplete", () => {
     renderForm();
+
     expect(screen.getByLabelText("Nazwa")).not.toHaveAttribute("type");
     expect(screen.getByLabelText("Nazwa")).not.toHaveAttribute("autocomplete");
     expect(screen.getByLabelText("Opis")).not.toHaveAttribute("autocomplete");
+  });
+
+  it("initialValues nie wypełnia pól hasła", () => {
+    render(
+      <CrudForm
+        schema={credentialsSchema}
+        fields={[
+          { name: "email", label: "E-mail", type: "email", autoComplete: "email" },
+          { name: "password", label: "Hasło", type: "password", autoComplete: "new-password" },
+        ]}
+        initialValues={{ email: "ola@example.com", password: "sekret" }}
+        onSubmit={vi.fn(async () => ok)}
+      />,
+    );
+
+    expect(screen.getByLabelText("E-mail")).toHaveValue("ola@example.com");
+    expect(screen.getByLabelText("Hasło")).toHaveValue("");
   });
 
   it("textarea przekazuje autoComplete", () => {

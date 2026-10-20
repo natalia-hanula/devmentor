@@ -1,6 +1,13 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type HTMLInputAutoCompleteAttribute,
+  type KeyboardEvent,
+} from "react";
 import type { z } from "zod";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -14,30 +21,37 @@ const FORM_ERROR_KEY = "_form";
 
 type FormValues = Record<string, string>;
 
-/**
- * Wartości `autocomplete` używane w formularzach panelu. Logowanie: `username` + `current-password`;
- * rejestracja i reset hasła: `email` + `new-password` (DS01).
- */
-export type CrudFormAutoComplete = "username" | "email" | "current-password" | "new-password" | "name" | "off";
-
-export interface CrudFormField<TValues> {
+interface CrudFormFieldBase<TValues> {
   name: Extract<keyof TValues, string>;
   label: string;
-  type?: "text" | "textarea" | "email" | "password";
-  autoComplete?: CrudFormAutoComplete;
   placeholder?: string;
   description?: string;
 }
+
+/**
+ * Pole hasła wymaga `autoComplete`, bo logowanie (`current-password`) i rejestracja (`new-password`)
+ * potrzebują różnych wartości, a pominięcie psuje menedżery haseł bez żadnego sygnału (DS01).
+ */
+export type CrudFormField<TValues> = CrudFormFieldBase<TValues> &
+  (
+    | { type?: "text" | "textarea" | "email"; autoComplete?: HTMLInputAutoCompleteAttribute }
+    | { type: "password"; autoComplete: HTMLInputAutoCompleteAttribute }
+  );
 
 export interface CrudFormProps<TValues extends Record<string, unknown>> {
   /** Ta sama schema Zod, której używa trasa API (`@devmentor/core/validators/...`). */
   schema: z.ZodType<TValues>;
   fields: CrudFormField<TValues>[];
+  /** Pola `type: "password"` są zawsze puste — sekret nie trafia do stanu ani DOM-u. */
   initialValues?: Partial<Record<keyof TValues, string>>;
   onSubmit: (values: TValues) => Promise<ApiResult<unknown>>;
   onSuccess?: () => void;
   onCancel?: () => void;
   submitLabel?: string;
+  /** Teksty zależne od przepływu (np. logowanie zamiast zapisu). */
+  submittingLabel?: string;
+  errorTitle?: string;
+  shortcutHint?: string;
 }
 
 /**
@@ -52,11 +66,14 @@ export function CrudForm<TValues extends Record<string, unknown>>({
   onSuccess,
   onCancel,
   submitLabel = "Zapisz",
+  submittingLabel = "Zapisywanie…",
+  errorTitle = "Nie zapisano",
+  shortcutHint = "Ctrl/⌘ + Enter, aby zapisać",
 }: CrudFormProps<TValues>) {
   const formId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const emptyValues = Object.fromEntries(
-    fields.map((field) => [field.name, initialValues?.[field.name] ?? ""]),
+    fields.map((field) => [field.name, field.type === "password" ? "" : (initialValues?.[field.name] ?? "")]),
   ) as FormValues;
   const [values, setValues] = useState<FormValues>(emptyValues);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -77,8 +94,12 @@ export function CrudForm<TValues extends Record<string, unknown>>({
     }
 
     setIsSubmitting(true);
-    const result = await onSubmit(parsed.data);
-    setIsSubmitting(false);
+    let result: ApiResult<unknown>;
+    try {
+      result = await onSubmit(parsed.data);
+    } finally {
+      setIsSubmitting(false);
+    }
 
     if (!result.ok) {
       showErrors(result.error.fieldErrors ?? {}, result.error.message);
@@ -111,7 +132,7 @@ export function CrudForm<TValues extends Record<string, unknown>>({
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} onKeyDown={handleKeyDown} noValidate className="flex flex-col gap-4">
-      {formError && <ErrorMessage title="Nie zapisano" message={formError} />}
+      {formError && <ErrorMessage title={errorTitle} message={formError} />}
       {fields.map((field) => {
         const inputId = `${formId}-${field.name}`;
         const errors = fieldErrors[field.name];
@@ -148,14 +169,14 @@ export function CrudForm<TValues extends Record<string, unknown>>({
       })}
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Zapisywanie…" : submitLabel}
+          {isSubmitting ? submittingLabel : submitLabel}
         </Button>
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Anuluj
           </Button>
         )}
-        <span className="ml-auto text-xs text-muted-foreground">Ctrl/⌘ + Enter, aby zapisać</span>
+        <span className="ml-auto text-xs text-muted-foreground">{shortcutHint}</span>
       </div>
     </form>
   );

@@ -38,7 +38,7 @@ Wymagania: **Node.js 22.17+** (wymóg MikroORM 7), npm oraz PostgreSQL 17.
 
 ### Szybko: `npm run setup`
 
-Uruchom PostgreSQL z rolą `devmentor` (zob. krok 2 poniżej): `npm run db:up` (skrót dla `docker compose up -d`) tworzy ją sam, a przy Homebrew wykonaj `CREATE ROLE` z kroku 2, bez tworzenia baz. Potem:
+Uruchom PostgreSQL z rolą `devmentor` (zob. krok 2 poniżej): `npm run db:up` (skrót dla `docker compose up -d --wait` — czeka, aż healthcheck potwierdzi gotowość bazy) tworzy ją sam, a przy Homebrew wykonaj `CREATE ROLE` z kroku 2, bez tworzenia baz. Potem:
 
 ```bash
 git clone https://github.com/natalia-hanula/devmentor.git
@@ -80,7 +80,7 @@ SQL
 **Wariant B — Docker:**
 
 ```bash
-npm run db:up   # skrót dla: docker compose up -d
+npm run db:up   # skrót dla: docker compose up -d --wait
 ```
 
 `docker-compose.yml` tworzy tę samą rolę oraz bazy `devmentor` i `devmentor_integration`, więc ten sam `.env` działa w obu wariantach.
@@ -120,7 +120,7 @@ Uruchamiane z katalogu głównego:
 | `npm test`                            | Testy jednostkowe z pokryciem (próg 100%)                   |
 | `npm run test:watch`                  | Vitest w trybie watch                                       |
 | `npm run test:integration`            | Build + testy integracyjne (PostgreSQL, API, agent-browser) |
-| `npm run db:up`                       | PostgreSQL w Dockerze (`docker compose up -d`)              |
+| `npm run db:up`                       | PostgreSQL w Dockerze (`docker compose up -d --wait`)       |
 | `npm run db:migrate`                  | Wykonanie oczekujących migracji                             |
 | `npm run db:migration:create`         | Nowa migracja na podstawie zmian w encjach                  |
 | `npm run db:migration:list`           | Lista wykonanych migracji                                   |
