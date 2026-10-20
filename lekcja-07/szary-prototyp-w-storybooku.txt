@@ -1,0 +1,12 @@
+Przygotuj podgląd szarego prototypu w Storybooku:
+1. Znajdź konfigurację Storybooka (w DevMentorze packages/ui/.storybook/main.*)
+   i folder, z którego serwuje pliki (staticDirs, w DevMentorze
+   packages/ui/.storybook/public). Jeśli staticDirs nie ma, dopisz tylko
+   staticDirs: ['./public'].
+2. Skopiuj cały folder .ai/prototypes/discovery/mentor-onboarding/revision-001/
+   (albo folder, który podał skill) do prototypes/szary/ w tym folderze.
+3. Dopisz do .gitignore pełną ścieżkę tego folderu prototypes/
+   (w DevMentorze packages/ui/.storybook/public/prototypes/). Jeśli projekt ma linter
+   (w DevMentorze globalIgnores w eslint.config.mjs), wyłącz z niego ten
+   folder i lekcja-07/. To kopie i materiały lekcji, nie kod produktu.
+Nic więcej nie zmieniaj.
