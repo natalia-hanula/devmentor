@@ -14,6 +14,8 @@ export {
   type RouteContext,
   type RouteHandler,
 } from "./http/api-handler";
+export { redirectHandler } from "./http/redirect-handler";
+export { safeNextPath } from "./http/safe-next-path";
 export { makeCrudRoute, type AccessRule, type CrudService } from "./http/make-crud-route";
 export {
   assertOwnership,
@@ -25,10 +27,7 @@ export {
   type Session,
 } from "./http/auth";
 export { getSessionFromCookieValue } from "./http/session";
-export {
-  SESSION_COOKIE_NAME,
-  SESSION_TTL_SECONDS,
-  SessionTokenService,
-} from "./services/auth/session-token.service";
+export { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "./http/session-constants";
+export { SessionTokenService } from "./services/auth/session-token.service";
 export { DatabaseHealthService, type DatabaseHealth } from "./services/health/database-health.service";
 export { TechnologyService, type TechnologyDto } from "./services/mentors/technology.service";

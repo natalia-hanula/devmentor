@@ -1,7 +1,7 @@
 import { User } from "@devmentor/db";
 import { withScope } from "../container/container";
-import { SESSION_COOKIE_NAME } from "../services/auth/session-token.service";
 import type { Role, Session } from "./auth";
+import { SESSION_COOKIE_NAME } from "./session-constants";
 
 /**
  * Odczyt sesji z żądania (fail closed): brak ciasteczka, zły lub wygasły token, nieistniejące konto

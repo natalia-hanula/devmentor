@@ -1,6 +1,6 @@
 import { defineEntity, p } from "@mikro-orm/postgresql";
 import { DISPLAY_NAME_MAX_LENGTH, EMAIL_MAX_LENGTH } from "../../constants";
-import { baseProperties } from "../base.entity";
+import { baseProperties, pinEntityName } from "../base.entity";
 import { UserRoleSchema } from "./user-role.entity";
 
 const UserSchema = defineEntity({
@@ -20,6 +20,7 @@ const UserSchema = defineEntity({
 });
 
 export class User extends UserSchema.class {}
+pinEntityName(User, "User");
 UserSchema.setClass(User);
 
 export { UserSchema };

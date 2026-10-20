@@ -11,6 +11,8 @@ export default defineConfig({
       include: [
         "packages/*/src/**/*.{ts,tsx}",
         "packages/app/app/**/*.{ts,tsx}",
+        // Poza `app/`, ale to kod aplikacji (optymistyczne przekierowanie) — rozszerzenie zakresu, nie wyłączenie.
+        "packages/app/proxy.ts",
         "scripts/setup.ts",
         "scripts/setup/**/*.ts",
       ],

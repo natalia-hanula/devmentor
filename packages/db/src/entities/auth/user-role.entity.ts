@@ -1,6 +1,6 @@
 import { defineEntity, p } from "@mikro-orm/postgresql";
 import { USER_ROLES } from "../../constants";
-import { baseProperties } from "../base.entity";
+import { baseProperties, pinEntityName } from "../base.entity";
 import { UserSchema } from "./user.entity";
 
 const UserRoleSchema = defineEntity({
@@ -18,6 +18,7 @@ const UserRoleSchema = defineEntity({
 });
 
 export class UserRole extends UserRoleSchema.class {}
+pinEntityName(UserRole, "UserRole");
 UserRoleSchema.setClass(UserRole);
 
 export { UserRoleSchema };

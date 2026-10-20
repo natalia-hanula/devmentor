@@ -1,9 +1,6 @@
 import { errors, jwtVerify, SignJWT } from "jose";
 import type { Env } from "../../config/env";
-
-export const SESSION_COOKIE_NAME = "devmentor_session";
-/** Ważność sesji z `AGENTS.md` (~24 h, bez refresh tokenów). */
-export const SESSION_TTL_SECONDS = 24 * 60 * 60;
+import { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "../../http/session-constants";
 
 const SESSION_ALGORITHM = "HS256";
 /** Środowiska, w których ciasteczko dostaje flagę `Secure` (`NODE_ENV` ich nie odróżnia). */

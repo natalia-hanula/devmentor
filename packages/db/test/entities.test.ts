@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { entities, Technology } from "../src";
+import { entities, Technology, User, UserRole } from "../src";
+import { pinEntityName } from "../src/entities/base.entity";
 import { TechnologySchema } from "../src/entities/mentors/technology.entity";
 
 type Hook = (entity: unknown, em: unknown) => unknown;
@@ -8,6 +9,21 @@ function hook(property: string, kind: "onCreate" | "onUpdate"): Hook {
   const meta = TechnologySchema.meta.properties as unknown as Record<string, Record<string, Hook>>;
   return meta[property][kind];
 }
+
+describe("pinEntityName", () => {
+  it("przypina nazwę klasy, także gdy bundler ją zminifikował", () => {
+    class j {}
+    expect(j.name).toBe("j");
+
+    pinEntityName(j, "User");
+
+    expect(j.name).toBe("User");
+  });
+
+  it("klasy encji mają nazwy z defineEntity, niezależnie od minifikacji", () => {
+    expect([Technology.name, User.name, UserRole.name]).toEqual(["Technology", "User", "UserRole"]);
+  });
+});
 
 describe("encje", () => {
   it("rejestruje Technology w liście encji, w tabeli technologies", () => {

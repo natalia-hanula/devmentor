@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./http/safe-next-path": "./src/http/safe-next-path.ts",
+    "./http/session-constants": "./src/http/session-constants.ts",
     "./validators/*": "./src/validators/*.ts"
   },
   "scripts": {

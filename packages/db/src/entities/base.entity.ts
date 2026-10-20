@@ -13,3 +13,15 @@ export const baseProperties = {
     .onCreate(() => new Date())
     .onUpdate(() => new Date()),
 };
+
+/**
+ * Przypina `class.name` encji do nazwy z `defineEntity`. Turbopack minifikuje nazwy klas w buildzie
+ * produkcyjnym, a każda warstwa Next (trasy API, strony) ma własną kopię modułu encji, więc ta sama
+ * klasa dostaje w nich różne nazwy (`User` → `j`, `x`…). Kontener ORM jest jeden na proces, a MikroORM
+ * szuka metadanych po `class.name` — bez przypięcia strona nie znajduje encji zarejestrowanych
+ * przez kontener utworzony w warstwie tras (`MetadataError: Metadata for entity j not found`).
+ * Wołaj przed `Schema.setClass(...)`.
+ */
+export function pinEntityName(entity: abstract new (...args: never[]) => object, name: string): void {
+  Object.defineProperty(entity, "name", { value: name });
+}

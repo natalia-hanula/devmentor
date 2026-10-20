@@ -1,6 +1,6 @@
 import { defineEntity, p } from "@mikro-orm/postgresql";
 import { TECHNOLOGY_NAME_MAX_LENGTH, TECHNOLOGY_SLUG_MAX_LENGTH } from "../../constants";
-import { baseProperties } from "../base.entity";
+import { baseProperties, pinEntityName } from "../base.entity";
 
 const TechnologySchema = defineEntity({
   name: "Technology",
@@ -13,6 +13,7 @@ const TechnologySchema = defineEntity({
 });
 
 export class Technology extends TechnologySchema.class {}
+pinEntityName(Technology, "Technology");
 TechnologySchema.setClass(Technology);
 
 export { TechnologySchema };
