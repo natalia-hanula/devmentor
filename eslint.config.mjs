@@ -84,6 +84,7 @@ const eslintConfig = defineConfig([
     // Kopie prototypów i materiały lekcji — nie kod produktu.
     "packages/ui/.storybook/public/prototypes/**",
     "lekcja-07/**",
+    "prototypes/**",
   ]),
 ]);
 

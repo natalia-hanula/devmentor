@@ -1,0 +1,95 @@
+/* Warstwa przeglądu (pasek, dokument ekranów, przyciski silnika). To nie jest produkt:
+   klasy, których używa silnik (btn, segmented, input, toast …), zbudowane z tokenów DS. */
+
+[hidden] { display: none !important; }
+
+.doc-toolbar {
+  position: sticky; top: 0; z-index: var(--z-index-sticky);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-in-group);
+  padding: var(--space-in-group) var(--space-between-groups);
+  background: var(--card); color: var(--card-foreground);
+  border-bottom: 1px solid var(--input);
+  font-size: var(--type-meta-size); line-height: var(--type-meta-leading);
+}
+.doc-toolbar .proto-toolbar { flex-wrap: wrap; }
+.review-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-in-group); width: 100%; }
+.review-mark {
+  display: inline-flex; align-items: center; gap: var(--list-row-gap);
+  padding: var(--list-row-gap) var(--space-in-group);
+  border: 1px dashed var(--foreground); border-radius: var(--radius-sm);
+  font-weight: var(--type-row-title-weight);
+}
+.screen-nav {
+  display: flex; gap: var(--list-row-gap); max-width: 100%;
+  overflow-x: auto; flex: 1 1 20rem; min-width: 0;
+}
+.screen-nav a {
+  white-space: nowrap; text-decoration: none; color: var(--muted-foreground);
+  padding: var(--list-row-gap) var(--space-in-group); border-radius: var(--radius-sm);
+}
+.screen-nav a:hover { color: var(--foreground); background: var(--accent); }
+.screen-nav a[aria-current="true"] { color: var(--primary-foreground); background: var(--primary); }
+.review-field { display: inline-flex; align-items: center; gap: var(--list-row-gap); min-width: 0; }
+.review-field select, .input {
+  font: inherit; color: var(--foreground); background: var(--background);
+  border: 1px solid var(--input); border-radius: var(--radius-sm);
+  padding: var(--list-row-gap) var(--space-in-group); max-width: 100%;
+}
+.review-address { font-family: var(--font-family-code); overflow-wrap: anywhere; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--list-row-gap);
+  font: inherit; font-weight: var(--type-label-weight); cursor: pointer;
+  padding: var(--list-row-gap) var(--space-in-group); border-radius: var(--radius-sm);
+  border: 1px solid transparent; background: transparent; color: var(--foreground);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-outline { border-color: var(--input); background: var(--background); }
+.btn-outline:hover:not(:disabled), .btn-ghost:hover { background: var(--accent); }
+.btn-primary { background: var(--primary); color: var(--primary-foreground); }
+.btn-sm { font-size: var(--type-meta-size); }
+.segmented { display: inline-flex; border: 1px solid var(--input); border-radius: var(--radius-sm); overflow: hidden; }
+.segmented button {
+  font: inherit; border: 0; cursor: pointer; padding: var(--list-row-gap) var(--space-in-group);
+  background: var(--background); color: var(--foreground);
+}
+.segmented button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.doc-toolbar :focus-visible, .btn:focus-visible, .segmented button:focus-visible, .screen-nav a:focus-visible {
+  outline: 2px solid var(--ring); outline-offset: 2px;
+}
+.toast {
+  padding: var(--space-in-group) var(--space-between-groups); border-radius: var(--radius-md);
+  background: var(--foreground); color: var(--background); font-size: var(--type-body-size);
+}
+.t-overline { font-size: var(--type-meta-size); color: var(--muted-foreground); text-transform: uppercase; }
+.t-card-title { font-size: var(--type-row-title-size); font-weight: var(--type-row-title-weight); }
+.t-hint { font-size: var(--type-meta-size); color: var(--muted-foreground); }
+.row { display: flex; flex-wrap: wrap; gap: var(--space-in-group); }
+.badge.badge-warning {
+  font-size: var(--type-meta-size); padding: 0 var(--list-row-gap);
+  border: 1px solid var(--status-warning-border); border-radius: var(--radius-sm);
+}
+
+/* Dokument ekranów (tryb bez prezentacji) */
+.doc { max-width: var(--layout-panel-max); margin: 0 auto; padding: var(--space-panel) var(--space-between-groups); }
+.doc-head { display: flex; flex-direction: column; gap: var(--space-in-group); max-width: var(--measure-text); }
+.doc-head h1 { font-size: var(--type-page-title-size); line-height: var(--type-page-title-leading); font-weight: var(--type-page-title-weight); }
+.screen { margin-top: var(--space-section); }
+.screen-meta { display: flex; flex-direction: column; gap: var(--list-row-gap); margin-bottom: var(--space-in-group); }
+.screen-meta h2 { font-size: var(--type-section-title-size); line-height: var(--type-section-title-leading); font-weight: var(--type-section-title-weight); }
+.screen-meta p { font-size: var(--type-meta-size); color: var(--muted-foreground); }
+.frame { border: 1px solid var(--border); border-radius: var(--radius); background: var(--background); overflow-x: clip; }
+.notes { margin-top: var(--space-in-group); }
+.note { font-size: var(--type-meta-size); color: var(--muted-foreground); max-width: var(--measure-text); }
+body.proto-focus .doc { padding: 0; }
+
+/* Silnik ustawia fokus na nagłówku ekranu po przejściu (tabindex="-1") — bez ramki fokusu dla tego programowego fokusu. */
+.frame [tabindex="-1"]:focus { outline: none; }
+
+/* Na wąskim ekranie pasek przeglądu nie jest przyklejony — inaczej zajmuje większość widoku. */
+@media (max-width: 40rem) {
+  .doc-toolbar { position: static; }
+}
+
+/* `.btn` wyżej ustawia display — przycisk „← Back” silnika ma być tylko w trybie prezentacji. */
+body:not(.proto-focus) .proto-back { display: none; }

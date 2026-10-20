@@ -1,0 +1,7 @@
+@import "@devmentor/ui/globals.css";
+@import "./engine/prototype.css";
+@import "./engine/mostek.css";
+@import "./review/review.css";
+
+/* Klasy Tailwinda użyte w ekranach prototypu. */
+@source "./";
