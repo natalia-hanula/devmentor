@@ -6,6 +6,8 @@ const REPO_ROOT = resolve(import.meta.dirname, "../../..");
 const APP_DIR = resolve(REPO_ROOT, "packages/app");
 const NEXT_BIN = resolve(REPO_ROOT, "node_modules/.bin/next");
 const STARTUP_TIMEOUT_MS = 60_000;
+// Dane testowe, nie sekret: baza i aplikacja żyją tylko przez czas przebiegu testów.
+const TEST_AUTH_JWT_SECRET = "testowy-sekret-sesji-tylko-do-testow-integracyjnych";
 const POLL_INTERVAL_MS = 250;
 
 export interface AppServer {
@@ -22,7 +24,7 @@ export async function startAppServer(databaseUrl: string): Promise<AppServer> {
   const child = spawn(NEXT_BIN, ["start", "--port", String(port), "--hostname", "127.0.0.1"], {
     cwd: APP_DIR,
     // Zmienne procesu mają pierwszeństwo przed `.env`, więc lokalny `.env` nie przesłoni bazy testowej.
-    env: { ...process.env, DATABASE_URL: databaseUrl, LOG_LEVEL: "warn" },
+    env: { ...process.env, DATABASE_URL: databaseUrl, LOG_LEVEL: "warn", AUTH_JWT_SECRET: TEST_AUTH_JWT_SECRET, APP_ENV: "test" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout?.on("data", (chunk: Buffer) => output.push(chunk.toString()));

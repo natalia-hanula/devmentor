@@ -1,6 +1,10 @@
 import { spawn } from "node:child_process";
-import { constants, copyFileSync, lstatSync, readFileSync, readlinkSync, symlinkSync } from "node:fs";
+import { randomBytes } from "node:crypto";
+import { constants, copyFileSync, lstatSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
 import type { DatabaseClient, PathKind, SetupSystem } from "./types.ts";
+
+/** 48 bajtów losowości: base64url daje 64 znaki, czyli dużo ponad minimum 32 bajtów sekretu HS256. */
+const SECRET_BYTES = 48;
 
 /** Prawdziwy system: pliki, procesy potomne i PostgreSQL. Jedyne miejsce instalatora z efektami ubocznymi. */
 export function createSystem(rootDir: string): SetupSystem {
@@ -22,6 +26,8 @@ export function createSystem(rootDir: string): SetupSystem {
     pathKind,
     readLink: (path) => readlinkSync(path),
     readFile: (path) => readFileSync(path, "utf8"),
+    writeFile: (path, content) => writeFileSync(path, content),
+    generateSecret: () => randomBytes(SECRET_BYTES).toString("base64url"),
     copyFile: (source, destination) => copyFileSync(source, destination, constants.COPYFILE_EXCL),
     symlink: (target, path) => symlinkSync(target, path),
     connect,

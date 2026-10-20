@@ -30,6 +30,10 @@ export interface SetupSystem {
   pathKind(path: string): PathKind;
   readLink(path: string): string;
   readFile(path: string): string;
+  /** Zapisuje plik (nadpisuje) — tylko dla plików, które instalator sam uzupełnia. */
+  writeFile(path: string, content: string): void;
+  /** Losowy sekret (base64url) do `.env`. */
+  generateSecret(): string;
   /** Kopiuje plik; nigdy nie nadpisuje istniejącego celu. */
   copyFile(source: string, destination: string): void;
   symlink(target: string, path: string): void;

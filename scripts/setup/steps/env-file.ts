@@ -19,6 +19,52 @@ export const envFileStep: SetupStep = {
   },
 };
 
+/** Wartość `APP_ENV` dla lokalnej instalacji (domyślna `production` jest dla serwera, nie dla laptopa). */
+const LOCAL_APP_ENV = "local";
+
+/**
+ * Uzupełnia w istniejącym `.env` zmienne, bez których aplikacja nie ruszy: sekret sesji i `APP_ENV=local`.
+ * Wartości, które już tam są, zostają nietknięte; pusty wpis własnych kluczy jest wypełniany.
+ */
+export const sessionEnvStep: SetupStep = {
+  name: "Sekret sesji i APP_ENV",
+  async run({ system }) {
+    const envPath = join(system.rootDir, ROOT_ENV);
+    const original = system.readFile(envPath);
+    let content = original;
+    const added: string[] = [];
+
+    for (const [key, value] of [
+      ["AUTH_JWT_SECRET", system.generateSecret()],
+      ["APP_ENV", LOCAL_APP_ENV],
+    ] as const) {
+      if (hasValue(content, key)) continue;
+      content = withValue(content, key, value);
+      added.push(key);
+    }
+
+    if (added.length === 0) {
+      return { status: "skipped", message: "AUTH_JWT_SECRET i APP_ENV są już w .env" };
+    }
+    system.writeFile(envPath, content);
+    return { status: "done", message: `dopisano do .env: ${added.join(", ")}` };
+  },
+};
+
+const lineFor = (key: string) => new RegExp(`^${key}=(.*)$`, "m");
+
+function hasValue(content: string, key: string): boolean {
+  return (lineFor(key).exec(content)?.[1] ?? "").trim() !== "";
+}
+
+function withValue(content: string, key: string, value: string): string {
+  if (lineFor(key).test(content)) {
+    return content.replace(lineFor(key), () => `${key}=${value}`);
+  }
+  const separator = content === "" || content.endsWith("\n") ? "" : "\n";
+  return `${content}${separator}${key}=${value}\n`;
+}
+
 export const appEnvLinkStep: SetupStep = {
   name: "Symlink packages/app/.env",
   async run({ system }) {

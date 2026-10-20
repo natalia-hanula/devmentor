@@ -8,6 +8,7 @@ describe("SETUP_STEPS", () => {
       "Node.js",
       "Zależności (npm install)",
       "Plik .env",
+      "Sekret sesji i APP_ENV",
       "Symlink packages/app/.env",
       "DATABASE_URL",
       "PostgreSQL",

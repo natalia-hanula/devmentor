@@ -22,6 +22,7 @@ describe("getContainer / withScope", () => {
     resetContainer();
     initOrm.mockReset();
     vi.stubEnv("DATABASE_URL", "postgresql://u:p@localhost:5432/db");
+    vi.stubEnv("AUTH_JWT_SECRET", "s".repeat(32));
   });
 
   afterEach(() => {

@@ -47,7 +47,7 @@ npm run setup
 npm run dev
 ```
 
-Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
+Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje, tylko dopisuje brakujące `AUTH_JWT_SECRET` (losowy, 48 bajtów) i `APP_ENV=local`. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
 
 > Na Node 22 instalator wypisuje ostrzeżenie `ExperimentalWarning` o type stripping. To jest oczekiwane.
 
@@ -93,6 +93,8 @@ npm run db:up   # skrót dla: docker compose up -d --wait
 cp .env.example .env
 ln -s ../../.env packages/app/.env
 ```
+
+Bez instalatora dopisz do `.env` sekret sesji (min. 32 bajty; polecenie jest w `.env.example`). Zmiana `AUTH_JWT_SECRET` wylogowuje wszystkich użytkowników. `APP_ENV` (`local`, `test`, `staging`, `production`) mówi, gdzie działa aplikacja; brak wpisu oznacza `production`, czyli najostrzejsze reguły.
 
 `.env` jest jeden, w katalogu głównym. Next.js czyta `.env` tylko z katalogu aplikacji, dlatego `packages/app/.env` jest symlinkiem do pliku głównego.
 
