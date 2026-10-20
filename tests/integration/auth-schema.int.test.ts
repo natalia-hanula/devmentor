@@ -1,4 +1,6 @@
 import { initOrm, UniqueConstraintViolationException, User, UserRole, type MikroORM } from "@devmentor/db";
+import { rmSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
 import { CONNECT_TIMEOUT_MS, MAINTENANCE_DATABASE } from "../../scripts/setup/steps/database.ts";
 import { connect } from "../../scripts/setup/system.ts";
@@ -117,6 +119,8 @@ describe("migracja auth-users-and-roles: w górę i w dół", () => {
   });
 
   afterAll(async () => {
+    // `migration:up/down` zapisuje snapshot per baza — plik tymczasowej bazy nie ma trafić do repo.
+    rmSync(resolve(import.meta.dirname, `../../packages/db/migrations/.snapshot-${DATABASE}.json`), { force: true });
     if (!maintenance) return;
     await maintenance.query(`DROP DATABASE IF EXISTS ${maintenance.escapeIdentifier(DATABASE)}`);
     await maintenance.end();
