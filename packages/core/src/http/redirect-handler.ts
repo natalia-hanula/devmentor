@@ -1,6 +1,7 @@
 import { isDatabaseUnavailableError } from "@devmentor/db";
 import { getLogger } from "../logger";
 import { AppError, ServiceUnavailableError } from "./errors";
+import { safeNextPath } from "./safe-next-path";
 import { DataWithCookies } from "./api-handler";
 import type { RouteContext, RouteHandler } from "./api-handler";
 
@@ -9,7 +10,8 @@ const UNEXPECTED_ERROR_CODE = "unexpected";
 /**
  * Drugi kanoniczny wrapper tras obok `apiHandler`, dla tras, które odpowiadają przekierowaniem
  * (callback OAuth i każde przyszłe). Handler zwraca adres docelowy (ścieżkę względną) albo
- * `withCookies(adres, cookies)`. Tylko `GET` — te trasy nie zmieniają stanu poza sesją, więc nie
+ * `withCookies(adres, cookies)`; adres zawsze przechodzi przez `safeNextPath` (niebezpieczny → `/`),
+ * więc handler przekazujący dalej wartość od użytkownika nie zrobi otwartego przekierowania. Tylko `GET` — te trasy nie zmieniają stanu poza sesją, więc nie
  * wymagają nagłówka CSRF. Błąd zamienia na `302 /login?error=<kod>`; nie ujawnia stack trace'ów.
  * Loguje wyłącznie `pathname`: callback OAuth niesie w query `code` i `state`.
  */
@@ -23,8 +25,8 @@ export function redirectHandler(
     try {
       const result = await handler(request, context);
       return result instanceof DataWithCookies
-        ? redirectTo(result.data, result.cookies)
-        : redirectTo(result);
+        ? redirectTo(safeNextPath(result.data), result.cookies)
+        : redirectTo(safeNextPath(result));
     } catch (error) {
       return redirectTo(`/login?error=${encodeURIComponent(errorCode(error, request))}`);
     }

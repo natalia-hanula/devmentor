@@ -1,4 +1,5 @@
 import { SignJWT, UnsecuredJWT } from "jose";
+import type { JWTPayload } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const jose = vi.hoisted(() => ({ jwtVerify: vi.fn() }));
@@ -64,6 +65,7 @@ describe("SessionTokenService.sign / verify", () => {
 
   it.each([
     ["brak sub", new SignJWT({ sv: 1 })],
+    ["sub nie jest napisem", new SignJWT({ sv: 1, sub: 123 } as unknown as JWTPayload)],
     ["pusty sub", new SignJWT({ sv: 1 }).setSubject("")],
     ["brak sv", new SignJWT({}).setSubject("u1")],
     ["sv nie jest liczbą", new SignJWT({ sv: "1" }).setSubject("u1")],
@@ -73,6 +75,12 @@ describe("SessionTokenService.sign / verify", () => {
       .setProtectedHeader({ alg: "HS256" })
       .setExpirationTime("1h")
       .sign(key);
+
+    expect(await service().verify(token)).toBeNull();
+  });
+
+  it("odrzuca poprawnie podpisany token bez exp (requiredClaims)", async () => {
+    const token = await new SignJWT({ sv: 1 }).setProtectedHeader({ alg: "HS256" }).setSubject("u1").sign(key);
 
     expect(await service().verify(token)).toBeNull();
   });

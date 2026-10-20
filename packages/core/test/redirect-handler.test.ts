@@ -32,6 +32,29 @@ describe("redirectHandler", () => {
     expect(response.headers.getSetCookie()).toEqual(["a=1; Path=/", "b=2; Path=/"]);
   });
 
+  it.each(["//evil.pl", "https://evil.pl/x", "/\\evil.pl", "javascript:alert(1)"])(
+    "niebezpieczny adres z handlera (%s) → Location: /",
+    async (location) => {
+      const response = await redirectHandler(async () => location)(get(), context);
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe("/");
+    },
+  );
+
+  it("withCookies z niebezpiecznym adresem → Location: /, ciasteczka zostają", async () => {
+    const response = await redirectHandler(async () => withCookies("//evil.pl", ["a=1; Path=/"]))(get(), context);
+
+    expect(response.headers.get("location")).toBe("/");
+    expect(response.headers.getSetCookie()).toEqual(["a=1; Path=/"]);
+  });
+
+  it("adres z zapytaniem przechodzi bez zmian", async () => {
+    const response = await redirectHandler(async () => "/account?tab=1")(get(), context);
+
+    expect(response.headers.get("location")).toBe("/account?tab=1");
+  });
+
   it.each(["POST", "PUT", "DELETE", "PATCH"])("%s → 405 z Allow: GET, handler się nie wykonuje", async (method) => {
     const handler = vi.fn(async () => "/x");
 

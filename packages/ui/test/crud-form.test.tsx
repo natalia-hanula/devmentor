@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, onTestFinished, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import type { ApiResult } from "../src/backend/api/types";
 import { CrudForm, type CrudFormField } from "../src/backend/forms/crud-form";
@@ -154,18 +154,12 @@ describe("CrudForm", () => {
     expect(screen.getByRole("alert")).not.toHaveTextContent("Nie zapisano");
   });
 
-  it("odblokowuje formularz, gdy onSubmit rzuci wyjątek, i nie połyka błędu", async () => {
-    // Wyjątek leci dalej z handlera zdarzenia jako nieobsłużone odrzucenie — przechwytujemy je zamiast Vitesta.
-    const vitestListeners = process.listeners("unhandledRejection");
-    process.removeAllListeners("unhandledRejection");
-    const unhandled = new Promise<unknown>((resolve) => process.once("unhandledRejection", resolve));
-    onTestFinished(() => {
-      process.removeAllListeners("unhandledRejection");
-      vitestListeners.forEach((listener) => process.on("unhandledRejection", listener));
-    });
-
+  it("gdy onSubmit rzuci wyjątek, pokazuje ogólny komunikat i odblokowuje formularz do ponownego wysłania", async () => {
     let reject: (reason: Error) => void = () => undefined;
-    const onSubmit = vi.fn(() => new Promise<ApiResult<unknown>>((_, r) => (reject = r)));
+    const onSubmit = vi
+      .fn<(values: Values) => Promise<ApiResult<unknown>>>()
+      .mockImplementationOnce(() => new Promise<ApiResult<unknown>>((_, r) => (reject = r)))
+      .mockResolvedValueOnce(ok);
     const onSuccess = vi.fn();
     renderForm({ onSubmit, onSuccess, initialValues: { name: "Go" } });
 
@@ -174,11 +168,32 @@ describe("CrudForm", () => {
 
     await act(async () => reject(new Error("Brak sieci")));
 
-    expect(await unhandled).toEqual(new Error("Brak sieci"));
+    expect(screen.getByRole("alert")).toHaveTextContent("Nie zapisano");
+    expect(screen.getByRole("alert")).toHaveTextContent("Nie udało się połączyć. Spróbuj ponownie.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Brak sieci");
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeEnabled();
     expect(onSuccess).not.toHaveBeenCalled();
+
     await userEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
     expect(onSubmit).toHaveBeenCalledTimes(2);
+    expect(onSuccess).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("komunikat wyjątku onSubmit można podmienić propsem unexpectedErrorMessage", async () => {
+    renderForm({
+      onSubmit: vi.fn(async () => {
+        throw new Error("Brak sieci");
+      }),
+      initialValues: { name: "Go" },
+      unexpectedErrorMessage: "Serwer nie odpowiada.",
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Serwer nie odpowiada.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Nie udało się połączyć");
   });
 
   it("Ctrl+Enter i ⌘+Enter wysyłają formularz, zwykły Enter w textarea nie", async () => {

@@ -3,6 +3,8 @@ import type { Env } from "../../config/env";
 import { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "../../http/session-constants";
 
 const SESSION_ALGORITHM = "HS256";
+/** Token bez `exp` byłby ważny bezterminowo, a bez `sub` nie wskazuje konta — odrzuca je już `jwtVerify`. */
+const REQUIRED_CLAIMS = ["exp", "sub"];
 /** Środowiska, w których ciasteczko dostaje flagę `Secure` (`NODE_ENV` ich nie odróżnia). */
 const SECURE_COOKIE_ENVIRONMENTS: readonly Env["APP_ENV"][] = ["staging", "production"];
 
@@ -41,7 +43,10 @@ export class SessionTokenService {
   /** `null` dla każdego tokenu, który nie jest ważny; błąd inny niż walidacja tokenu leci dalej. */
   async verify(token: string): Promise<VerifiedSessionToken | null> {
     try {
-      const { payload } = await jwtVerify(token, this.key, { algorithms: [SESSION_ALGORITHM] });
+      const { payload } = await jwtVerify(token, this.key, {
+        algorithms: [SESSION_ALGORITHM],
+        requiredClaims: REQUIRED_CLAIMS,
+      });
       const { sub, sv } = payload;
       if (typeof sub !== "string" || sub === "" || typeof sv !== "number" || !Number.isInteger(sv)) {
         return null;

@@ -428,6 +428,15 @@
       },
       "indexes": [
         {
+          "columnNames": [],
+          "composite": false,
+          "constraint": false,
+          "keyName": "users_email_lower_unique",
+          "primary": false,
+          "unique": true,
+          "expression": "create unique index \"users_email_lower_unique\" on \"users\" (lower(\"email\"))"
+        },
+        {
           "columnNames": [
             "email"
           ],

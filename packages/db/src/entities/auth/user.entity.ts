@@ -6,6 +6,16 @@ import { UserRoleSchema } from "./user-role.entity";
 const UserSchema = defineEntity({
   name: "User",
   tableName: "users",
+  /**
+   * Unikalność adresu niezależna od wielkości liter — ostatnia linia obrony, gdyby zapis ominął
+   * normalizację. Indeks wyrażeniowy: MikroORM porównuje go w migracjach tylko po nazwie.
+   */
+  uniques: [
+    {
+      name: "users_email_lower_unique",
+      expression: 'create unique index "users_email_lower_unique" on "users" (lower("email"))',
+    },
+  ],
   properties: {
     ...baseProperties,
     /** Znormalizowany (`trim` + małe litery) w walidatorze i serwisie. */

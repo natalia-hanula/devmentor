@@ -54,6 +54,15 @@ describe("schemat kont na prawdziwym PostgreSQL", () => {
     expect(rejected?.status === "rejected" && rejected.reason).toBeInstanceOf(UniqueConstraintViolationException);
   });
 
+  it("UNIQUE na lower(email): adres różniący się tylko wielkością liter jest odrzucany", async () => {
+    await createAccount(orm.em.fork(), { email: "Wielkie@Example.pl", roles: ["mentee"] });
+
+    await expect(
+      createAccount(orm.em.fork(), { email: "wielkie@example.pl", roles: ["mentee"] }),
+    ).rejects.toBeInstanceOf(UniqueConstraintViolationException);
+    expect(await orm.em.fork().count(User, { email: { $ilike: "it-wielkie@example.pl" } })).toBe(1);
+  });
+
   it("UNIQUE (user_id, role): ta sama rola nie może być nadana dwa razy", async () => {
     const user = await createAccount(orm.em.fork(), { email: "rola@example.com", roles: ["mentee"] });
 
@@ -90,7 +99,7 @@ describe("schemat kont na prawdziwym PostgreSQL", () => {
   });
 });
 
-describe("migracja auth-users-and-roles: w górę i w dół", () => {
+describe("migracje auth (users-and-roles, users-email-lower-unique): w górę i w dół", () => {
   // Osobna baza — cofanie migracji nie może ruszać bazy współdzielonej przez inne testy.
   const DATABASE = `it_migration_${Date.now()}`;
   let maintenance: Awaited<ReturnType<typeof connect>>;
@@ -103,6 +112,16 @@ describe("migracja auth-users-and-roles: w górę i w dół", () => {
         "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1",
         [name],
       );
+      return result.rowCount === 1;
+    } finally {
+      await client.end();
+    }
+  };
+
+  const indexExists = async (name: string) => {
+    const client = await connect(databaseUrl, CONNECT_TIMEOUT_MS);
+    try {
+      const result = await client.query("SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = $1", [name]);
       return result.rowCount === 1;
     } finally {
       await client.end();
@@ -126,13 +145,19 @@ describe("migracja auth-users-and-roles: w górę i w dół", () => {
     await maintenance.end();
   });
 
-  it("migracja tworzy users i user_roles, a cofnięcie usuwa tylko je", async () => {
+  it("migracje tworzą users, user_roles i indeks lower(email); cofanie usuwa po kolei tylko je", async () => {
     await migrate(databaseUrl);
     expect([await tableExists("users"), await tableExists("user_roles"), await tableExists("technologies")]).toEqual([
       true,
       true,
       true,
     ]);
+    expect(await indexExists("users_email_lower_unique")).toBe(true);
+
+    await rollback(databaseUrl);
+    expect(await indexExists("users_email_lower_unique")).toBe(false);
+    expect(await indexExists("users_email_unique")).toBe(true);
+    expect(await tableExists("users")).toBe(true);
 
     await rollback(databaseUrl);
     expect([await tableExists("users"), await tableExists("user_roles"), await tableExists("technologies")]).toEqual([
@@ -143,5 +168,6 @@ describe("migracja auth-users-and-roles: w górę i w dół", () => {
 
     await migrate(databaseUrl);
     expect([await tableExists("users"), await tableExists("user_roles")]).toEqual([true, true]);
+    expect(await indexExists("users_email_lower_unique")).toBe(true);
   });
 });

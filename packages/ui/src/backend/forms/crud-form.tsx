@@ -52,6 +52,8 @@ export interface CrudFormProps<TValues extends Record<string, unknown>> {
   submittingLabel?: string;
   errorTitle?: string;
   shortcutHint?: string;
+  /** Komunikat, gdy `onSubmit` rzuci wyjątek (np. brak sieci) zamiast zwrócić kopertę z błędem. */
+  unexpectedErrorMessage?: string;
 }
 
 /**
@@ -69,6 +71,7 @@ export function CrudForm<TValues extends Record<string, unknown>>({
   submittingLabel = "Zapisywanie…",
   errorTitle = "Nie zapisano",
   shortcutHint = "Ctrl/⌘ + Enter, aby zapisać",
+  unexpectedErrorMessage = "Nie udało się połączyć. Spróbuj ponownie.",
 }: CrudFormProps<TValues>) {
   const formId = useId();
   const formRef = useRef<HTMLFormElement>(null);
@@ -97,6 +100,9 @@ export function CrudForm<TValues extends Record<string, unknown>>({
     let result: ApiResult<unknown>;
     try {
       result = await onSubmit(parsed.data);
+    } catch {
+      showErrors({}, unexpectedErrorMessage);
+      return;
     } finally {
       setIsSubmitting(false);
     }
