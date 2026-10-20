@@ -3,7 +3,7 @@ import { isValidElement, type ReactElement } from "react";
 import { describe, expect, it } from "vitest";
 
 const { default: RootLayout, metadata } = await import("../app/layout");
-const { default: AdminLayout } = await import("../app/(admin)/layout");
+const { default: AdminLayout } = await import("../app/(operator)/layout");
 
 const layoutProps = (children: React.ReactNode) => ({ children, params: Promise.resolve({}) }) as LayoutProps<"/">;
 

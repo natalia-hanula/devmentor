@@ -14,6 +14,14 @@ export {
   type RouteHandler,
 } from "./http/api-handler";
 export { makeCrudRoute, type AccessRule, type CrudService } from "./http/make-crud-route";
-export { assertOwnership, getSession, requireRole, requireSession, type Role, type Session } from "./http/auth";
+export {
+  assertOwnership,
+  getSession,
+  requireRole,
+  requireRoleAccess,
+  requireSession,
+  type Role,
+  type Session,
+} from "./http/auth";
 export { DatabaseHealthService, type DatabaseHealth } from "./services/health/database-health.service";
 export { TechnologyService, type TechnologyDto } from "./services/mentors/technology.service";

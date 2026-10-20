@@ -4,16 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/image", () => ({
   default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} />,
 }));
-vi.mock("../app/(admin)/admin/database-status-card", () => ({
+vi.mock("../app/(operator)/admin/database-status-card", () => ({
   DatabaseStatusCard: () => <div>karta stanu bazy</div>,
 }));
-vi.mock("../app/(admin)/admin/technologies/technologies-manager", () => ({
+vi.mock("../app/(operator)/admin/technologies/technologies-manager", () => ({
   TechnologiesManager: () => <div>zarządzanie technologiami</div>,
 }));
 
 const { default: HomePage } = await import("../app/(marketing)/page");
-const adminPage = await import("../app/(admin)/admin/page");
-const technologiesPage = await import("../app/(admin)/admin/technologies/page");
+const adminPage = await import("../app/(operator)/admin/page");
+const technologiesPage = await import("../app/(operator)/admin/technologies/page");
 
 describe("strony", () => {
   it("HomePage renderuje stronę startową", () => {

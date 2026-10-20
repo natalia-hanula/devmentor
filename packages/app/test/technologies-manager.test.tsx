@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const apiCall = vi.fn();
 vi.mock("@devmentor/ui/backend/api/api-call", () => ({ apiCall }));
 
-const { TechnologiesManager } = await import("../app/(admin)/admin/technologies/technologies-manager");
+const { TechnologiesManager } = await import("../app/(operator)/admin/technologies/technologies-manager");
 
 const GO = { id: "6f1c1f9e-3b8a-4c39-9a51-0c8e7c3a1d2b", name: "Go", slug: "go", createdAt: "2026-10-18T10:00:00.000Z" };
 const RUST = { id: "8a2d2f0e-1b8a-4c39-9a51-0c8e7c3a1d2c", name: "Rust", slug: "rust", createdAt: "2026-10-18T10:00:00.000Z" };
