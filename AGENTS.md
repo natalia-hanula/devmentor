@@ -108,7 +108,7 @@ Gdzie trafia nowy komponent:
 
 ### Trasy i UI
 
-- Grupy tras per persona w `packages/app/app/`: `(marketing)` (strony publiczne), `(auth)`, `(student)`, `(mentor)`, `(admin)`. Grupę tworzymy z pierwszą stroną danej persony.
+- Grupy tras per persona w `packages/app/app/`: `(marketing)` (strony publiczne), `(auth)`, `(mentee)`, `(mentor)`, `(operator)`. Grupę tworzymy z pierwszą stroną danej persony.
 - Strony publiczne: Tailwind. Strony backendowe (panele): komponenty z `@devmentor/ui`.
 - Strony pobierają dane przez `apiCall` w komponentach klienckich, listy przez `DataTable`, formularze przez `CrudForm`, stany przez `feedback/*`.
 - shadcn 4.x importuje `cn` z paczki npm `cn` (zamiennik `clsx` + `tailwind-merge`) — to oczekiwane.
