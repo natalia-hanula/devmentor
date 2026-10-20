@@ -6,6 +6,7 @@ import {
   NotFoundError,
   parseJsonBody,
   REQUEST_MARKER_HEADER,
+  withCookies,
   type RouteContext,
 } from "../src";
 
@@ -16,6 +17,37 @@ function request(method: string, { marker = true, body }: { marker?: boolean; bo
   if (marker) headers.set(REQUEST_MARKER_HEADER, "1");
   return new Request("http://localhost/api/test", { method, headers, body });
 }
+
+describe("apiHandler — ciasteczka (withCookies)", () => {
+  it("dokleja każde ciasteczko jako osobny Set-Cookie i zachowuje kopertę oraz status", async () => {
+    const handler = apiHandler(async () => withCookies({ id: "u1" }, ["a=1; Path=/", "b=2; Path=/"]), {
+      successStatus: 201,
+    });
+
+    const response = await handler(request("POST"), context);
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ ok: true, data: { id: "u1" } });
+    expect(response.headers.getSetCookie()).toEqual(["a=1; Path=/", "b=2; Path=/"]);
+  });
+
+  it("zwykły wynik nie ustawia ciasteczek", async () => {
+    const response = await apiHandler(async () => ({ id: "u1" }))(request("GET"), context);
+
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("błąd handlera nie ustawia ciasteczek", async () => {
+    const handler = apiHandler(async () => {
+      throw new ConflictError("Zajęte");
+    });
+
+    const response = await handler(request("POST"), context);
+
+    expect(response.status).toBe(409);
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+});
 
 describe("apiHandler", () => {
   it("opakowuje wynik w kopertę { ok: true, data }", async () => {

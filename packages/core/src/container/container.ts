@@ -3,6 +3,7 @@ import { initOrm } from "@devmentor/db";
 import { parseEnv } from "../config/env";
 import { ServiceUnavailableError } from "../http/errors";
 import { getLogger } from "../logger";
+import { SessionTokenService } from "../services/auth/session-token.service";
 import { DatabaseHealthService } from "../services/health/database-health.service";
 import { TechnologyService } from "../services/mentors/technology.service";
 import type { AppCradle, RequestCradle } from "./cradle";
@@ -27,6 +28,7 @@ async function buildContainer(): Promise<AwilixContainer<AppCradle>> {
     env: asValue(env),
     logger: asValue(logger),
     orm: asValue(orm),
+    sessionTokenService: asClass(SessionTokenService).singleton(),
   });
   return container;
 }

@@ -25,6 +25,19 @@ export interface RouteContext {
 
 export type RouteHandler = (request: Request, context: RouteContext) => Promise<Response>;
 
+/** Wynik handlera z ciasteczkami do ustawienia (`Set-Cookie`) — tworzy go `withCookies`. */
+export class DataWithCookies<T> {
+  constructor(
+    readonly data: T,
+    readonly cookies: readonly string[],
+  ) {}
+}
+
+/** Handler zwraca `withCookies(data, [cookie, …])`, gdy odpowiedź ma ustawić ciasteczka (logowanie, wylogowanie). */
+export function withCookies<T>(data: T, cookies: readonly string[]): DataWithCookies<T> {
+  return new DataWithCookies(data, cookies);
+}
+
 export interface ApiHandlerOptions {
   /** Status odpowiedzi przy sukcesie, np. 201 dla tworzenia. */
   successStatus?: number;
@@ -36,14 +49,17 @@ export interface ApiHandlerOptions {
  * są logowane i zwracane jako ogólny 500 — bez stack trace'a dla klienta.
  */
 export function apiHandler<T>(
-  handler: (request: Request, context: RouteContext) => Promise<T>,
+  handler: (request: Request, context: RouteContext) => Promise<T | DataWithCookies<T>>,
   { successStatus = 200 }: ApiHandlerOptions = {},
 ): RouteHandler {
   return async (request, context) => {
     try {
       assertRequestMarker(request);
-      const data = await handler(request, context);
-      return json<T>({ ok: true, data }, successStatus);
+      const result = await handler(request, context);
+      if (result instanceof DataWithCookies) {
+        return json<T>({ ok: true, data: result.data }, successStatus, result.cookies);
+      }
+      return json<T>({ ok: true, data: result }, successStatus);
     } catch (error) {
       return errorResponse(error, request);
     }
@@ -109,6 +125,10 @@ function errorResponse(caught: unknown, request: Request): Response {
   return json({ ok: false, error: { code: "INTERNAL_ERROR", message: "Wystąpił nieoczekiwany błąd" } }, 500);
 }
 
-function json<T>(body: ApiResult<T>, status: number): Response {
-  return Response.json(body, { status });
+function json<T>(body: ApiResult<T>, status: number, cookies: readonly string[] = []): Response {
+  const headers = new Headers();
+  for (const cookie of cookies) {
+    headers.append("set-cookie", cookie);
+  }
+  return Response.json(body, { status, headers });
 }

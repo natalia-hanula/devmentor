@@ -5,6 +5,7 @@ export type { AppCradle, RequestCradle } from "./container/cradle";
 export * from "./http/errors";
 export {
   apiHandler,
+  withCookies,
   parseInput,
   parseJsonBody,
   REQUEST_MARKER_HEADER,
@@ -23,5 +24,11 @@ export {
   type Role,
   type Session,
 } from "./http/auth";
+export { getSessionFromCookieValue } from "./http/session";
+export {
+  SESSION_COOKIE_NAME,
+  SESSION_TTL_SECONDS,
+  SessionTokenService,
+} from "./services/auth/session-token.service";
 export { DatabaseHealthService, type DatabaseHealth } from "./services/health/database-health.service";
 export { TechnologyService, type TechnologyDto } from "./services/mentors/technology.service";

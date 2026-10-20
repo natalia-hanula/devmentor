@@ -1,4 +1,6 @@
+import { SESSION_COOKIE_NAME, SessionTokenService } from "@devmentor/core";
 import { User, UserRole, type EntityManager } from "@devmentor/db";
+import { TEST_APP_ENV, TEST_AUTH_JWT_SECRET } from "./test-env";
 
 /** Adresy kont testowych mają prefiks, żeby sprzątanie nie ruszało danych aplikacji. */
 export const TEST_EMAIL_PREFIX = "it-";
@@ -15,7 +17,7 @@ export interface AccountInput {
 
 /**
  * Zakłada konto z rolami przez encje MikroORM — prymitywy nie mają serwisu zakładania kont (to E01),
- * a testy bramek ich potrzebują. Podpisywanie tokenu sesji dochodzi z `SessionTokenService` (krok 1.5).
+ * a testy bramek ich potrzebują. Token sesji podpisuje `sessionCookieFor`.
  */
 export async function createAccount(em: EntityManager, input: AccountInput): Promise<User> {
   const user = em.create(User, {
@@ -32,4 +34,13 @@ export async function createAccount(em: EntityManager, input: AccountInput): Pro
 
 export async function deleteTestAccounts(em: EntityManager): Promise<void> {
   await em.nativeDelete(User, { email: { $like: `${TEST_EMAIL_PREFIX}%` } });
+}
+
+const tokenService = (secret: string) =>
+  new SessionTokenService({ env: { AUTH_JWT_SECRET: secret, APP_ENV: TEST_APP_ENV } });
+
+/** Nagłówek `Cookie` z tokenem sesji konta, podpisanym sekretem aplikacji testowej (albo podanym — dla tokenów obcych). */
+export async function sessionCookieFor(user: User, secret = TEST_AUTH_JWT_SECRET): Promise<string> {
+  const token = await tokenService(secret).sign({ id: user.id, sessionVersion: user.sessionVersion });
+  return `${SESSION_COOKIE_NAME}=${token}`;
 }
