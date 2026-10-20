@@ -15,6 +15,7 @@ coverage/
 
 # storybook
 storybook-static/
+packages/ui/.storybook/public/prototypes/
 
 # next.js
 .next/

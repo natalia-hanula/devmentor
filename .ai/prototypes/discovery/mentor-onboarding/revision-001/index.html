@@ -1,0 +1,649 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onboarding mentora — prototyp</title>
+<style>
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #1a1a1a; background: #f4f4f4; line-height: 1.5; }
+  a { color: #1a1a1a; }
+  :focus-visible { outline: 3px solid #000; outline-offset: 2px; }
+  .proto-bar { background: #e2e2e2; border-bottom: 1px solid #999; padding: 8px 16px; font-size: 14px; }
+  .proto-bar strong { margin-right: 8px; }
+  .app-header { background: #fff; border-bottom: 1px solid #bbb; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; }
+  .app-header .brand { font-weight: 700; }
+  .app-header .who { margin-left: auto; font-size: 14px; color: #444; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; max-width: 1080px; margin: 16px auto; padding: 0 16px; }
+  @media (max-width: 760px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  main section { background: #fff; border: 1px solid #bbb; padding: 20px; }
+  main section[hidden] { display: none; }
+  h1 { font-size: 24px; margin: 0 0 12px; }
+  h2 { font-size: 18px; margin: 20px 0 8px; }
+  h1:focus { outline: none; }
+  h1:focus-visible { outline: 3px solid #000; }
+  .muted { color: #555; font-size: 14px; }
+  .field { margin: 0 0 16px; }
+  label, legend { display: block; font-weight: 600; margin-bottom: 4px; }
+  fieldset { border: 1px solid #bbb; padding: 12px; margin: 0 0 16px; }
+  fieldset label { font-weight: 400; display: inline-flex; gap: 6px; margin-right: 16px; }
+  input[type=text], input[type=url], input[type=number], input[type=date], input[type=time], textarea { width: 100%; max-width: 480px; padding: 8px; border: 1px solid #666; font: inherit; background: #fff; }
+  textarea { min-height: 120px; }
+  input[aria-invalid=true], textarea[aria-invalid=true] { border: 2px solid #000; }
+  .field-error { font-weight: 600; margin-top: 4px; }
+  .field-error::before { content: "⚠ "; }
+  .hint { font-size: 14px; color: #444; margin-top: 4px; }
+  button { font: inherit; padding: 8px 14px; border: 1px solid #333; background: #fff; cursor: pointer; }
+  button.primary { background: #222; color: #fff; font-weight: 600; }
+  button[disabled] { opacity: .55; cursor: not-allowed; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 8px; }
+  .box { border: 1px solid #888; background: #f7f7f7; padding: 12px; margin: 12px 0; }
+  .box.warn { border: 2px dashed #333; }
+  .box.error { border: 2px solid #000; }
+  .checklist { list-style: none; padding: 0; margin: 0; }
+  .checklist li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border-top: 1px solid #ddd; padding: 12px 0; }
+  .checklist li:first-child { border-top: 0; }
+  .badge { display: inline-block; border: 1px solid #333; padding: 0 8px; font-size: 13px; }
+  .badge.done { background: #222; color: #fff; }
+  .slot-list { list-style: none; padding: 0; margin: 0; }
+  .slot-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid #ccc; padding: 8px 12px; margin-bottom: 6px; }
+  .link-out { font-family: ui-monospace, monospace; word-break: break-all; background: #eee; padding: 6px 8px; border: 1px solid #bbb; }
+  .out-of-scope { font-style: italic; color: #444; }
+  aside.test-panel { background: #ececec; border: 1px dashed #666; padding: 16px; align-self: start; font-size: 14px; }
+  aside.test-panel h2 { margin-top: 0; font-size: 16px; }
+  aside.test-panel label { font-weight: 400; display: flex; gap: 6px; margin-bottom: 8px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="proto-bar" role="note"><strong>Prototyp discovery.</strong> Dane symulowane, nic nie jest zapisywane ani wysyłane. Symulowany czas: <span id="sim-now">wtorek 20.10.2026, 10:00</span>.</div>
+
+<header class="app-header">
+  <span class="brand">DevMentor</span>
+  <nav aria-label="Główna">
+    <a href="#panel" id="nav-panel">Panel mentora</a>
+  </nav>
+  <span class="who">Zalogowana: Ola Testowa (ola.testowa@example.test) · <span class="out-of-scope">Konto i Wyloguj — poza prototypem</span></span>
+</header>
+
+<div class="layout">
+<main id="main">
+  <p id="status" class="sr-only" role="status" aria-live="polite"></p>
+
+  <!-- s08 Zaproszenie -->
+  <section id="invite" data-screen="invite" aria-labelledby="invite-h">
+    <h1 id="invite-h" tabindex="-1">Zaproszenie do roli mentora</h1>
+    <div id="invite-ok">
+      <p>Masz zaproszenie do roli mentora w DevMentor.</p>
+      <p class="muted">Zaproszenie przyjmiesz na koncie, na którym jesteś zalogowana: ola.testowa@example.test.</p>
+      <div class="actions">
+        <button type="button" class="primary" id="accept-btn">Przyjmij zaproszenie</button>
+      </div>
+      <p id="accept-loading" hidden>Przyjmowanie zaproszenia…</p>
+    </div>
+    <div id="invite-invalid" class="box error" hidden>
+      <p><strong>Zaproszenie jest nieważne.</strong></p>
+      <p>Skontaktuj się z osobą, która wysłała zaproszenie — może wygenerować nowy link.</p>
+    </div>
+    <div id="invite-already" class="box" hidden>
+      <p><strong>Masz już rolę mentora.</strong></p>
+      <p><a href="#panel">Przejdź do panelu mentora</a></p>
+    </div>
+  </section>
+
+  <!-- s13 Brak dostępu -->
+  <section id="forbidden" data-screen="forbidden" aria-labelledby="forbidden-h" hidden>
+    <h1 id="forbidden-h" tabindex="-1">Nie masz dostępu do tej strony</h1>
+    <p>Ta strona wymaga roli mentor.</p>
+    <p><a href="#invite">Wróć do zaproszenia</a></p>
+  </section>
+
+  <!-- Panel mentora z checklistą -->
+  <section id="panel" data-screen="panel" aria-labelledby="panel-h" hidden>
+    <h1 id="panel-h" tabindex="-1">Panel mentora</h1>
+    <div id="panel-notice" class="box" hidden></div>
+    <div id="price-range-warning" class="box warn" hidden></div>
+
+    <h2 id="checklist-h">Przygotuj profil</h2>
+    <ul class="checklist" aria-labelledby="checklist-h">
+      <li id="item-profile">
+        <span><strong>Profil</strong> — link do publicznej pracy i opis tego, co robisz<br><span class="muted" data-summary="profile"></span></span>
+        <span><span class="badge" data-badge="profile"></span> <a href="#profile" data-edit="profile" data-label="Profil">Uzupełnij profil</a></span>
+      </li>
+      <li id="item-price">
+        <span><strong>Cena</strong> — sesja 25 i 50 min<br><span class="muted" data-summary="price"></span></span>
+        <span><span class="badge" data-badge="price"></span> <a href="#price" data-edit="price" data-label="Cena">Ustaw cenę</a></span>
+      </li>
+      <li id="item-slots">
+        <span><strong>Terminy</strong> — co najmniej jeden termin<br><span class="muted" data-summary="slots"></span></span>
+        <span><span class="badge" data-badge="slots"></span> <a href="#slots" data-edit="slots" data-label="Terminy">Dodaj terminy</a></span>
+      </li>
+      <li id="item-catalog">
+        <span><strong>Katalog</strong> — czy pokazać profil w katalogu<br><span class="muted" data-summary="catalog"></span></span>
+        <span><span class="badge" data-badge="catalog"></span> <a href="#catalog" data-edit="catalog" data-label="Katalog">Zdecyduj</a></span>
+      </li>
+    </ul>
+
+    <h2 id="publish-h">Publikacja</h2>
+    <p id="publish-state"></p>
+    <div id="publish-missing" class="box error" hidden tabindex="-1"></div>
+    <div class="actions" id="publish-actions">
+      <button type="button" class="primary" id="publish-btn">Opublikuj profil</button>
+      <span id="publish-loading" hidden>Publikowanie…</span>
+    </div>
+    <div id="publish-error" class="box error" hidden></div>
+    <div id="link-box" hidden>
+      <p><strong>Twój link mentora</strong> — wyślij go swoim odbiorcom. Wejścia i rezerwacje z tego linku są zapisywane jako „z linku mentora”.</p>
+      <p class="link-out" id="mentor-link"></p>
+      <div class="actions">
+        <button type="button" id="copy-btn">Kopiuj link</button>
+        <span class="out-of-scope">Podgląd profilu oczami mentee — poza prototypem</span>
+      </div>
+    </div>
+    <p class="muted">Dane do wypłat (Stripe) podasz po pierwszej rezerwacji, przed pierwszą wypłatą. <span class="out-of-scope">Ten krok jest poza prototypem.</span></p>
+  </section>
+
+  <!-- Profil -->
+  <section id="profile" data-screen="profile" aria-labelledby="profile-h" hidden>
+    <h1 id="profile-h" tabindex="-1">Profil</h1>
+    <p><a href="#panel">← Wróć do panelu</a></p>
+    <form id="profile-form" novalidate>
+      <div class="field">
+        <label for="pf-name">Wyświetlana nazwa</label>
+        <input type="text" id="pf-name" name="name" autocomplete="name" aria-describedby="pf-name-err">
+        <div class="field-error" id="pf-name-err" hidden></div>
+      </div>
+      <div class="field">
+        <label for="pf-link">Link do publicznej pracy</label>
+        <input type="url" id="pf-link" name="link" inputmode="url" aria-describedby="pf-link-hint pf-link-err">
+        <div class="hint" id="pf-link-hint">Np. repozytorium, artykuł, wystąpienie. Adres zaczyna się od https://</div>
+        <div class="field-error" id="pf-link-err" hidden></div>
+      </div>
+      <div class="field">
+        <label for="pf-desc">Opis tego, co robiłaś/robiłeś</label>
+        <textarea id="pf-desc" name="desc" maxlength="1000" aria-describedby="pf-desc-hint pf-desc-err"></textarea>
+        <div class="hint" id="pf-desc-hint">Z jakimi problemami możesz pomóc. Do 1000 znaków.</div>
+        <div class="field-error" id="pf-desc-err" hidden></div>
+      </div>
+      <div class="box error" data-save-error hidden></div>
+      <div class="actions">
+        <button type="submit" class="primary">Zapisz profil</button>
+        <a href="#panel">Anuluj</a>
+        <span data-saving hidden>Zapisywanie…</span>
+      </div>
+    </form>
+  </section>
+
+  <!-- Cena -->
+  <section id="price" data-screen="price" aria-labelledby="price-h" hidden>
+    <h1 id="price-h" tabindex="-1">Cena sesji</h1>
+    <p><a href="#panel">← Wróć do panelu</a></p>
+    <p>Cenę ustalasz w widełkach operatora. Mentee widzi ją przed rezerwacją.</p>
+    <div id="price-edit-warning" class="box warn" hidden></div>
+    <form id="price-form" novalidate>
+      <div class="field">
+        <label for="pr-25">Sesja 25 min (PLN)</label>
+        <input type="number" id="pr-25" name="p25" inputmode="numeric" step="1" aria-describedby="pr-25-hint pr-25-err">
+        <div class="hint" id="pr-25-hint"></div>
+        <div class="hint" data-net="25"></div>
+        <div class="field-error" id="pr-25-err" hidden></div>
+      </div>
+      <div class="field">
+        <label for="pr-50">Sesja 50 min (PLN)</label>
+        <input type="number" id="pr-50" name="p50" inputmode="numeric" step="1" aria-describedby="pr-50-hint pr-50-err">
+        <div class="hint" id="pr-50-hint"></div>
+        <div class="hint" data-net="50"></div>
+        <div class="field-error" id="pr-50-err" hidden></div>
+      </div>
+      <div class="box error" data-save-error hidden></div>
+      <div class="actions">
+        <button type="submit" class="primary">Zapisz cenę</button>
+        <a href="#panel">Anuluj</a>
+        <span data-saving hidden>Zapisywanie…</span>
+      </div>
+    </form>
+  </section>
+
+  <!-- Terminy -->
+  <section id="slots" data-screen="slots" aria-labelledby="slots-h" hidden>
+    <h1 id="slots-h" tabindex="-1">Terminy</h1>
+    <p><a href="#panel">← Wróć do panelu</a></p>
+    <h2 id="slot-list-h">Twoje terminy</h2>
+    <p id="slots-empty">Nie masz jeszcze terminów. Dodaj pierwszy poniżej.</p>
+    <ul class="slot-list" id="slot-list" aria-labelledby="slot-list-h"></ul>
+
+    <h2>Dodaj termin</h2>
+    <form id="slot-form" novalidate>
+      <div class="field">
+        <label for="sl-date">Data</label>
+        <input type="date" id="sl-date" name="date" aria-describedby="sl-date-err">
+        <div class="field-error" id="sl-date-err" hidden></div>
+      </div>
+      <div class="field">
+        <label for="sl-time">Godzina rozpoczęcia</label>
+        <input type="time" id="sl-time" name="time" step="300" aria-describedby="sl-time-hint sl-time-err">
+        <div class="hint" id="sl-time-hint">Czas polski. Termin musi zaczynać się co najmniej 2 h od teraz — później nikt go nie zarezerwuje.</div>
+        <div class="field-error" id="sl-time-err" hidden></div>
+      </div>
+      <fieldset aria-describedby="sl-len-err">
+        <legend>Długość sesji</legend>
+        <label><input type="radio" name="len" value="25"> 25 min</label>
+        <label><input type="radio" name="len" value="50"> 50 min</label>
+        <div class="field-error" id="sl-len-err" hidden></div>
+      </fieldset>
+      <div class="box error" data-save-error hidden></div>
+      <div class="actions">
+        <button type="submit" class="primary">Dodaj termin</button>
+        <span data-saving hidden>Zapisywanie…</span>
+      </div>
+    </form>
+  </section>
+
+  <!-- Katalog -->
+  <section id="catalog" data-screen="catalog" aria-labelledby="catalog-h" hidden>
+    <h1 id="catalog-h" tabindex="-1">Katalog mentorów</h1>
+    <p><a href="#panel">← Wróć do panelu</a></p>
+    <p>Zawsze jesteś dostępna/dostępny przez swój link. W publicznym katalogu pojawisz się tylko, jeśli się zgodzisz. Decyzję możesz zmienić w każdej chwili.</p>
+    <form id="catalog-form" novalidate>
+      <fieldset>
+        <legend>Czy pokazać Twój profil w katalogu?</legend>
+        <label><input type="radio" name="cat" value="no"> Nie — tylko przez mój link</label>
+        <label><input type="radio" name="cat" value="yes"> Tak — pokaż mnie w katalogu</label>
+      </fieldset>
+      <div class="box error" data-save-error hidden></div>
+      <div class="actions">
+        <button type="submit" class="primary">Zapisz decyzję</button>
+        <a href="#panel">Anuluj</a>
+        <span data-saving hidden>Zapisywanie…</span>
+      </div>
+    </form>
+  </section>
+
+  <!-- Nieznany adres -->
+  <section id="notfound" data-screen="notfound" aria-labelledby="notfound-h" hidden>
+    <h1 id="notfound-h" tabindex="-1">Nie ma takiej strony w prototypie</h1>
+    <p>Ten adres nie należy do symulowanego przepływu.</p>
+    <p><a href="#invite">Wróć na początek</a> · <a href="#panel">Panel mentora</a></p>
+  </section>
+</main>
+
+<aside class="test-panel" aria-labelledby="test-h">
+  <h2 id="test-h">Stan testowy</h2>
+  <p>Sterowanie symulacją — nie jest częścią produktu.</p>
+  <label><input type="checkbox" id="t-invalid"> Zaproszenie nieważne</label>
+  <label><input type="checkbox" id="t-fail"> Następny zapis się nie uda (503)</label>
+  <label><input type="checkbox" id="t-range"> Operator zmienił widełki 25 min na 80–180 PLN</label>
+  <button type="button" id="reset-btn">Resetuj symulację</button>
+</aside>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var SCREENS = ["invite", "forbidden", "panel", "profile", "price", "slots", "catalog", "notfound"];
+  var MENTOR_ONLY = ["panel", "profile", "price", "slots", "catalog"];
+  var BASE_RANGES = { 25: [80, 215], 50: [150, 430] };
+  var CHANGED_RANGE_25 = [80, 180];
+  var COMMISSION = 0.2;
+  var NOW = new Date(2026, 9, 20, 10, 0);
+  var MIN_LEAD_MS = 2 * 60 * 60 * 1000;
+  var NET_DELAY = 400;
+
+  var state;
+  function initialState() {
+    return { mentor: false, profile: null, price: null, slots: [], catalog: null, published: false, nextSlotId: 1 };
+  }
+
+  function $(id) { return document.getElementById(id); }
+  function announce(msg) { var s = $("status"); s.textContent = ""; setTimeout(function () { s.textContent = msg; }, 30); }
+  function ranges() { return { 25: $("t-range").checked ? CHANGED_RANGE_25 : BASE_RANGES[25], 50: BASE_RANGES[50] }; }
+  function money(n) { return n.toLocaleString("pl-PL") + " PLN"; }
+
+  // --- routing ---
+  function route() {
+    var id = (location.hash || "#invite").slice(1);
+    if (SCREENS.indexOf(id) === -1) id = "notfound";
+    if (MENTOR_ONLY.indexOf(id) !== -1 && !state.mentor) id = "forbidden";
+    SCREENS.forEach(function (s) { $(s).hidden = s !== id; });
+    render(id);
+    var h = $(id).querySelector("h1");
+    if (h) h.focus();
+  }
+
+  function render(id) {
+    if (id === "invite") renderInvite();
+    if (id === "panel") renderPanel();
+    if (id === "profile") fillProfile();
+    if (id === "price") fillPrice();
+    if (id === "slots") renderSlots();
+    if (id === "catalog") fillCatalog();
+  }
+
+  // --- invite ---
+  function renderInvite() {
+    var invalid = $("t-invalid").checked && !state.mentor;
+    $("invite-ok").hidden = invalid || state.mentor;
+    $("invite-invalid").hidden = !invalid;
+    $("invite-already").hidden = !state.mentor;
+    $("accept-loading").hidden = true;
+    $("accept-btn").disabled = false;
+  }
+  $("accept-btn").addEventListener("click", function () {
+    $("accept-btn").disabled = true;
+    $("accept-loading").hidden = false;
+    announce("Przyjmowanie zaproszenia");
+    setTimeout(function () {
+      if ($("t-invalid").checked) { renderInvite(); announce("Zaproszenie jest nieważne"); return; }
+      state.mentor = true;
+      state.notice = "Masz rolę mentora. Uzupełnij profil, cenę i terminy, zdecyduj o katalogu, a potem opublikuj profil.";
+      location.hash = "#panel";
+    }, NET_DELAY);
+  });
+
+  // --- panel ---
+  function missingItems() {
+    var m = [];
+    if (!state.profile) m.push(["profile", "Profil"]);
+    if (!state.price) m.push(["price", "Cena"]);
+    if (!state.slots.length) m.push(["slots", "Co najmniej jeden termin"]);
+    return m;
+  }
+  function priceOutOfRange() {
+    if (!state.price) return [];
+    var r = ranges(), out = [];
+    [25, 50].forEach(function (len) {
+      var v = state.price[len];
+      if (v < r[len][0] || v > r[len][1]) out.push({ len: len, v: v, r: r[len] });
+    });
+    return out;
+  }
+  function rangeWarningText(out) {
+    return out.map(function (o) {
+      return "Twoja cena sesji " + o.len + " min (" + money(o.v) + ") jest poza aktualnymi widełkami (" + o.r[0] + "–" + o.r[1] + " PLN). Pozostaje ważna do Twojej następnej edycji ceny — wtedy musisz zmieścić się w widełkach.";
+    }).join(" ");
+  }
+  function setItem(key, done, summary, doneLabel, todoLabel) {
+    var b = document.querySelector('[data-badge="' + key + '"]');
+    b.textContent = done ? doneLabel : todoLabel;
+    b.className = "badge" + (done ? " done" : "");
+    document.querySelector('[data-summary="' + key + '"]').textContent = summary;
+    var a = document.querySelector('[data-edit="' + key + '"]');
+    a.textContent = done ? "Edytuj" : a.getAttribute("data-todo");
+    if (done) a.setAttribute("aria-label", "Edytuj: " + a.getAttribute("data-label")); else a.removeAttribute("aria-label");
+  }
+  function renderPanel() {
+    var n = $("panel-notice");
+    n.hidden = !state.notice; n.textContent = state.notice || "";
+    state.notice = null;
+
+    setItem("profile", !!state.profile, state.profile ? state.profile.name + " · " + state.profile.link : "Nie uzupełniono", "Gotowe", "Do zrobienia");
+    setItem("price", !!state.price, state.price ? "25 min: " + money(state.price[25]) + " · 50 min: " + money(state.price[50]) : "Nie ustawiono", "Gotowe", "Do zrobienia");
+    var n25 = state.slots.filter(function (s) { return s.len === 25; }).length;
+    setItem("slots", state.slots.length > 0, state.slots.length ? "Terminów: " + state.slots.length + " (25 min: " + n25 + ", 50 min: " + (state.slots.length - n25) + ")" : "Brak terminów", "Gotowe", "Do zrobienia");
+    setItem("catalog", state.catalog !== null, state.catalog === "yes" ? "Pokazujesz się w katalogu" : "Nie pokazujesz się w katalogu — tylko przez swój link", state.catalog === null ? "" : "Zdecydowano", "Domyślnie: nie");
+
+    var out = priceOutOfRange();
+    $("price-range-warning").hidden = !out.length;
+    $("price-range-warning").textContent = out.length ? rangeWarningText(out) : "";
+
+    $("publish-missing").hidden = true;
+    $("publish-error").hidden = true;
+    $("publish-loading").hidden = true;
+    $("publish-btn").disabled = false;
+    $("publish-actions").hidden = state.published;
+    $("link-box").hidden = !state.published;
+    if (state.published) {
+      $("publish-state").textContent = state.slots.length
+        ? "Profil jest opublikowany. Mentee z Twojego linku widzi profil, cenę i wolne terminy."
+        : "Profil jest opublikowany, ale nie ma wolnych terminów — nikt nie może teraz zarezerwować sesji. Dodaj termin.";
+      $("mentor-link").textContent = "https://devmentor.example/m/" + slugify(state.profile.name) + "?src=link";
+    } else {
+      $("publish-state").textContent = "Profil nie jest opublikowany. Twój link nie pokazuje jeszcze profilu.";
+    }
+  }
+  function slugify(s) {
+    return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "mentor";
+  }
+  $("publish-btn").addEventListener("click", function () {
+    var m = missingItems(), box = $("publish-missing");
+    if (m.length) {
+      box.textContent = "";
+      var p = document.createElement("p");
+      p.textContent = "Nie można jeszcze opublikować profilu. Brakuje:";
+      box.appendChild(p);
+      var ul = document.createElement("ul");
+      m.forEach(function (it) {
+        var li = document.createElement("li"), a = document.createElement("a");
+        a.href = "#" + it[0]; a.textContent = it[1];
+        li.appendChild(a); ul.appendChild(li);
+      });
+      box.appendChild(ul);
+      box.hidden = false;
+      box.focus();
+      announce("Nie można opublikować. Brakuje: " + m.map(function (x) { return x[1]; }).join(", "));
+      return;
+    }
+    $("publish-btn").disabled = true;
+    $("publish-loading").hidden = false;
+    setTimeout(function () {
+      if (consumeFailure()) {
+        $("publish-loading").hidden = true;
+        $("publish-btn").disabled = false;
+        $("publish-error").textContent = "Nie udało się opublikować profilu. Spróbuj ponownie za chwilę.";
+        $("publish-error").hidden = false;
+        announce("Nie udało się opublikować profilu");
+        return;
+      }
+      state.published = true;
+      state.notice = "Profil opublikowany.";
+      renderPanel();
+      $("panel-h").focus();
+      announce("Profil opublikowany");
+    }, NET_DELAY);
+  });
+  $("copy-btn").addEventListener("click", function () { announce("Link skopiowany (symulacja)"); $("copy-btn").textContent = "Skopiowano"; });
+
+  // --- shared form helpers ---
+  function consumeFailure() {
+    if (!$("t-fail").checked) return false;
+    $("t-fail").checked = false;
+    return true;
+  }
+  function setError(input, errId, msg) {
+    var el = $(errId);
+    el.textContent = msg || ""; el.hidden = !msg;
+    if (input) { if (msg) input.setAttribute("aria-invalid", "true"); else input.removeAttribute("aria-invalid"); }
+    return !msg;
+  }
+  function clearFormErrors(form) {
+    form.querySelectorAll(".field-error").forEach(function (e) { e.hidden = true; e.textContent = ""; });
+    form.querySelectorAll("[aria-invalid]").forEach(function (e) { e.removeAttribute("aria-invalid"); });
+    var se = form.querySelector("[data-save-error]"); se.hidden = true; se.textContent = "";
+    form.querySelector("[data-saving]").hidden = true;
+    form.querySelector("button[type=submit]").disabled = false;
+  }
+  function focusFirstError(form) { var f = form.querySelector("[aria-invalid=true]"); if (f) f.focus(); }
+  function simulateSave(form, label, onOk) {
+    var btn = form.querySelector("button[type=submit]"), sp = form.querySelector("[data-saving]"), se = form.querySelector("[data-save-error]");
+    btn.disabled = true; sp.hidden = false; se.hidden = true;
+    setTimeout(function () {
+      btn.disabled = false; sp.hidden = true;
+      if (consumeFailure()) {
+        se.textContent = "Nie udało się zapisać. Twoje dane są nadal w formularzu — spróbuj ponownie.";
+        se.hidden = false;
+        announce("Nie udało się zapisać: " + label);
+        btn.focus();
+        return;
+      }
+      onOk();
+    }, NET_DELAY);
+  }
+
+  // --- profile ---
+  function fillProfile() {
+    var f = $("profile-form"); clearFormErrors(f);
+    $("pf-name").value = state.profile ? state.profile.name : "Ola Testowa";
+    $("pf-link").value = state.profile ? state.profile.link : "";
+    $("pf-desc").value = state.profile ? state.profile.desc : "";
+  }
+  $("profile-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target; clearFormErrors(f);
+    var name = $("pf-name").value.trim(), link = $("pf-link").value.trim(), desc = $("pf-desc").value.trim();
+    var ok = setError($("pf-name"), "pf-name-err", name ? "" : "Podaj wyświetlaną nazwę.");
+    var linkMsg = "";
+    if (!link) linkMsg = "Podaj link do publicznej pracy — mentee zobaczy, czym się zajmujesz.";
+    else if (!/^https:\/\/[^\s/]+\.[^\s]+$/.test(link)) linkMsg = "Podaj pełny adres zaczynający się od https://";
+    ok = setError($("pf-link"), "pf-link-err", linkMsg) && ok;
+    ok = setError($("pf-desc"), "pf-desc-err", desc ? "" : "Opisz, z czym możesz pomóc.") && ok;
+    if (!ok) { focusFirstError(f); announce("Formularz zawiera błędy"); return; }
+    simulateSave(f, "profil", function () {
+      state.profile = { name: name, link: link, desc: desc };
+      state.notice = "Profil zapisany.";
+      location.hash = "#panel";
+    });
+  });
+
+  // --- price ---
+  function fillPrice() {
+    var f = $("price-form"); clearFormErrors(f);
+    var r = ranges();
+    $("pr-25-hint").textContent = "Widełki: " + r[25][0] + "–" + r[25][1] + " PLN";
+    $("pr-50-hint").textContent = "Widełki: " + r[50][0] + "–" + r[50][1] + " PLN";
+    $("pr-25").value = state.price ? state.price[25] : "";
+    $("pr-50").value = state.price ? state.price[50] : "";
+    var out = priceOutOfRange();
+    $("price-edit-warning").hidden = !out.length;
+    $("price-edit-warning").textContent = out.length ? rangeWarningText(out) : "";
+    updateNet();
+  }
+  function updateNet() {
+    [25, 50].forEach(function (len) {
+      var v = parseInt($("pr-" + len).value, 10), el = document.querySelector('[data-net="' + len + '"]');
+      el.textContent = isFinite(v) && v > 0 ? "Po prowizji platformy (20%) otrzymasz " + money(Math.round(v * (1 - COMMISSION))) + "." : "";
+    });
+  }
+  $("pr-25").addEventListener("input", updateNet);
+  $("pr-50").addEventListener("input", updateNet);
+  $("price-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target; clearFormErrors(f);
+    var r = ranges(), ok = true, vals = {};
+    [25, 50].forEach(function (len) {
+      var raw = $("pr-" + len).value.trim(), msg = "";
+      if (!raw) msg = "Podaj cenę sesji " + len + " min.";
+      else if (!/^\d+$/.test(raw)) msg = "Podaj kwotę w pełnych złotych.";
+      else if (+raw < r[len][0] || +raw > r[len][1]) msg = "Cena musi mieścić się w widełkach " + r[len][0] + "–" + r[len][1] + " PLN.";
+      vals[len] = +raw;
+      ok = setError($("pr-" + len), "pr-" + len + "-err", msg) && ok;
+    });
+    if (!ok) { focusFirstError(f); announce("Formularz zawiera błędy"); return; }
+    simulateSave(f, "cena", function () {
+      state.price = vals;
+      state.notice = "Cena zapisana.";
+      location.hash = "#panel";
+    });
+  });
+
+  // --- slots ---
+  var DAYS = ["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"];
+  function fmtSlot(s) {
+    var d = s.start, pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    var end = new Date(d.getTime() + s.len * 60000);
+    return DAYS[d.getDay()] + " " + pad(d.getDate()) + "." + pad(d.getMonth() + 1) + "." + d.getFullYear() + ", " + pad(d.getHours()) + ":" + pad(d.getMinutes()) + "–" + pad(end.getHours()) + ":" + pad(end.getMinutes()) + " (" + s.len + " min)";
+  }
+  function renderSlots() {
+    var list = $("slot-list"); list.textContent = "";
+    state.slots.sort(function (a, b) { return a.start - b.start; });
+    $("slots-empty").hidden = state.slots.length > 0;
+    state.slots.forEach(function (s) {
+      var li = document.createElement("li"), span = document.createElement("span"), btn = document.createElement("button");
+      span.textContent = fmtSlot(s);
+      btn.type = "button"; btn.textContent = "Usuń";
+      btn.setAttribute("aria-label", "Usuń termin " + fmtSlot(s));
+      btn.addEventListener("click", function () {
+        state.slots = state.slots.filter(function (x) { return x.id !== s.id; });
+        renderSlots();
+        announce("Termin usunięty");
+        $("slot-list-h").focus();
+      });
+      li.appendChild(span); li.appendChild(btn); list.appendChild(li);
+    });
+  }
+  function resetSlotForm() {
+    var f = $("slot-form"); clearFormErrors(f); f.reset();
+  }
+  $("slot-list-h").setAttribute("tabindex", "-1");
+  $("slot-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target; clearFormErrors(f);
+    var date = $("sl-date").value, time = $("sl-time").value, lenEl = f.querySelector("input[name=len]:checked");
+    var ok = setError($("sl-date"), "sl-date-err", date ? "" : "Wybierz datę.");
+    ok = setError($("sl-time"), "sl-time-err", time ? "" : "Wybierz godzinę rozpoczęcia.") && ok;
+    ok = setError(null, "sl-len-err", lenEl ? "" : "Wybierz długość sesji: 25 lub 50 min.") && ok;
+    if (!lenEl) f.querySelector("input[name=len]").setAttribute("aria-invalid", "true");
+    if (!ok) { focusFirstError(f); announce("Formularz zawiera błędy"); return; }
+    var dp = date.split("-"), tp = time.split(":");
+    var start = new Date(+dp[0], +dp[1] - 1, +dp[2], +tp[0], +tp[1]);
+    var len = +lenEl.value;
+    if (start.getTime() - NOW.getTime() < MIN_LEAD_MS) {
+      setError($("sl-time"), "sl-time-err", "Termin musi zaczynać się co najmniej 2 h od teraz (najwcześniej 20.10.2026, 12:00).");
+      focusFirstError(f); announce("Formularz zawiera błędy"); return;
+    }
+    var end = start.getTime() + len * 60000;
+    var clash = state.slots.filter(function (s) { return start.getTime() < s.start.getTime() + s.len * 60000 && s.start.getTime() < end; })[0];
+    if (clash) {
+      setError($("sl-time"), "sl-time-err", "Ten termin nachodzi na inny: " + fmtSlot(clash) + ".");
+      focusFirstError(f); announce("Formularz zawiera błędy"); return;
+    }
+    simulateSave(f, "termin", function () {
+      state.slots.push({ id: state.nextSlotId++, start: start, len: len });
+      resetSlotForm();
+      renderSlots();
+      announce("Termin dodany: " + fmtSlot({ start: start, len: len }));
+      $("slot-list-h").focus();
+    });
+  });
+
+  // --- catalog ---
+  function fillCatalog() {
+    var f = $("catalog-form"); clearFormErrors(f);
+    var v = state.catalog || "no";
+    f.querySelector('input[value="' + v + '"]').checked = true;
+  }
+  $("catalog-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.target; clearFormErrors(f);
+    var v = f.querySelector("input[name=cat]:checked").value;
+    simulateSave(f, "katalog", function () {
+      state.catalog = v;
+      state.notice = v === "yes" ? "Zapisano: pokazujesz się w katalogu." : "Zapisano: nie pokazujesz się w katalogu.";
+      location.hash = "#panel";
+    });
+  });
+
+  // --- test state + reset ---
+  $("t-invalid").addEventListener("change", function () { if (!$("invite").hidden) renderInvite(); });
+  $("t-range").addEventListener("change", function () {
+    var cur = (location.hash || "#invite").slice(1);
+    if (!$(cur) || $(cur).hidden) return;
+    render(cur);
+  });
+  $("reset-btn").addEventListener("click", function () {
+    state = initialState();
+    ["t-invalid", "t-fail", "t-range"].forEach(function (id) { $(id).checked = false; });
+    $("copy-btn").textContent = "Kopiuj link";
+    ["profile-form", "price-form", "slot-form", "catalog-form"].forEach(function (id) { $(id).reset(); clearFormErrors($(id)); });
+    if (location.hash === "#invite") route(); else location.hash = "#invite";
+    announce("Symulacja zresetowana");
+  });
+
+  document.querySelectorAll("[data-edit]").forEach(function (a) { a.setAttribute("data-todo", a.textContent); });
+  state = initialState();
+  window.addEventListener("hashchange", route);
+  route();
+})();
+</script>
+</body>
+</html>
