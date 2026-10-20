@@ -1,10 +1,11 @@
+import type { USER_ROLES } from "@devmentor/db/constants";
 import type { AccessRule } from "./make-crud-route";
 import { ForbiddenError, UnauthorizedError } from "./errors";
 import { getSession } from "./session";
 
 export { getSession };
 
-export type Role = "mentee" | "mentor" | "operator";
+export type Role = (typeof USER_ROLES)[number];
 
 export interface Session {
   userId: string;

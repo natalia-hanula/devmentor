@@ -45,6 +45,14 @@ export async function migrate(databaseUrl: string): Promise<void> {
   });
 }
 
+/** Cofa ostatnią migrację (`migration:down`) — dla testów odwracalności migracji na osobnej bazie. */
+export async function rollback(databaseUrl: string): Promise<void> {
+  await execFileAsync("npm", ["run", "migration:down", "-w", "@devmentor/db"], {
+    cwd: REPO_ROOT,
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+  });
+}
+
 async function resetSchema(databaseUrl: string): Promise<void> {
   const orm = await initOrm(databaseUrl);
   try {
