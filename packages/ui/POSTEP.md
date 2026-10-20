@@ -76,6 +76,7 @@ Znaleziska `lint:tokens` (etap 2): `transition-[color,box-shadow]` (badge, input
 
 - Baza komponentów: shadcn/ui (styl `new-york`, `components.json`) na prymitywach Radix (`radix-ui`), ikony lucide. W interfejsie Storybooka nazwa bazy nie występuje.
 - Storybook nie importuje Next.js: `@storybook/react-vite`, Tailwind przez `@tailwindcss/vite` w `viteFinal`, style podglądu `.storybook/preview.css` (importuje `globals.css` + `@source` stories i bloków).
+- DS01 (typy `email`/`password` + `autoComplete` w `CrudForm`) wdrożone 2026-10-20 przed formularzami E01 (gałąź `lekcja-08-e01-etap-a`, zadanie 0.4); dokumentacja w etapie 2.
 - Lokalnie testy stories wymagają `npx playwright install chromium` (przeglądarka w `~/Library/Caches/ms-playwright`, poza repo).
 
 ## Następny krok

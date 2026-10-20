@@ -14,10 +14,17 @@ const FORM_ERROR_KEY = "_form";
 
 type FormValues = Record<string, string>;
 
+/**
+ * Wartości `autocomplete` używane w formularzach panelu. Logowanie: `username` + `current-password`;
+ * rejestracja i reset hasła: `email` + `new-password` (DS01).
+ */
+export type CrudFormAutoComplete = "username" | "email" | "current-password" | "new-password" | "name" | "off";
+
 export interface CrudFormField<TValues> {
   name: Extract<keyof TValues, string>;
   label: string;
-  type?: "text" | "textarea";
+  type?: "text" | "textarea" | "email" | "password";
+  autoComplete?: CrudFormAutoComplete;
   placeholder?: string;
   description?: string;
 }
@@ -114,6 +121,7 @@ export function CrudForm<TValues extends Record<string, unknown>>({
           name: field.name,
           value: values[field.name],
           placeholder: field.placeholder,
+          autoComplete: field.autoComplete,
           "aria-invalid": errors ? true : undefined,
           "aria-describedby": describedBy,
           onChange: (event: { target: { value: string } }) =>
@@ -123,7 +131,7 @@ export function CrudForm<TValues extends Record<string, unknown>>({
         return (
           <div key={field.name} className="flex flex-col gap-1.5">
             <Label htmlFor={inputId}>{field.label}</Label>
-            {field.type === "textarea" ? <Textarea {...commonProps} /> : <Input {...commonProps} />}
+            {field.type === "textarea" ? <Textarea {...commonProps} /> : <Input type={field.type} {...commonProps} />}
             {errors ? (
               <p id={`${inputId}-error`} className="text-sm text-destructive">
                 {errors.join(" ")}

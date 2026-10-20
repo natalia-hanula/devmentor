@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -162,5 +162,103 @@ describe("CrudForm", () => {
     fireEvent.keyDown(screen.getByLabelText("Nazwa"), { key: "Escape" });
 
     expect(screen.getByLabelText("Nazwa")).toHaveValue("Go");
+  });
+});
+
+describe("CrudForm — pola e-mail i hasło (DS01)", () => {
+  const credentialsSchema = z.object({
+    email: z.string().email("Podaj poprawny adres e-mail"),
+    password: z.string().min(1, "Podaj hasło"),
+  });
+  type Credentials = z.infer<typeof credentialsSchema>;
+
+  function renderCredentials(
+    credentialFields: CrudFormField<Credentials>[],
+    onSubmit = vi.fn(async (): Promise<ApiResult<unknown>> => ok),
+  ) {
+    render(<CrudForm schema={credentialsSchema} fields={credentialFields} onSubmit={onSubmit} submitLabel="Zaloguj" />);
+    return { onSubmit };
+  }
+
+  it("logowanie: e-mail z type=email i autocomplete=username, hasło z type=password i current-password", () => {
+    renderCredentials([
+      { name: "email", label: "E-mail", type: "email", autoComplete: "username" },
+      { name: "password", label: "Hasło", type: "password", autoComplete: "current-password" },
+    ]);
+
+    expect(screen.getByLabelText("E-mail")).toHaveAttribute("type", "email");
+    expect(screen.getByLabelText("E-mail")).toHaveAttribute("autocomplete", "username");
+    expect(screen.getByLabelText("Hasło")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("Hasło")).toHaveAttribute("autocomplete", "current-password");
+  });
+
+  it("rejestracja: autocomplete=email i new-password", () => {
+    renderCredentials([
+      { name: "email", label: "E-mail", type: "email", autoComplete: "email" },
+      { name: "password", label: "Hasło", type: "password", autoComplete: "new-password" },
+    ]);
+
+    expect(screen.getByLabelText("E-mail")).toHaveAttribute("autocomplete", "email");
+    expect(screen.getByLabelText("Hasło")).toHaveAttribute("autocomplete", "new-password");
+  });
+
+  it("bez autoComplete nie renderuje atrybutu autocomplete; pole bez typu nie dostaje atrybutu type", () => {
+    renderCredentials([
+      { name: "email", label: "E-mail", type: "email" },
+      { name: "password", label: "Hasło", type: "password" },
+    ]);
+
+    expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("autocomplete");
+    expect(screen.getByLabelText("Hasło")).not.toHaveAttribute("autocomplete");
+    cleanup();
+
+    renderForm();
+    expect(screen.getByLabelText("Nazwa")).not.toHaveAttribute("type");
+    expect(screen.getByLabelText("Nazwa")).not.toHaveAttribute("autocomplete");
+    expect(screen.getByLabelText("Opis")).not.toHaveAttribute("autocomplete");
+  });
+
+  it("textarea przekazuje autoComplete", () => {
+    render(
+      <CrudForm
+        schema={schema}
+        fields={[
+          { name: "name", label: "Nazwa", type: "text", autoComplete: "name" },
+          { name: "bio", label: "Opis", type: "textarea", autoComplete: "off" },
+        ]}
+        onSubmit={vi.fn(async () => ok)}
+      />,
+    );
+
+    expect(screen.getByLabelText("Nazwa")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("Nazwa")).toHaveAttribute("autocomplete", "name");
+    expect(screen.getByLabelText("Opis")).toHaveAttribute("autocomplete", "off");
+  });
+
+  it("błąd serwera przy polu hasła jest powiązany przez aria-describedby, wartość hasła zostaje", async () => {
+    const onSubmit = vi.fn(
+      async (): Promise<ApiResult<unknown>> => ({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "Nieprawidłowe dane", fieldErrors: { password: ["Hasło jest za krótkie"] } },
+      }),
+    );
+    renderCredentials(
+      [
+        { name: "email", label: "E-mail", type: "email", autoComplete: "email" },
+        { name: "password", label: "Hasło", type: "password", autoComplete: "new-password" },
+      ],
+      onSubmit,
+    );
+
+    await userEvent.type(screen.getByLabelText("E-mail"), "ola@example.com");
+    await userEvent.type(screen.getByLabelText("Hasło"), "krotkie");
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ email: "ola@example.com", password: "krotkie" });
+    const password = screen.getByLabelText("Hasło");
+    expect(password).toHaveAttribute("aria-invalid", "true");
+    expect(password).toHaveAccessibleDescription("Hasło jest za krótkie");
+    expect(password).toHaveValue("krotkie");
+    expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("aria-describedby");
   });
 });
