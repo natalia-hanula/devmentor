@@ -9,9 +9,8 @@ vi.mock("@devmentor/db", async (importOriginal) => ({
   initOrm,
 }));
 
-const { DatabaseHealthService, getContainer, ServiceUnavailableError, TechnologyService, withScope } = await import(
-  "../src"
-);
+const { DatabaseHealthService, getContainer, RateLimiter, ServiceUnavailableError, TechnologyService, withScope } =
+  await import("../src");
 
 function resetContainer() {
   delete (globalThis as { __devmentorContainer?: unknown }).__devmentorContainer;
@@ -42,6 +41,18 @@ describe("getContainer / withScope", () => {
     expect(first.cradle.env.DATABASE_URL).toBe("postgresql://u:p@localhost:5432/db");
     expect(first.cradle.orm).toBe(orm);
     expect(typeof first.cradle.logger.info).toBe("function");
+  });
+
+  it("rejestruje RateLimiter jako singleton kontenera głównego, wspólny dla wszystkich scope", async () => {
+    initOrm.mockResolvedValue(orm);
+    const container = await getContainer();
+
+    const fromFirstScope = await withScope(async (cradle) => cradle.rateLimiter);
+    const fromSecondScope = await withScope(async (cradle) => cradle.rateLimiter);
+
+    expect(container.cradle.rateLimiter).toBeInstanceOf(RateLimiter);
+    expect(fromFirstScope).toBe(container.cradle.rateLimiter);
+    expect(fromSecondScope).toBe(container.cradle.rateLimiter);
   });
 
   it("withScope daje własny EntityManager i serwisy żądania, a wynik pracy przekazuje dalej", async () => {

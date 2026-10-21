@@ -16,6 +16,7 @@ export {
 } from "./http/api-handler";
 export { redirectHandler } from "./http/redirect-handler";
 export { safeNextPath } from "./http/safe-next-path";
+export { clientIp, UNKNOWN_CLIENT_IP } from "./http/client-ip";
 export { makeCrudRoute, type AccessRule, type CrudService } from "./http/make-crud-route";
 export {
   assertOwnership,
@@ -31,3 +32,4 @@ export { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "./http/session-constan
 export { SessionTokenService } from "./services/auth/session-token.service";
 export { DatabaseHealthService, type DatabaseHealth } from "./services/health/database-health.service";
 export { TechnologyService, type TechnologyDto } from "./services/mentors/technology.service";
+export { RATE_LIMIT_MAX_KEYS, RateLimiter, type RateLimitRule } from "./services/rate-limit/rate-limiter.service";

@@ -4,6 +4,7 @@ import type { Logger } from "../logger";
 import type { SessionTokenService } from "../services/auth/session-token.service";
 import type { DatabaseHealthService } from "../services/health/database-health.service";
 import type { TechnologyService } from "../services/mentors/technology.service";
+import type { RateLimiter } from "../services/rate-limit/rate-limiter.service";
 
 /** Zależności kontenera głównego — jedna instancja na proces. */
 export interface AppCradle {
@@ -11,6 +12,7 @@ export interface AppCradle {
   logger: Logger;
   orm: MikroORM;
   sessionTokenService: SessionTokenService;
+  rateLimiter: RateLimiter;
 }
 
 /** Zależności scope żądania. Każdy nowy serwis: wpis tutaj + rejestracja w `container.ts`. */
