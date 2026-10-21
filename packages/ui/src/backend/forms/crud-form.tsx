@@ -42,7 +42,10 @@ export interface CrudFormProps<TValues extends Record<string, unknown>> {
   /** Ta sama schema Zod, której używa trasa API (`@devmentor/core/validators/...`). */
   schema: z.ZodType<TValues>;
   fields: CrudFormField<TValues>[];
-  /** Pola `type: "password"` są zawsze puste — sekret nie trafia do stanu ani DOM-u. */
+  /**
+   * Pola `type: "password"` nie przyjmują wartości początkowej (startują puste). Wpisane hasło żyje
+   * w stanie i w DOM-ie, dopóki formularz go nie wyczyści: po sukcesie i po wyjątku przy wysyłce.
+   */
   initialValues?: Partial<Record<keyof TValues, string>>;
   onSubmit: (values: TValues) => Promise<ApiResult<unknown>>;
   onSuccess?: () => void;
@@ -78,6 +81,9 @@ export function CrudForm<TValues extends Record<string, unknown>>({
   const emptyValues = Object.fromEntries(
     fields.map((field) => [field.name, field.type === "password" ? "" : (initialValues?.[field.name] ?? "")]),
   ) as FormValues;
+  const emptyPasswords = Object.fromEntries(
+    fields.filter((field) => field.type === "password").map((field) => [field.name, ""]),
+  ) as FormValues;
   const [values, setValues] = useState<FormValues>(emptyValues);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -101,6 +107,9 @@ export function CrudForm<TValues extends Record<string, unknown>>({
     try {
       result = await onSubmit(parsed.data);
     } catch {
+      // Po wyjątku (np. brak sieci) nie wiemy, co serwer zrobił z hasłem — nie trzymamy go dłużej
+      // w formularzu; pozostałe pola zostają, żeby dało się ponowić wysyłkę.
+      setValues((current) => ({ ...current, ...emptyPasswords }));
       showErrors({}, unexpectedErrorMessage);
       return;
     } finally {

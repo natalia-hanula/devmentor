@@ -1,4 +1,4 @@
-import { isMailOutboxEnabled, parseEnv } from "@devmentor/core";
+import { getLogger, isMailOutboxEnabled, parseEnv, type Env } from "@devmentor/core";
 import Link from "next/link";
 import { connection } from "next/server";
 
@@ -9,7 +9,8 @@ import { connection } from "next/server";
  */
 export async function OutboxNavLink({ className }: { className: string }) {
   await connection();
-  if (!isMailOutboxEnabled(parseEnv())) {
+  const env = readEnv();
+  if (env === null || !isMailOutboxEnabled(env)) {
     return null;
   }
   return (
@@ -17,4 +18,18 @@ export async function OutboxNavLink({ className }: { className: string }) {
       Skrzynka
     </Link>
   );
+}
+
+/**
+ * Zła konfiguracja nie może wywalić całego layoutu panelu — sama pozycja w nawigacji znika, a błąd
+ * i tak zgłosi każda trasa API i strona sięgająca po kontener. `getLogger()` nie woła `parseEnv`,
+ * więc da się zalogować; komunikat `parseEnv` podaje tylko nazwy zmiennych, nigdy wartości.
+ */
+function readEnv(): Env | null {
+  try {
+    return parseEnv();
+  } catch (error) {
+    getLogger().error({ err: error }, "Nieprawidłowa konfiguracja — pomijam pozycję „Skrzynka” w nawigacji");
+    return null;
+  }
 }

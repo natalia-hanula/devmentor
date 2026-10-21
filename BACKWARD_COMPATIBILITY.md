@@ -35,7 +35,7 @@ Chronione powierzchnie kontraktu tego repozytorium i to, jak je zmieniać. Skill
 - **Ścieżka:** monorepo bez publikacji — zmień wszystkich importujących w tym samym PR-ze; `npm run typecheck` i `npm run lint` muszą przejść. Nie dodawaj importów omijających `exports` (ścieżki do `src/`).
 
 ### 7. Zmienne środowiskowe (`packages/core/src/config/env.ts`, `.env.example`)
-- Obecnie w schemie: `DATABASE_URL` i `AUTH_JWT_SECRET` (wymagane), `NODE_ENV`, `LOG_LEVEL`, `APP_BASE_URL`, `APP_ENV` (z wartościami domyślnymi) oraz `MAIL_ADAPTER` (opcjonalna: `outbox` | `noop`; domyślna wynika z `APP_ENV` — `noop` przy `production`, inaczej `outbox`; `outbox` przy `APP_ENV=production` blokuje start). `INTEGRATION_DATABASE_URL` czyta tylko setup testów integracyjnych, nie schema.
+- Obecnie w schemie: `DATABASE_URL` i `AUTH_JWT_SECRET` (wymagane), `NODE_ENV`, `LOG_LEVEL`, `APP_BASE_URL`, `APP_ENV`, `TRUST_PROXY` (z wartościami domyślnymi; `TRUST_PROXY`: `true` | `false`, domyślnie `false` — tylko przy `true` `clientIp` czyta `x-forwarded-for`) oraz `MAIL_ADAPTER` (opcjonalna: `outbox` | `noop`; domyślna wynika z `APP_ENV` — `outbox` przy `local` i `test`, `noop` przy `staging` i `production`; staging może jawnie ustawić `outbox`; `outbox` przy `APP_ENV=production` blokuje start). `INTEGRATION_DATABASE_URL` czyta tylko setup testów integracyjnych, nie schema.
 - **Łamiące:** zmiana nazwy lub usunięcie zmiennej, nowa zmienna wymagana bez wartości domyślnej, zaostrzenie walidacji.
 - **Ścieżka:** zaktualizuj schemę i `.env.example` razem, opisz zmianę w PR-ze. Build musi przechodzić bez `.env` (`parseEnv()` pozostaje leniwe).
 
@@ -46,4 +46,4 @@ Chronione powierzchnie kontraktu tego repozytorium i to, jak je zmieniać. Skill
 
 ## Poza zakresem (na razie)
 
-Zdarzenia domenowe, webhooki i porty integracji (płatności) jeszcze nie istnieją. Gdy dodasz pierwsze z nich, dopisz tu sekcję: nazwy zdarzeń (`koncepcja.encja.akcja`) i kształt ich ładunku staną się kontraktem.
+Zdarzenia domenowe, webhooki i port płatności jeszcze nie istnieją. Port poczty `MailGateway` istnieje jako port wewnętrzny (adaptery outbox i noop, bez zewnętrznego dostawcy) — nie jest kontraktem zewnętrznym. Gdy dodasz pierwsze zdarzenie, webhook albo zewnętrznego dostawcę, dopisz tu sekcję: nazwy zdarzeń (`koncepcja.encja.akcja`) i kształt ich ładunku staną się kontraktem.

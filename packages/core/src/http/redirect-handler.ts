@@ -6,21 +6,25 @@ import { DataWithCookies } from "./api-handler";
 import type { RouteContext, RouteHandler } from "./api-handler";
 
 const UNEXPECTED_ERROR_CODE = "unexpected";
+/** `HEAD` to `GET` bez ciała (RFC 9110 §9.3.2) — odpowiedź przekierowania i tak go nie ma. */
+const ALLOWED_METHODS = ["GET", "HEAD"];
 
 /**
  * Drugi kanoniczny wrapper tras obok `apiHandler`, dla tras, które odpowiadają przekierowaniem
  * (callback OAuth i każde przyszłe). Handler zwraca adres docelowy (ścieżkę względną) albo
  * `withCookies(adres, cookies)`; adres zawsze przechodzi przez `safeNextPath` (niebezpieczny → `/`),
- * więc handler przekazujący dalej wartość od użytkownika nie zrobi otwartego przekierowania. Tylko `GET` — te trasy nie zmieniają stanu poza sesją, więc nie
- * wymagają nagłówka CSRF. Błąd zamienia na `302 /login?error=<kod>`; nie ujawnia stack trace'ów.
+ * więc handler przekazujący dalej wartość od użytkownika nie zrobi otwartego przekierowania.
+ * Tylko `GET` i `HEAD` (obsługiwany jak `GET`) — te trasy nie zmieniają stanu poza sesją, więc nie
+ * wymagają nagłówka CSRF; inne metody → 405. Błąd zamienia na `302 /login?error=<kod>`; nie
+ * ujawnia stack trace'ów.
  * Loguje wyłącznie `pathname`: callback OAuth niesie w query `code` i `state`.
  */
 export function redirectHandler(
   handler: (request: Request, context: RouteContext) => Promise<string | DataWithCookies<string>>,
 ): RouteHandler {
   return async (request, context) => {
-    if (request.method !== "GET") {
-      return new Response(null, { status: 405, headers: { allow: "GET" } });
+    if (!ALLOWED_METHODS.includes(request.method)) {
+      return new Response(null, { status: 405, headers: { allow: ALLOWED_METHODS.join(", ") } });
     }
     try {
       const result = await handler(request, context);

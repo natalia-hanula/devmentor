@@ -7,6 +7,8 @@ export const AUTH_JWT_SECRET_MIN_BYTES = 32;
 const APP_ENVIRONMENTS = ["local", "test", "staging", "production"] as const;
 const MAIL_ADAPTERS = ["outbox", "noop"] as const;
 type MailAdapter = (typeof MAIL_ADAPTERS)[number];
+/** Środowiska, w których skrzynka deweloperska jest domyślna; staging dostaje ją tylko jawnie. */
+const OUTBOX_BY_DEFAULT: ReadonlySet<string> = new Set(["local", "test"]);
 
 const baseEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -26,6 +28,14 @@ const baseEnvSchema = z.object({
    * Domyślnie `production`: brak konfiguracji oznacza najostrzejsze reguły (fail closed).
    */
   APP_ENV: z.enum(APP_ENVIRONMENTS, { error: "APP_ENV musi być jedną z: local, test, staging, production" }).default("production"),
+  /**
+   * Czy przed aplikacją stoi zaufany reverse proxy, który dopisuje adres klienta na koniec
+   * `x-forwarded-for`. Domyślnie `false`: bez proxy cały nagłówek pochodzi od klienta.
+   */
+  TRUST_PROXY: z
+    .enum(["true", "false"], { error: "TRUST_PROXY musi mieć wartość true albo false" })
+    .default("false")
+    .transform((value) => value === "true"),
   /** Domyślna wartość zależy od `APP_ENV` — uzupełnia ją `transform` niżej. */
   MAIL_ADAPTER: z.enum(MAIL_ADAPTERS, { error: "MAIL_ADAPTER musi być jedną z: outbox, noop" }).optional(),
 });
@@ -38,7 +48,7 @@ const envSchema = baseEnvSchema
     error: "MAIL_ADAPTER=outbox jest niedozwolony przy APP_ENV=production",
   })
   .transform((env) => {
-    const mailAdapter: MailAdapter = env.MAIL_ADAPTER ?? (env.APP_ENV === "production" ? "noop" : "outbox");
+    const mailAdapter: MailAdapter = env.MAIL_ADAPTER ?? (OUTBOX_BY_DEFAULT.has(env.APP_ENV) ? "outbox" : "noop");
     return { ...env, MAIL_ADAPTER: mailAdapter };
   });
 

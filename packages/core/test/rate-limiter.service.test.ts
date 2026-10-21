@@ -43,7 +43,6 @@ describe("RateLimiter", () => {
     clock.advance(1);
     expect(() => limiter.consume("key-0", SINGLE_ATTEMPT)).not.toThrow();
     expect(() => limiter.consume("key-0", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
-    expect(limiter.size).toBe(1);
   });
 
   it("liczy każdy klucz osobno", () => {
@@ -61,54 +60,46 @@ describe("RateLimiter", () => {
     expect(() => limiter.consume("key", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
   });
 
-  it("przy przekroczeniu RATE_LIMIT_MAX_KEYS usuwa najstarszy wpis", () => {
+  it("pełna tablica bez wygasłych wpisów: nowy klucz dostaje 429, aktywna blokada nie znika", () => {
     const limiter = new RateLimiter(createClock().now);
-    fill(limiter, RATE_LIMIT_MAX_KEYS, SINGLE_ATTEMPT);
+    limiter.consume("login:victim@example.com", SINGLE_ATTEMPT);
+    fill(limiter, RATE_LIMIT_MAX_KEYS - 1, SINGLE_ATTEMPT, "flood");
 
-    limiter.consume("newcomer", SINGLE_ATTEMPT);
-
-    expect(limiter.size).toBe(RATE_LIMIT_MAX_KEYS);
-    // Najstarszy klucz zapomniany — dostaje nowe okno; drugi w kolejności nadal zablokowany.
-    expect(() => limiter.consume("key-1", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
     expect(() => limiter.consume("newcomer", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
-    expect(() => limiter.consume("key-0", SINGLE_ATTEMPT)).not.toThrow();
+    expect(() => limiter.consume("flood-new", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
+    // Zalew kluczy nie zdjął blokady ofiary (pierwszy, najstarszy wpis).
+    expect(() => limiter.consume("login:victim@example.com", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
   });
 
-  it("nowe okno wygasłego klucza trafia na koniec kolejki do usunięcia", () => {
+  it("pełna tablica: istniejący klucz działa normalnie — liczy próby i dostaje nowe okno po wygaśnięciu", () => {
     const clock = createClock();
     const limiter = new RateLimiter(clock.now);
-    const shortRule: RateLimitRule = { limit: 1, windowMs: 1_000 };
-    limiter.consume("renewed", shortRule);
+    const shortRule: RateLimitRule = { limit: 2, windowMs: 1_000 };
+    limiter.consume("known", shortRule);
     fill(limiter, RATE_LIMIT_MAX_KEYS - 1, SINGLE_ATTEMPT);
 
+    expect(() => limiter.consume("known", shortRule)).not.toThrow();
+    expect(() => limiter.consume("known", shortRule)).toThrow(TooManyRequestsError);
+
     clock.advance(shortRule.windowMs);
-    limiter.consume("renewed", shortRule);
-    limiter.consume("newcomer", SINGLE_ATTEMPT);
-
-    expect(limiter.size).toBe(RATE_LIMIT_MAX_KEYS);
-    expect(() => limiter.consume("renewed", shortRule)).toThrow(TooManyRequestsError);
-    expect(() => limiter.consume("key-0", SINGLE_ATTEMPT)).not.toThrow();
+    expect(() => limiter.consume("known", shortRule)).not.toThrow();
+    expect(() => limiter.consume("newcomer", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
   });
 
-  it("nie rośnie ponad RATE_LIMIT_MAX_KEYS przy 10 001 unikalnych kluczach", () => {
-    const limiter = new RateLimiter(createClock().now);
-
-    fill(limiter, RATE_LIMIT_MAX_KEYS + 1, SINGLE_ATTEMPT);
-
-    expect(limiter.size).toBe(RATE_LIMIT_MAX_KEYS);
-  });
-
-  it("gdy brakuje miejsca, najpierw sprząta wygasłe wpisy zamiast usuwać ważne", () => {
+  it("pełna tablica z wygasłymi wpisami: sprząta je i przyjmuje nowy klucz, ważne wpisy zostają", () => {
     const clock = createClock();
     const limiter = new RateLimiter(clock.now);
     const shortRule: RateLimitRule = { limit: 1, windowMs: 1_000 };
-    fill(limiter, RATE_LIMIT_MAX_KEYS - 1, shortRule, "short");
     limiter.consume("long", SINGLE_ATTEMPT);
+    fill(limiter, RATE_LIMIT_MAX_KEYS - 1, shortRule, "short");
 
     clock.advance(shortRule.windowMs);
-    limiter.consume("newcomer", SINGLE_ATTEMPT);
 
-    expect(limiter.size).toBe(2);
+    expect(() => limiter.consume("newcomer", SINGLE_ATTEMPT)).not.toThrow();
+    expect(() => limiter.consume("newcomer", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
     expect(() => limiter.consume("long", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
+    // Po sprzątaniu jest miejsce na kolejne nowe klucze.
+    expect(() => fill(limiter, RATE_LIMIT_MAX_KEYS - 2, SINGLE_ATTEMPT, "next")).not.toThrow();
+    expect(() => limiter.consume("one-too-many", SINGLE_ATTEMPT)).toThrow(TooManyRequestsError);
   });
 });

@@ -55,13 +55,25 @@ describe("redirectHandler", () => {
     expect(response.headers.get("location")).toBe("/account?tab=1");
   });
 
-  it.each(["POST", "PUT", "DELETE", "PATCH"])("%s → 405 z Allow: GET, handler się nie wykonuje", async (method) => {
+  it("HEAD jest obsługiwany jak GET: 302 z tym samym Location i ciasteczkami, bez ciała", async () => {
+    const handler = vi.fn(async () => withCookies("/account", ["a=1; Path=/"]));
+
+    const response = await redirectHandler(handler)(new Request("http://localhost/api/x", { method: "HEAD" }), context);
+
+    expect(handler).toHaveBeenCalledOnce();
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/account");
+    expect(response.headers.getSetCookie()).toEqual(["a=1; Path=/"]);
+    expect(response.body).toBeNull();
+  });
+
+  it.each(["POST", "PUT", "DELETE", "PATCH", "OPTIONS"])("%s → 405 z Allow: GET, HEAD, handler się nie wykonuje", async (method) => {
     const handler = vi.fn(async () => "/x");
 
     const response = await redirectHandler(handler)(new Request("http://localhost/api/x", { method }), context);
 
     expect(response.status).toBe(405);
-    expect(response.headers.get("allow")).toBe("GET");
+    expect(response.headers.get("allow")).toBe("GET, HEAD");
     expect(handler).not.toHaveBeenCalled();
   });
 

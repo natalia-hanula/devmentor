@@ -16,6 +16,7 @@ describe("parseEnv", () => {
       AUTH_JWT_SECRET: SECRET,
       APP_BASE_URL: "http://localhost:3000",
       APP_ENV: "production",
+      TRUST_PROXY: false,
       MAIL_ADAPTER: "noop",
     });
   });
@@ -55,7 +56,7 @@ describe("parseEnv", () => {
   it.each([
     ["local", "outbox"],
     ["test", "outbox"],
-    ["staging", "outbox"],
+    ["staging", "noop"],
     ["production", "noop"],
   ] as const)("MAIL_ADAPTER domyślnie przy APP_ENV=%s to %s", (appEnv, adapter) => {
     expect(parseEnv({ ...valid, APP_ENV: appEnv }).MAIL_ADAPTER).toBe(adapter);
@@ -66,6 +67,11 @@ describe("parseEnv", () => {
 
     expect(env.APP_ENV).toBe("production");
     expect(env.MAIL_ADAPTER).toBe("noop");
+  });
+
+  it("na stagingu outbox tylko po jawnym MAIL_ADAPTER=outbox", () => {
+    expect(parseEnv({ ...valid, APP_ENV: "staging" }).MAIL_ADAPTER).toBe("noop");
+    expect(parseEnv({ ...valid, APP_ENV: "staging", MAIL_ADAPTER: "outbox" }).MAIL_ADAPTER).toBe("outbox");
   });
 
   it("przyjmuje jawne MAIL_ADAPTER: noop poza produkcją i noop w produkcji", () => {
@@ -83,5 +89,15 @@ describe("parseEnv", () => {
 
   it("odrzuca MAIL_ADAPTER spoza listy", () => {
     expect(() => parseEnv({ ...valid, APP_ENV: "local", MAIL_ADAPTER: "smtp" })).toThrow(/MAIL_ADAPTER musi być jedną z/);
+  });
+
+  it("TRUST_PROXY: domyślnie false, napisy true/false zamienia na boolean", () => {
+    expect(parseEnv(valid).TRUST_PROXY).toBe(false);
+    expect(parseEnv({ ...valid, TRUST_PROXY: "true" }).TRUST_PROXY).toBe(true);
+    expect(parseEnv({ ...valid, TRUST_PROXY: "false" }).TRUST_PROXY).toBe(false);
+  });
+
+  it.each(["1", "yes", "TRUE", ""])("odrzuca TRUST_PROXY=%j", (value) => {
+    expect(() => parseEnv({ ...valid, TRUST_PROXY: value })).toThrow(/TRUST_PROXY musi mieć wartość true albo false/);
   });
 });

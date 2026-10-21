@@ -321,6 +321,37 @@ describe("CrudForm — pola e-mail i hasło (DS01)", () => {
     expect(screen.getByLabelText("Opis")).toHaveAttribute("autocomplete", "off");
   });
 
+  it("po wyjątku przy wysyłce czyści pola hasła (stan i DOM), a pozostałe pola zostają", async () => {
+    const onSubmit = vi
+      .fn<() => Promise<ApiResult<unknown>>>()
+      .mockRejectedValueOnce(new Error("Brak sieci"))
+      .mockResolvedValueOnce(ok);
+    renderCredentials(
+      [
+        { name: "email", label: "E-mail", type: "email", autoComplete: "username" },
+        { name: "password", label: "Hasło", type: "password", autoComplete: "current-password" },
+      ],
+      onSubmit,
+    );
+
+    await userEvent.type(screen.getByLabelText("E-mail"), "ola@example.com");
+    await userEvent.type(screen.getByLabelText("Hasło"), "sekret-haslo");
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się połączyć. Spróbuj ponownie.");
+    expect(screen.getByLabelText("Hasło")).toHaveValue("");
+    expect(screen.getByLabelText("E-mail")).toHaveValue("ola@example.com");
+
+    // Stan też jest wyczyszczony: ponowna wysyłka bez wpisania hasła nie przechodzi walidacji klienta.
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("Hasło")).toHaveAccessibleDescription("Podaj hasło");
+
+    await userEvent.type(screen.getByLabelText("Hasło"), "drugie-haslo");
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+    expect(onSubmit).toHaveBeenLastCalledWith({ email: "ola@example.com", password: "drugie-haslo" });
+  });
+
   it("błąd serwera przy polu hasła jest powiązany przez aria-describedby, wartość hasła zostaje", async () => {
     const onSubmit = vi.fn(
       async (): Promise<ApiResult<unknown>> => ({

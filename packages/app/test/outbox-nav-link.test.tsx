@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const connection = vi.hoisted(() => vi.fn(async () => undefined));
 const parseEnv = vi.hoisted(() => vi.fn());
+const logger = vi.hoisted(() => ({ error: vi.fn() }));
 
 vi.mock("next/server", () => ({ connection }));
 vi.mock("@devmentor/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@devmentor/core")>()),
   parseEnv,
+  getLogger: () => logger,
 }));
 
 const { OutboxNavLink } = await import("../app/(operator)/outbox-nav-link");
@@ -33,5 +35,16 @@ describe("OutboxNavLink", () => {
     parseEnv.mockReturnValue({ MAIL_ADAPTER: "noop" });
 
     expect(await OutboxNavLink({ className: "nav" })).toBeNull();
+  });
+
+  it("gdy parseEnv rzuci, nie przerywa renderowania — pozycji brak, błąd trafia do logu", async () => {
+    const configError = new Error("Nieprawidłowa konfiguracja środowiska — AUTH_JWT_SECRET: AUTH_JWT_SECRET jest wymagany");
+    parseEnv.mockImplementation(() => {
+      throw configError;
+    });
+
+    await expect(OutboxNavLink({ className: "nav" })).resolves.toBeNull();
+    expect(logger.error).toHaveBeenCalledOnce();
+    expect(logger.error).toHaveBeenCalledWith({ err: configError }, expect.stringContaining("Skrzynka"));
   });
 });

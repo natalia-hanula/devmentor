@@ -16,7 +16,7 @@ export {
 } from "./http/api-handler";
 export { redirectHandler } from "./http/redirect-handler";
 export { safeNextPath } from "./http/safe-next-path";
-export { clientIp, UNKNOWN_CLIENT_IP } from "./http/client-ip";
+export { clientIp, UNKNOWN_CLIENT_IP, type ClientIpOptions } from "./http/client-ip";
 export { makeCrudRoute, type AccessRule, type CrudService } from "./http/make-crud-route";
 export {
   assertOwnership,

@@ -3,7 +3,9 @@ import { TooManyRequestsError } from "../../http/errors";
 /**
  * Górny limit śledzonych kluczy. Klucze pochodzą od klienta (IP, e-mail), więc bez limitu zalew
  * unikalnych kluczy wyczerpałby pamięć procesu. 10 000 wpisów to pojedyncze megabajty, a przy
- * jednej instancji (Q6) z zapasem mieści ruch prawdziwych użytkowników w jednym oknie.
+ * jednej instancji (Q6) z zapasem mieści ruch prawdziwych użytkowników w jednym oknie. Gdy tablica
+ * jest pełna i nic w niej nie wygasło, nowy klucz dostaje 429 (fail closed) — aktywnych wpisów nie
+ * wyrzucamy, bo zalew kluczy zdjąłby wtedy blokadę z atakowanego konta.
  */
 export const RATE_LIMIT_MAX_KEYS = 10_000;
 
@@ -19,8 +21,7 @@ interface RateLimitEntry {
 
 /**
  * Limiter prób z oknem stałym, liczniki w pamięci procesu (jedna instancja, Q6). Reguły (nazwane
- * stałe) definiuje konsument. Kolejność wstawiania do `Map` to kolejność otwarcia okna, więc
- * pierwszy wpis jest najstarszy.
+ * stałe) definiuje konsument.
  */
 export class RateLimiter {
   private readonly entries = new Map<string, RateLimitEntry>();
@@ -34,12 +35,10 @@ export class RateLimiter {
     this.now = now;
   }
 
-  /** Liczba śledzonych kluczy — pozwala sprawdzić, że pamięć limitera jest ograniczona. */
-  get size(): number {
-    return this.entries.size;
-  }
-
-  /** Zalicza próbę dla `key`; po wyczerpaniu `rule.limit` w oknie rzuca `TooManyRequestsError`. */
+  /**
+   * Zalicza próbę dla `key`; po wyczerpaniu `rule.limit` w oknie rzuca `TooManyRequestsError`.
+   * Rzuca go też dla nowego klucza, gdy tablica jest pełna aktywnych wpisów (`RATE_LIMIT_MAX_KEYS`).
+   */
   consume(key: string, rule: RateLimitRule): void {
     const now = this.now();
     const entry = this.entries.get(key);
@@ -52,12 +51,13 @@ export class RateLimiter {
       return;
     }
 
-    // Wygasły wpis usuwamy, żeby nowe okno trafiło na koniec kolejności „od najstarszego”.
+    // Wygasły wpis tego klucza zwalnia miejsce, więc znany klucz zawsze dostaje nowe okno.
     this.entries.delete(key);
     this.makeRoom(now);
     this.entries.set(key, { count: 1, resetAt: now + rule.windowMs });
   }
 
+  /** Usuwa tylko wygasłe wpisy; jeśli to nie zwolni miejsca, odmawia (fail closed). */
   private makeRoom(now: number): void {
     if (this.entries.size < RATE_LIMIT_MAX_KEYS) {
       return;
@@ -67,10 +67,8 @@ export class RateLimiter {
         this.entries.delete(key);
       }
     }
-    if (this.entries.size < RATE_LIMIT_MAX_KEYS) {
-      return;
+    if (this.entries.size >= RATE_LIMIT_MAX_KEYS) {
+      throw new TooManyRequestsError();
     }
-    const [oldestKey] = this.entries.keys();
-    this.entries.delete(oldestKey);
   }
 }
