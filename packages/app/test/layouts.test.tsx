@@ -1,6 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { isValidElement, type ReactElement } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Pozycja „Skrzynka” jest asynchroniczna (env w czasie żądania) — testy w outbox-nav-link.test.tsx.
+vi.mock("../app/(operator)/outbox-nav-link", () => ({
+  OutboxNavLink: ({ className }: { className: string }) => (
+    <a href="/admin/outbox" className={className}>
+      Skrzynka (atrapa)
+    </a>
+  ),
+}));
 
 const { default: RootLayout, metadata } = await import("../app/layout");
 const { default: AdminLayout } = await import("../app/(operator)/layout");
@@ -27,6 +36,7 @@ describe("AdminLayout", () => {
     expect(screen.getByRole("link", { name: "DevMentor" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Przegląd" })).toHaveAttribute("href", "/admin");
     expect(screen.getByRole("link", { name: "Technologie" })).toHaveAttribute("href", "/admin/technologies");
+    expect(screen.getByRole("link", { name: "Skrzynka (atrapa)" })).toHaveClass("hover:text-foreground");
     expect(screen.getByRole("main")).toHaveTextContent("Treść panelu");
   });
 });

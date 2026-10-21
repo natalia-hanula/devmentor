@@ -53,4 +53,14 @@ describe("panel admina w przeglądarce (agent-browser)", () => {
     expect(await browser.run("get", "text", "[role=alert]")).toContain("już istnieje");
     expect(Number(await browser.run("get", "count", "tbody tr"))).toBe(SEEDED_TECHNOLOGIES);
   });
+
+  it("/admin/outbox pokazuje tytuł, adnotację i pustą skrzynkę, a nawigacja ma pozycję „Skrzynka”", async () => {
+    await browser.run("open", `${baseUrl}/admin/outbox`);
+    await browser.run("wait", "--text", "Brak wiadomości");
+
+    expect(await browser.run("get", "text", "h1")).toBe("Skrzynka");
+    expect(await browser.run("get", "text", "main")).toContain("Skrzynka deweloperska — wiadomości nie są wysyłane");
+    expect(await browser.run("get", "text", "main")).toContain("Skrzynka czyści się po restarcie serwera.");
+    expect(Number(await browser.run("get", "count", "nav a[href='/admin/outbox']"))).toBe(1);
+  });
 });

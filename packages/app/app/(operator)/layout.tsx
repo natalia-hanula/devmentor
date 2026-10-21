@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { OutboxNavLink } from "./outbox-nav-link";
 
 const NAV_ITEMS = [
   { href: "/admin", label: "Przegląd" },
   { href: "/admin/technologies", label: "Technologie" },
 ] as const;
+
+const NAV_LINK_CLASS = "hover:text-foreground";
 
 /** Layout panelu admina — komponenty z `@devmentor/ui`. */
 export default function AdminLayout({ children }: LayoutProps<"/">) {
@@ -16,10 +20,13 @@ export default function AdminLayout({ children }: LayoutProps<"/">) {
           </Link>
           <nav className="flex gap-4 text-sm text-muted-foreground">
             {NAV_ITEMS.map((item) => (
-              <Link key={item.href} href={item.href} className="hover:text-foreground">
+              <Link key={item.href} href={item.href} className={NAV_LINK_CLASS}>
                 {item.label}
               </Link>
             ))}
+            <Suspense fallback={null}>
+              <OutboxNavLink className={NAV_LINK_CLASS} />
+            </Suspense>
           </nav>
         </div>
       </header>

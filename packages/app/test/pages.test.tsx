@@ -19,9 +19,14 @@ vi.mock("../app/(operator)/admin/technologies/technologies-manager", () => ({
   TechnologiesManager: () => <div>zarządzanie technologiami</div>,
 }));
 
+vi.mock("../app/(operator)/admin/outbox/outbox-viewer", () => ({
+  OutboxViewer: () => <div>podgląd skrzynki</div>,
+}));
+
 const { default: HomePage } = await import("../app/(marketing)/page");
 const adminPage = await import("../app/(operator)/admin/page");
 const technologiesPage = await import("../app/(operator)/admin/technologies/page");
+const outboxPage = await import("../app/(operator)/admin/outbox/page");
 
 describe("strony", () => {
   it("HomePage renderuje stronę startową", () => {
@@ -49,5 +54,15 @@ describe("strony", () => {
     expect(technologiesPage.metadata.title).toContain("Technologie");
     expect(screen.getByTestId("gate")).toHaveAttribute("data-role", "operator");
     expect(screen.getByTestId("gate")).toHaveAttribute("data-path", "/admin/technologies");
+  });
+
+  it("OutboxPage pokazuje tytuł „Skrzynka” i podgląd za bramką operatora", () => {
+    render(<outboxPage.default />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Skrzynka" })).toBeInTheDocument();
+    expect(screen.getByText("podgląd skrzynki")).toBeInTheDocument();
+    expect(outboxPage.metadata.title).toContain("Skrzynka");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-role", "operator");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-path", "/admin/outbox");
   });
 });

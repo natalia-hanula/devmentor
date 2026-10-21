@@ -35,5 +35,6 @@ export { TechnologyService, type TechnologyDto } from "./services/mentors/techno
 export type { MailGateway, MailMessage } from "./services/mail/mail.port";
 export { NoopMailAdapter } from "./services/mail/adapters/noop-mail.adapter";
 export { OUTBOX_CAPACITY, OutboxMailAdapter, type OutboxMessage } from "./services/mail/adapters/outbox-mail.adapter";
-export { isMailDeliveryAvailable } from "./services/mail/mail-gateway";
+export { isMailDeliveryAvailable, isMailOutboxEnabled } from "./services/mail/mail-gateway";
+export { listOutboxMessages, type OutboxMessageDto } from "./services/mail/outbox-preview";
 export { RATE_LIMIT_MAX_KEYS, RateLimiter, type RateLimitRule } from "./services/rate-limit/rate-limiter.service";

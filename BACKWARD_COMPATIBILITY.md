@@ -20,12 +20,12 @@ Chronione powierzchnie kontraktu tego repozytorium i to, jak je zmieniać. Skill
 - **Ścieżka:** zmiana jednocześnie w `apiHandler` (core) i `apiCall` (ui). Poluzowanie ochrony wymaga etykiety `security` i zgody człowieka.
 
 ### 4. Trasy HTTP (`packages/app/app/api/**/route.ts`)
-- Obecnie: `GET /api/health`, `GET|POST|PUT|DELETE /api/technologies` (`PUT`/`DELETE` przez `?id=`; odczyt publiczny, zapisy wymagają sesji).
+- Obecnie: `GET /api/health`, `GET|POST|PUT|DELETE /api/technologies` (`PUT`/`DELETE` przez `?id=`; odczyt publiczny, zapisy wymagają sesji), `GET /api/mail/outbox` (tylko rola `operator`; 404 przy `MAIL_ADAPTER` ≠ `outbox`; `data`: ≤ 100 × `{ id, to, subject, text, sentAt }` od najnowszej).
 - **Łamiące:** usunięcie trasy lub metody, zmiana parametrów (`?id=`), zmiana kształtu `data`, zaostrzenie walidacji wejścia, zmiana poziomu dostępu z publicznego na chroniony (i odwrotnie — to zmiana bezpieczeństwa).
 - **Ścieżka:** zaktualizuj wszystkich konsumentów w `ui`/`app` w tym samym PR-ze. Poszerzenie dostępu (`"public"`) wymaga uzasadnienia w PR-ze i etykiety `security`.
 
 ### 5. Trasy stron (`packages/app/app/(persona)/…/page.tsx`)
-- Obecnie: `/`, `/admin`, `/admin/technologies`.
+- Obecnie: `/`, `/admin`, `/admin/technologies`, `/admin/outbox`.
 - **Łamiące:** zmiana lub usunięcie publicznego adresu URL z grupy `(marketing)`.
 - **Ścieżka:** przed wydaniem — zmiana dozwolona z aktualizacją linków. Po wydaniu — przekierowanie (`redirects` w `next.config.ts`) dla starego adresu.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createLogger, isMailDeliveryAvailable, NoopMailAdapter, OutboxMailAdapter } from "../src";
+import { createLogger, isMailDeliveryAvailable, isMailOutboxEnabled, NoopMailAdapter, OutboxMailAdapter } from "../src";
 import { createMailAdapters } from "../src/services/mail/mail-gateway";
 
 const logger = createLogger({ level: "silent" });
@@ -27,5 +27,12 @@ describe("isMailDeliveryAvailable", () => {
   it("false dla noop, true dla outbox", () => {
     expect(isMailDeliveryAvailable({ MAIL_ADAPTER: "noop" })).toBe(false);
     expect(isMailDeliveryAvailable({ MAIL_ADAPTER: "outbox" })).toBe(true);
+  });
+});
+
+describe("isMailOutboxEnabled", () => {
+  it("true tylko dla outbox", () => {
+    expect(isMailOutboxEnabled({ MAIL_ADAPTER: "outbox" })).toBe(true);
+    expect(isMailOutboxEnabled({ MAIL_ADAPTER: "noop" })).toBe(false);
   });
 });

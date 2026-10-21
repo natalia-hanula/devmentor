@@ -12,7 +12,7 @@ export interface MailAdapters {
 
 /** Tworzy adapter poczty wybrany w `MAIL_ADAPTER`. */
 export function createMailAdapters({ env, logger }: { env: Pick<Env, "MAIL_ADAPTER">; logger: Logger }): MailAdapters {
-  if (env.MAIL_ADAPTER === "outbox") {
+  if (isMailOutboxEnabled(env)) {
     const outbox = new OutboxMailAdapter({ logger });
     return { mailGateway: outbox, mailOutbox: outbox };
   }
@@ -22,4 +22,9 @@ export function createMailAdapters({ env, logger }: { env: Pick<Env, "MAIL_ADAPT
 /** Czy wiadomości dochodzą do odbiorcy (lub skrzynki deweloperskiej). `false` dla `noop` — strony ostrzegają wtedy użytkownika. */
 export function isMailDeliveryAvailable(env: Pick<Env, "MAIL_ADAPTER">): boolean {
   return env.MAIL_ADAPTER !== "noop";
+}
+
+/** Czy działa skrzynka deweloperska (podgląd `/admin/outbox` i pozycja „Skrzynka” w nawigacji operatora). */
+export function isMailOutboxEnabled(env: Pick<Env, "MAIL_ADAPTER">): boolean {
+  return env.MAIL_ADAPTER === "outbox";
 }
