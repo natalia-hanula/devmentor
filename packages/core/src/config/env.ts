@@ -5,8 +5,10 @@ const LOG_LEVELS = ["fatal", "error", "warn", "info", "debug", "trace", "silent"
 /** Minimalna długość sekretu HS256 (RFC 7518 §3.2: klucz co najmniej tak długi jak skrót, 256 bitów). */
 export const AUTH_JWT_SECRET_MIN_BYTES = 32;
 const APP_ENVIRONMENTS = ["local", "test", "staging", "production"] as const;
+const MAIL_ADAPTERS = ["outbox", "noop"] as const;
+type MailAdapter = (typeof MAIL_ADAPTERS)[number];
 
-const envSchema = z.object({
+const baseEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/, error: "DATABASE_URL musi być adresem postgresql://" }),
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
@@ -24,9 +26,23 @@ const envSchema = z.object({
    * Domyślnie `production`: brak konfiguracji oznacza najostrzejsze reguły (fail closed).
    */
   APP_ENV: z.enum(APP_ENVIRONMENTS, { error: "APP_ENV musi być jedną z: local, test, staging, production" }).default("production"),
+  /** Domyślna wartość zależy od `APP_ENV` — uzupełnia ją `transform` niżej. */
+  MAIL_ADAPTER: z.enum(MAIL_ADAPTERS, { error: "MAIL_ADAPTER musi być jedną z: outbox, noop" }).optional(),
 });
 
-export type Env = z.infer<typeof envSchema>;
+const envSchema = baseEnvSchema
+  // Outbox pokazuje operatorowi linki weryfikacji i resetu każdego konta, więc w produkcji to droga
+  // przejęcia kont — odmawiamy startu zamiast go po cichu wyłączać (fail closed).
+  .refine((env) => !(env.APP_ENV === "production" && env.MAIL_ADAPTER === "outbox"), {
+    path: ["MAIL_ADAPTER"],
+    error: "MAIL_ADAPTER=outbox jest niedozwolony przy APP_ENV=production",
+  })
+  .transform((env) => {
+    const mailAdapter: MailAdapter = env.MAIL_ADAPTER ?? (env.APP_ENV === "production" ? "noop" : "outbox");
+    return { ...env, MAIL_ADAPTER: mailAdapter };
+  });
+
+export type Env = z.output<typeof envSchema>;
 
 /**
  * Waliduje zmienne środowiskowe. Wywoływane leniwie (przy pierwszym użyciu w czasie żądania),

@@ -9,8 +9,16 @@ vi.mock("@devmentor/db", async (importOriginal) => ({
   initOrm,
 }));
 
-const { DatabaseHealthService, getContainer, RateLimiter, ServiceUnavailableError, TechnologyService, withScope } =
-  await import("../src");
+const {
+  DatabaseHealthService,
+  getContainer,
+  NoopMailAdapter,
+  OutboxMailAdapter,
+  RateLimiter,
+  ServiceUnavailableError,
+  TechnologyService,
+  withScope,
+} = await import("../src");
 
 function resetContainer() {
   delete (globalThis as { __devmentorContainer?: unknown }).__devmentorContainer;
@@ -53,6 +61,28 @@ describe("getContainer / withScope", () => {
     expect(container.cradle.rateLimiter).toBeInstanceOf(RateLimiter);
     expect(fromFirstScope).toBe(container.cradle.rateLimiter);
     expect(fromSecondScope).toBe(container.cradle.rateLimiter);
+  });
+
+  it("przy MAIL_ADAPTER=outbox rejestruje jedną skrzynkę jako mailGateway i mailOutbox, wspólną dla scope", async () => {
+    initOrm.mockResolvedValue(orm);
+    vi.stubEnv("APP_ENV", "test");
+    const container = await getContainer();
+
+    const fromScope = await withScope(async (cradle) => cradle.mailOutbox);
+
+    expect(container.cradle.env.MAIL_ADAPTER).toBe("outbox");
+    expect(container.cradle.mailGateway).toBeInstanceOf(OutboxMailAdapter);
+    expect(container.cradle.mailOutbox).toBe(container.cradle.mailGateway);
+    expect(fromScope).toBe(container.cradle.mailGateway);
+  });
+
+  it("przy APP_ENV=production rejestruje NoopMailAdapter i brak skrzynki", async () => {
+    initOrm.mockResolvedValue(orm);
+    vi.stubEnv("APP_ENV", "production");
+    const container = await getContainer();
+
+    expect(container.cradle.mailGateway).toBeInstanceOf(NoopMailAdapter);
+    expect(container.cradle.mailOutbox).toBeNull();
   });
 
   it("withScope daje własny EntityManager i serwisy żądania, a wynik pracy przekazuje dalej", async () => {

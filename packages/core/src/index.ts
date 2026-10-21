@@ -32,4 +32,8 @@ export { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "./http/session-constan
 export { SessionTokenService } from "./services/auth/session-token.service";
 export { DatabaseHealthService, type DatabaseHealth } from "./services/health/database-health.service";
 export { TechnologyService, type TechnologyDto } from "./services/mentors/technology.service";
+export type { MailGateway, MailMessage } from "./services/mail/mail.port";
+export { NoopMailAdapter } from "./services/mail/adapters/noop-mail.adapter";
+export { OUTBOX_CAPACITY, OutboxMailAdapter, type OutboxMessage } from "./services/mail/adapters/outbox-mail.adapter";
+export { isMailDeliveryAvailable } from "./services/mail/mail-gateway";
 export { RATE_LIMIT_MAX_KEYS, RateLimiter, type RateLimitRule } from "./services/rate-limit/rate-limiter.service";

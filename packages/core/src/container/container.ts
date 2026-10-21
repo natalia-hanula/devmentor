@@ -4,6 +4,7 @@ import { parseEnv } from "../config/env";
 import { ServiceUnavailableError } from "../http/errors";
 import { getLogger } from "../logger";
 import { SessionTokenService } from "../services/auth/session-token.service";
+import { createMailAdapters } from "../services/mail/mail-gateway";
 import { DatabaseHealthService } from "../services/health/database-health.service";
 import { TechnologyService } from "../services/mentors/technology.service";
 import { RateLimiter } from "../services/rate-limit/rate-limiter.service";
@@ -24,6 +25,8 @@ async function buildContainer(): Promise<AwilixContainer<AppCradle>> {
     throw new ServiceUnavailableError("Baza danych jest niedostępna", { cause: error });
   });
 
+  const { mailGateway, mailOutbox } = createMailAdapters({ env, logger });
+
   const container = createAppContainer<AppCradle>();
   container.register({
     env: asValue(env),
@@ -31,6 +34,8 @@ async function buildContainer(): Promise<AwilixContainer<AppCradle>> {
     orm: asValue(orm),
     sessionTokenService: asClass(SessionTokenService).singleton(),
     rateLimiter: asFunction(() => new RateLimiter()).singleton(),
+    mailGateway: asValue(mailGateway),
+    mailOutbox: asValue(mailOutbox),
   });
   return container;
 }

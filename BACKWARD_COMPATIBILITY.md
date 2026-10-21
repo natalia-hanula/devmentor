@@ -35,7 +35,7 @@ Chronione powierzchnie kontraktu tego repozytorium i to, jak je zmieniać. Skill
 - **Ścieżka:** monorepo bez publikacji — zmień wszystkich importujących w tym samym PR-ze; `npm run typecheck` i `npm run lint` muszą przejść. Nie dodawaj importów omijających `exports` (ścieżki do `src/`).
 
 ### 7. Zmienne środowiskowe (`packages/core/src/config/env.ts`, `.env.example`)
-- Obecnie w schemie: `DATABASE_URL` (wymagana), `NODE_ENV` i `LOG_LEVEL` (z wartościami domyślnymi). `INTEGRATION_DATABASE_URL` czyta tylko setup testów integracyjnych, nie schema.
+- Obecnie w schemie: `DATABASE_URL` i `AUTH_JWT_SECRET` (wymagane), `NODE_ENV`, `LOG_LEVEL`, `APP_BASE_URL`, `APP_ENV` (z wartościami domyślnymi) oraz `MAIL_ADAPTER` (opcjonalna: `outbox` | `noop`; domyślna wynika z `APP_ENV` — `noop` przy `production`, inaczej `outbox`; `outbox` przy `APP_ENV=production` blokuje start). `INTEGRATION_DATABASE_URL` czyta tylko setup testów integracyjnych, nie schema.
 - **Łamiące:** zmiana nazwy lub usunięcie zmiennej, nowa zmienna wymagana bez wartości domyślnej, zaostrzenie walidacji.
 - **Ścieżka:** zaktualizuj schemę i `.env.example` razem, opisz zmianę w PR-ze. Build musi przechodzić bez `.env` (`parseEnv()` pozostaje leniwe).
 

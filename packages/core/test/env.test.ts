@@ -16,6 +16,7 @@ describe("parseEnv", () => {
       AUTH_JWT_SECRET: SECRET,
       APP_BASE_URL: "http://localhost:3000",
       APP_ENV: "production",
+      MAIL_ADAPTER: "noop",
     });
   });
 
@@ -49,5 +50,38 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ ...valid, APP_ENV: "prod" })).toThrow(/APP_ENV/);
     expect(() => parseEnv({ ...valid, APP_BASE_URL: "ftp://devmentor.pl" })).toThrow(/APP_BASE_URL/);
     expect(() => parseEnv({ ...valid, APP_BASE_URL: "nie-adres" })).toThrow(/APP_BASE_URL/);
+  });
+
+  it.each([
+    ["local", "outbox"],
+    ["test", "outbox"],
+    ["staging", "outbox"],
+    ["production", "noop"],
+  ] as const)("MAIL_ADAPTER domyślnie przy APP_ENV=%s to %s", (appEnv, adapter) => {
+    expect(parseEnv({ ...valid, APP_ENV: appEnv }).MAIL_ADAPTER).toBe(adapter);
+  });
+
+  it("bez APP_ENV (domyślnie production) MAIL_ADAPTER to noop", () => {
+    const env = parseEnv(valid);
+
+    expect(env.APP_ENV).toBe("production");
+    expect(env.MAIL_ADAPTER).toBe("noop");
+  });
+
+  it("przyjmuje jawne MAIL_ADAPTER: noop poza produkcją i noop w produkcji", () => {
+    expect(parseEnv({ ...valid, APP_ENV: "local", MAIL_ADAPTER: "noop" }).MAIL_ADAPTER).toBe("noop");
+    expect(parseEnv({ ...valid, APP_ENV: "production", MAIL_ADAPTER: "noop" }).MAIL_ADAPTER).toBe("noop");
+    expect(parseEnv({ ...valid, APP_ENV: "staging", MAIL_ADAPTER: "outbox" }).MAIL_ADAPTER).toBe("outbox");
+  });
+
+  it("odrzuca outbox przy APP_ENV=production — jawnym i domyślnym (fail closed)", () => {
+    expect(() => parseEnv({ ...valid, APP_ENV: "production", MAIL_ADAPTER: "outbox" })).toThrow(
+      /MAIL_ADAPTER: MAIL_ADAPTER=outbox jest niedozwolony przy APP_ENV=production/,
+    );
+    expect(() => parseEnv({ ...valid, MAIL_ADAPTER: "outbox" })).toThrow(/MAIL_ADAPTER/);
+  });
+
+  it("odrzuca MAIL_ADAPTER spoza listy", () => {
+    expect(() => parseEnv({ ...valid, APP_ENV: "local", MAIL_ADAPTER: "smtp" })).toThrow(/MAIL_ADAPTER musi być jedną z/);
   });
 });
