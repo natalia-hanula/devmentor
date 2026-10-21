@@ -1,7 +1,10 @@
-import type { ApiError, ApiResult } from "./types";
+import { TOO_MANY_REQUESTS_CODE, type ApiError, type ApiResult } from "./types";
 
 /** Musi odpowiadać `REQUEST_MARKER_HEADER` w `@devmentor/core` — serwer odrzuca zapisy bez niego (CSRF). */
 const REQUEST_MARKER_HEADER = "x-devmentor-request";
+
+const HTTP_TOO_MANY_REQUESTS = 429;
+const TOO_MANY_REQUESTS_MESSAGE = "Za dużo prób. Spróbuj za chwilę.";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -48,6 +51,10 @@ export async function apiCall<T>(path: string, { method = "GET", body, signal }:
   const payload = await readJsonSafe(response);
   if (isApiResult<T>(payload)) {
     return payload;
+  }
+  // 429 bez koperty (np. limit na reverse proxy) — nadal wiadomo, co powiedzieć użytkownikowi.
+  if (response.status === HTTP_TOO_MANY_REQUESTS) {
+    return failure(TOO_MANY_REQUESTS_CODE, TOO_MANY_REQUESTS_MESSAGE);
   }
   return failure("INVALID_RESPONSE", `Nieoczekiwana odpowiedź serwera (HTTP ${response.status})`);
 }

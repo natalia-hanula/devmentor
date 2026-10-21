@@ -11,3 +11,6 @@ export interface ApiError {
 }
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };
+
+/** Kopia kodu `TOO_MANY_REQUESTS` (HTTP 429) z `TooManyRequestsError` w `@devmentor/core`. */
+export const TOO_MANY_REQUESTS_CODE = "TOO_MANY_REQUESTS";

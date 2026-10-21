@@ -11,7 +11,7 @@ Chronione powierzchnie kontraktu tego repozytorium i to, jak je zmieniać. Skill
 - **Ścieżka:** nigdy nie edytuj zmergowanej migracji — dodaj nową (`npm run db:migration:create -- --name <opis>`) razem z `.snapshot-*.json`. Zmianę nazwy lub usunięcie kolumny rób w krokach: dodaj nową kolumnę → przenieś dane → usuń starą w kolejnej migracji. PR z migracją ma `risk-high`, test migracji w górę i w dół oraz plan wycofania w opisie (zob. `SDLC.md`).
 
 ### 2. Koperta odpowiedzi API (`packages/core/src/http/api-handler.ts` ↔ `packages/ui/src/backend/api/types.ts`)
-- Kształt `{ ok: true, data }` / `{ ok: false, error: { code, message, fieldErrors? } }` oraz kody błędów `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR` i ich statusy HTTP.
+- Kształt `{ ok: true, data }` / `{ ok: false, error: { code, message, fieldErrors? } }` oraz kody błędów `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `TOO_MANY_REQUESTS` (429), `SERVICE_UNAVAILABLE`, `INTERNAL_ERROR` i ich statusy HTTP.
 - **Łamiące:** zmiana nazwy lub usunięcie pola koperty, zmiana kodu błędu albo jego statusu, zmiana klucza `fieldErrors` (ścieżka pola łączona kropką, `_form` dla błędów ogólnych).
 - **Ścieżka:** kopertę deklarują osobno `core` i `ui`, więc zmiana zawsze obejmuje oba pliki w jednym PR-ze, razem z testami obu stron i testem integracyjnym API.
 

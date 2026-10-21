@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const logger = { error: vi.fn() };
 vi.mock("../src/logger", () => ({ getLogger: () => logger }));
 
-const { AppError, redirectHandler, withCookies, ForbiddenError, ServiceUnavailableError } = await import("../src");
+const { AppError, redirectHandler, withCookies, ForbiddenError, ServiceUnavailableError, TooManyRequestsError } = await import("../src");
 
 const context = { params: Promise.resolve({}) };
 const get = (url = "http://localhost/api/auth/github/callback") => new Request(url);
@@ -71,6 +71,16 @@ describe("redirectHandler", () => {
     })(get(), context);
 
     expect(response.headers.get("location")).toBe("/login?error=FORBIDDEN");
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it("TooManyRequestsError → /login?error=TOO_MANY_REQUESTS, bez logowania", async () => {
+    const response = await redirectHandler(async () => {
+      throw new TooManyRequestsError();
+    })(get(), context);
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/login?error=TOO_MANY_REQUESTS");
     expect(logger.error).not.toHaveBeenCalled();
   });
 

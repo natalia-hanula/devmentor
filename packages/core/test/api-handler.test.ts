@@ -6,6 +6,7 @@ import {
   NotFoundError,
   parseJsonBody,
   REQUEST_MARKER_HEADER,
+  TooManyRequestsError,
   withCookies,
   type RouteContext,
 } from "../src";
@@ -73,6 +74,20 @@ describe("apiHandler", () => {
     expect(notFoundResponse.status).toBe(404);
     expect(await notFoundResponse.json()).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Brak" } });
     expect(conflictResponse.status).toBe(409);
+  });
+
+  it("TooManyRequestsError → 429 z kopertą TOO_MANY_REQUESTS", async () => {
+    const handler = apiHandler(async () => {
+      throw new TooManyRequestsError();
+    });
+
+    const response = await handler(request("POST"), context);
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: { code: "TOO_MANY_REQUESTS", message: "Za dużo prób. Spróbuj za chwilę." },
+    });
   });
 
   it("nieoczekiwany błąd → ogólny 500 bez szczegółów", async () => {

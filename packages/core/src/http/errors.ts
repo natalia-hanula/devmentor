@@ -62,6 +62,16 @@ export class ConflictError extends AppError {
   }
 }
 
+/** Przekroczony limit prób (limiter). Komunikat jest ogólny — nie zdradza, który klucz się wyczerpał. */
+export class TooManyRequestsError extends AppError {
+  readonly status = 429;
+  readonly code = "TOO_MANY_REQUESTS";
+
+  constructor(message = "Za dużo prób. Spróbuj za chwilę.") {
+    super(message);
+  }
+}
+
 /** Zależność infrastrukturalna (np. baza) jest niedostępna. Logowany przez `apiHandler`. */
 export class ServiceUnavailableError extends AppError {
   readonly status = 503;
