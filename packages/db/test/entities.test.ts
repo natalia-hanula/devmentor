@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { entities, Technology, User, UserRole } from "../src";
+import { entities, Technology, User, UserRole, UserToken } from "../src";
+import { UserTokenSchema } from "../src/entities/auth/user-token.entity";
 import { pinEntityName } from "../src/entities/base.entity";
 import { TechnologySchema } from "../src/entities/mentors/technology.entity";
 
@@ -21,7 +22,12 @@ describe("pinEntityName", () => {
   });
 
   it("klasy encji mają nazwy z defineEntity, niezależnie od minifikacji", () => {
-    expect([Technology.name, User.name, UserRole.name]).toEqual(["Technology", "User", "UserRole"]);
+    expect([Technology.name, User.name, UserRole.name, UserToken.name]).toEqual([
+      "Technology",
+      "User",
+      "UserRole",
+      "UserToken",
+    ]);
   });
 });
 
@@ -30,6 +36,12 @@ describe("encje", () => {
     expect(entities).toContain(TechnologySchema);
     expect(TechnologySchema.meta.tableName).toBe("technologies");
     expect(TechnologySchema.meta.class).toBe(Technology);
+  });
+
+  it("rejestruje UserToken w liście encji, w tabeli user_tokens", () => {
+    expect(entities).toContain(UserTokenSchema);
+    expect(UserTokenSchema.meta.tableName).toBe("user_tokens");
+    expect(UserTokenSchema.meta.class).toBe(UserToken);
   });
 
   it("baseProperties generują UUID i znaczniki czasu przy tworzeniu oraz odświeżają updatedAt", () => {

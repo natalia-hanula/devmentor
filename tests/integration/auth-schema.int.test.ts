@@ -1,4 +1,12 @@
-import { initOrm, UniqueConstraintViolationException, User, UserRole, type MikroORM } from "@devmentor/db";
+import {
+  initOrm,
+  UniqueConstraintViolationException,
+  User,
+  UserRole,
+  UserToken,
+  type EntityManager,
+  type MikroORM,
+} from "@devmentor/db";
 import { rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
@@ -99,7 +107,106 @@ describe("schemat kont na prawdziwym PostgreSQL", () => {
   });
 });
 
-describe("migracje auth (users-and-roles, users-email-lower-unique): w górę i w dół", () => {
+describe("hasła i tokeny kont (auth-credentials) na prawdziwym PostgreSQL", () => {
+  let orm: MikroORM;
+  const HOUR_MS = 60 * 60 * 1000;
+  const hash = (char: string) => char.repeat(64);
+
+  const addToken = async (
+    em: EntityManager,
+    user: User,
+    purpose: UserToken["purpose"],
+    tokenHash: string,
+  ): Promise<void> => {
+    em.create(UserToken, {
+      user: em.getReference(User, user.id),
+      purpose,
+      tokenHash,
+      expiresAt: new Date(Date.now() + HOUR_MS),
+    });
+    await em.flush();
+  };
+
+  beforeAll(async () => {
+    orm = await initOrm(inject("databaseUrl"));
+  });
+
+  afterEach(async () => {
+    await deleteTestAccounts(orm.em.fork());
+  });
+
+  afterAll(async () => {
+    await orm.close(true);
+  });
+
+  it("password_hash: NULL dozwolony, hash bcrypt (60 znaków) zapisuje się i nie trafia do serializacji encji", async () => {
+    const created = await createAccount(orm.em.fork(), { email: "haslo@example.com", roles: ["mentee"] });
+    expect((await orm.em.fork().findOneOrFail(User, { id: created.id })).passwordHash).toBeNull();
+
+    const bcryptHash = `$2b$12$${"x".repeat(53)}`;
+    await orm.em.fork().nativeUpdate(User, { id: created.id }, { passwordHash: bcryptHash });
+
+    const user = await orm.em.fork().findOneOrFail(User, { id: created.id });
+    expect(user.passwordHash).toBe(bcryptHash);
+    expect(JSON.stringify(user)).not.toContain(bcryptHash);
+  });
+
+  it("zapisuje token z celem i datą wygaśnięcia; token_hash nie trafia do serializacji encji", async () => {
+    const user = await createAccount(orm.em.fork(), { email: "token@example.com", roles: ["mentee"] });
+    await addToken(orm.em.fork(), user, "email_verification", hash("a"));
+
+    const token = await orm.em.fork().findOneOrFail(UserToken, { user: user.id });
+    expect(token.purpose).toBe("email_verification");
+    expect(token.tokenHash).toBe(hash("a"));
+    expect(token.expiresAt).toBeInstanceOf(Date);
+    expect(JSON.stringify(token)).not.toContain(hash("a"));
+  });
+
+  it("UNIQUE na token_hash: ten sam hash nie może należeć do dwóch tokenów", async () => {
+    const first = await createAccount(orm.em.fork(), { email: "pierwszy@example.com", roles: ["mentee"] });
+    const second = await createAccount(orm.em.fork(), { email: "drugi@example.com", roles: ["mentee"] });
+    await addToken(orm.em.fork(), first, "email_verification", hash("b"));
+
+    await expect(addToken(orm.em.fork(), second, "email_verification", hash("b"))).rejects.toBeInstanceOf(
+      UniqueConstraintViolationException,
+    );
+  });
+
+  it("UNIQUE (user_id, purpose): drugi token tego samego celu jest odrzucany, innego celu — przyjmowany", async () => {
+    const user = await createAccount(orm.em.fork(), { email: "cel@example.com", roles: ["mentee"] });
+    await addToken(orm.em.fork(), user, "email_verification", hash("c"));
+
+    await expect(addToken(orm.em.fork(), user, "email_verification", hash("d"))).rejects.toBeInstanceOf(
+      UniqueConstraintViolationException,
+    );
+    await addToken(orm.em.fork(), user, "password_reset", hash("e"));
+    expect(await orm.em.fork().count(UserToken, { user: user.id })).toBe(2);
+  });
+
+  it("usunięcie konta kasuje jego tokeny (CASCADE)", async () => {
+    const user = await createAccount(orm.em.fork(), { email: "kaskada@example.com", roles: ["mentee"] });
+    await addToken(orm.em.fork(), user, "email_verification", hash("f"));
+    await addToken(orm.em.fork(), user, "password_reset", hash("0"));
+
+    await orm.em.fork().nativeDelete(User, { id: user.id });
+
+    expect(await orm.em.fork().count(UserToken, { user: user.id })).toBe(0);
+  });
+
+  it("baza odrzuca nieznany cel tokenu (CHECK)", async () => {
+    const user = await createAccount(orm.em.fork(), { email: "cel-check@example.com", roles: ["mentee"] });
+
+    await expect(
+      orm.em.fork().execute(
+        `insert into user_tokens (id, created_at, updated_at, user_id, purpose, token_hash, expires_at)
+          values (gen_random_uuid(), now(), now(), ?, 'login', ?, now())`,
+        [user.id, hash("1")],
+      ),
+    ).rejects.toThrow(/user_tokens_purpose_check/);
+  });
+});
+
+describe("migracje auth (users-and-roles, users-email-lower-unique, credentials): w górę i w dół", () => {
   // Osobna baza — cofanie migracji nie może ruszać bazy współdzielonej przez inne testy.
   const DATABASE = `it_migration_${Date.now()}`;
   let maintenance: Awaited<ReturnType<typeof connect>>;
@@ -128,6 +235,19 @@ describe("migracje auth (users-and-roles, users-email-lower-unique): w górę i 
     }
   };
 
+  const columnExists = async (table: string, column: string) => {
+    const client = await connect(databaseUrl, CONNECT_TIMEOUT_MS);
+    try {
+      const result = await client.query(
+        "SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2",
+        [table, column],
+      );
+      return result.rowCount === 1;
+    } finally {
+      await client.end();
+    }
+  };
+
   beforeAll(async () => {
     const url = new URL(inject("databaseUrl"));
     url.pathname = `/${MAINTENANCE_DATABASE}`;
@@ -145,13 +265,18 @@ describe("migracje auth (users-and-roles, users-email-lower-unique): w górę i 
     await maintenance.end();
   });
 
-  it("migracje tworzą users, user_roles i indeks lower(email); cofanie usuwa po kolei tylko je", async () => {
+  it("migracje tworzą users, user_roles, indeks lower(email) i user_tokens; cofanie usuwa po kolei tylko je", async () => {
     await migrate(databaseUrl);
     expect([await tableExists("users"), await tableExists("user_roles"), await tableExists("technologies")]).toEqual([
       true,
       true,
       true,
     ]);
+    expect(await indexExists("users_email_lower_unique")).toBe(true);
+    expect([await tableExists("user_tokens"), await columnExists("users", "password_hash")]).toEqual([true, true]);
+
+    await rollback(databaseUrl);
+    expect([await tableExists("user_tokens"), await columnExists("users", "password_hash")]).toEqual([false, false]);
     expect(await indexExists("users_email_lower_unique")).toBe(true);
 
     await rollback(databaseUrl);
@@ -169,5 +294,6 @@ describe("migracje auth (users-and-roles, users-email-lower-unique): w górę i 
     await migrate(databaseUrl);
     expect([await tableExists("users"), await tableExists("user_roles")]).toEqual([true, true]);
     expect(await indexExists("users_email_lower_unique")).toBe(true);
+    expect([await tableExists("user_tokens"), await columnExists("users", "password_hash")]).toEqual([true, true]);
   });
 });
