@@ -8,6 +8,7 @@ import { PasswordHasher } from "../services/auth/password-hasher.service";
 import { SessionTokenService } from "../services/auth/session-token.service";
 import { UserTokenService } from "../services/auth/user-token.service";
 import { createMailAdapters } from "../services/mail/mail-gateway";
+import { SeedService } from "../services/dev/seed.service";
 import { DatabaseHealthService } from "../services/health/database-health.service";
 import { TechnologyService } from "../services/mentors/technology.service";
 import { RateLimiter } from "../services/rate-limit/rate-limiter.service";
@@ -80,6 +81,7 @@ function registerRequestDependencies(scope: AwilixContainer<RequestCradle>, orm:
     technologyService: asClass(TechnologyService).scoped(),
     userTokenService: asClass(UserTokenService).scoped(),
     accountService: asClass(AccountService).scoped(),
+    seedService: asClass(SeedService).scoped(),
   });
 }
 

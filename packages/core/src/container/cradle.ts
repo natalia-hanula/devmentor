@@ -7,6 +7,7 @@ import type { SessionTokenService } from "../services/auth/session-token.service
 import type { UserTokenService } from "../services/auth/user-token.service";
 import type { OutboxMailAdapter } from "../services/mail/adapters/outbox-mail.adapter";
 import type { MailGateway } from "../services/mail/mail.port";
+import type { SeedService } from "../services/dev/seed.service";
 import type { DatabaseHealthService } from "../services/health/database-health.service";
 import type { TechnologyService } from "../services/mentors/technology.service";
 import type { RateLimiter } from "../services/rate-limit/rate-limiter.service";
@@ -34,4 +35,5 @@ export interface RequestCradle extends AppCradle {
   technologyService: TechnologyService;
   userTokenService: UserTokenService;
   accountService: AccountService;
+  seedService: SeedService;
 }

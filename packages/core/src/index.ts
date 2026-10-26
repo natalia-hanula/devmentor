@@ -57,6 +57,12 @@ export {
   UserTokenService,
   type UserTokenPurpose,
 } from "./services/auth/user-token.service";
+export {
+  SEED_FORBIDDEN_MESSAGE,
+  SeedService,
+  type SeedServiceDependencies,
+  type TestAccountInput,
+} from "./services/dev/seed.service";
 export { DatabaseHealthService, type DatabaseHealth } from "./services/health/database-health.service";
 export { TechnologyService, type TechnologyDto } from "./services/mentors/technology.service";
 export type { MailGateway, MailMessage } from "./services/mail/mail.port";

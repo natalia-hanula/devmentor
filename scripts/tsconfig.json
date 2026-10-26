@@ -9,6 +9,6 @@
     "verbatimModuleSyntax": true
   },
   "include": ["**/*.ts"],
-  // CLI operatora (`tsx`, importuje `@devmentor/core`) ma osobną konfigurację: `tsconfig.operator.json`.
-  "exclude": ["create-operator.ts", "operator/**", "test/operator/**"]
+  // CLI operatora i seed (`tsx`, importują `@devmentor/core`) mają osobną konfigurację: `tsconfig.operator.json`.
+  "exclude": ["create-operator.ts", "operator/**", "test/operator/**", "seed.ts", "seed/**", "test/seed/**"]
 }

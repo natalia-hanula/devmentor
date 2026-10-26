@@ -17,6 +17,8 @@ export default defineConfig({
         "scripts/setup/**/*.ts",
         "scripts/create-operator.ts",
         "scripts/operator/**/*.ts",
+        "scripts/seed.ts",
+        "scripts/seed/**/*.ts",
       ],
       exclude: ["**/*.d.ts", "**/*.config.{ts,mts}", "packages/db/migrations/**"],
       thresholds: { 100: true, perFile: true },

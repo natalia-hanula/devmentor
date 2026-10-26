@@ -18,6 +18,7 @@ const {
   OutboxMailAdapter,
   PasswordHasher,
   RateLimiter,
+  SeedService,
   ServiceUnavailableError,
   TechnologyService,
   UserTokenService,
@@ -117,6 +118,8 @@ describe("getContainer / withScope", () => {
       expect(cradle.userTokenService).toBe(cradle.userTokenService);
       expect(cradle.accountService).toBeInstanceOf(AccountService);
       expect(cradle.accountService).toBe(cradle.accountService);
+      expect(cradle.seedService).toBeInstanceOf(SeedService);
+      expect(cradle.seedService).toBe(cradle.seedService);
       return "wynik";
     });
 

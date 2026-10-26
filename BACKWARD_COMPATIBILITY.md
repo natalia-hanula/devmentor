@@ -42,6 +42,7 @@ Chronione powierzchnie kontraktu tego repozytorium i to, jak je zmieniać. Skill
 ### 8. Skrypty `npm` i CI (`package.json`, `.github/workflows/ci.yml`, `.ai/agentic.config.json`)
 - Skrypty `lint`, `typecheck`, `test`, `build`, `test:integration`, `db:*` są używane przez CI, dokumentację i bramkę walidacji agentów.
 - `operator:create` (E01) — jedyna droga założenia konta operatora; interaktywny, bez argumentów (dowolny argument → kod 1; `--reset-password` zarezerwowany na etap B). Uruchamiany przez `tsx` (devDependency w głównym `package.json`); podpowiedź wypisuje `npm run setup`, a README go opisuje. `typecheck` sprawdza go osobną konfiguracją `scripts/tsconfig.operator.json`.
+- `db:seed` (E01) — konta testowe `operator.test@example.com`, `mentee.test@example.com`, `mentor.test@example.com` z jawnym hasłem testowym `test-haslo-nie-sekret`; idempotentny (istniejące konto → pominięte, kod 0); odmawia działania przy `APP_ENV=production` (kod 1) — w skrypcie i w `SeedService` (`core`). Uruchamiany przez `tsx` jak `operator:create`, typecheck tą samą konfiguracją `scripts/tsconfig.operator.json`. Adresy i hasło opisuje README — ich zmiana to zmiana dokumentacji i testów integracyjnych.
 - **Łamiące:** zmiana nazwy lub usunięcie skryptu, obniżenie progu pokrycia, usunięcie zadania CI.
 - **Ścieżka:** zaktualizuj w jednym PR-ze `package.json`, `ci.yml`, `validation.commands` w `.ai/agentic.config.json`, sekcję „Validation gate” w `SDLC.md` i `AGENTS.md`. Obniżenie progów wymaga zgody człowieka.
 

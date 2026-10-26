@@ -109,7 +109,7 @@ export class AccountService {
     });
     this.em.create(UserRole, { user, role: "mentee", grantedBy: null });
     const rawToken = this.userTokenService.issueForNewUser(user, "email_verification", EMAIL_VERIFICATION_TTL_MS);
-    await this.flushNewAccount();
+    await flushNewAccount(this.em);
     await this.sendVerificationMail(user, rawToken);
     return authenticated(user, ["mentee"]);
   }
@@ -130,8 +130,8 @@ export class AccountService {
       emailVerifiedAt: new Date(),
     });
     this.em.create(UserRole, { user, role: "operator", grantedBy: null });
-    await this.flushNewAccount();
-    return toDto(user, ["operator"]);
+    await flushNewAccount(this.em);
+    return toAccountDto(user, ["operator"]);
   }
 
   /**
@@ -199,19 +199,7 @@ export class AccountService {
     if (!user) {
       throw new UnauthorizedError();
     }
-    return toDto(user, rolesOf(user));
-  }
-
-  /** Zapis nowego konta; naruszenie unikalności e-maila (constraint, także `lower(email)`) → 409 przy polu `email`. */
-  private async flushNewAccount(): Promise<void> {
-    try {
-      await this.em.flush();
-    } catch (error) {
-      if (error instanceof UniqueConstraintViolationException) {
-        throw new ConflictError(EMAIL_TAKEN_MESSAGE, { email: [EMAIL_TAKEN_MESSAGE] });
-      }
-      throw error;
-    }
+    return toAccountDto(user, rolesOf(user));
   }
 
   /**
@@ -237,10 +225,25 @@ function rolesOf(user: User): Role[] {
 }
 
 function authenticated(user: User, roles: Role[]): AuthenticatedAccount {
-  return { account: toDto(user, roles), session: { id: user.id, sessionVersion: user.sessionVersion } };
+  return { account: toAccountDto(user, roles), session: { id: user.id, sessionVersion: user.sessionVersion } };
 }
 
-function toDto(user: User, roles: Role[]): AccountDto {
+/**
+ * Zapis nowego konta; naruszenie unikalności e-maila (constraint, także `lower(email)`) → 409 przy polu `email`.
+ * Wspólne z kontami testowymi `SeedService` (ta sama ścieżka co rejestracja).
+ */
+export async function flushNewAccount(em: EntityManager): Promise<void> {
+  try {
+    await em.flush();
+  } catch (error) {
+    if (error instanceof UniqueConstraintViolationException) {
+      throw new ConflictError(EMAIL_TAKEN_MESSAGE, { email: [EMAIL_TAKEN_MESSAGE] });
+    }
+    throw error;
+  }
+}
+
+export function toAccountDto(user: User, roles: Role[]): AccountDto {
   return {
     id: user.id,
     email: user.email,
