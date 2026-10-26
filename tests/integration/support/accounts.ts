@@ -1,4 +1,4 @@
-import { SESSION_COOKIE_NAME, SessionTokenService } from "@devmentor/core";
+import { PasswordHasher, SESSION_COOKIE_NAME, SessionTokenService } from "@devmentor/core";
 import { User, UserRole, type EntityManager } from "@devmentor/db";
 import { TEST_APP_ENV, TEST_AUTH_JWT_SECRET } from "./test-env";
 
@@ -13,6 +13,8 @@ export interface AccountInput {
   displayName?: string;
   emailVerified?: boolean;
   grantedBy?: User;
+  /** Hasło do logowania z formularza (hash bcrypt jak w `AccountService`); bez niego konto nie ma hasła. */
+  password?: string;
 }
 
 /**
@@ -24,6 +26,7 @@ export async function createAccount(em: EntityManager, input: AccountInput): Pro
     email: `${TEST_EMAIL_PREFIX}${input.email}`,
     displayName: input.displayName ?? "Konto testowe",
     emailVerifiedAt: input.emailVerified === false ? null : new Date(),
+    passwordHash: input.password === undefined ? null : await new PasswordHasher().hash(input.password),
   });
   for (const role of input.roles) {
     em.create(UserRole, { user, role, grantedBy: input.grantedBy ?? null });

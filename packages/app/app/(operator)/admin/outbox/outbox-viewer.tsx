@@ -7,6 +7,7 @@ import { EmptyState } from "@devmentor/ui/backend/feedback/empty-state";
 import { DataTable, type DataTableColumn } from "@devmentor/ui/backend/tables/data-table";
 import { Button } from "@devmentor/ui/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@devmentor/ui/components/ui/card";
+import { useSessionExpiredRedirect } from "../../../_lib/use-session-expired-redirect";
 
 /** Kształt `OutboxMessageDto` z `@devmentor/core` (kopia — strona kliencka nie importuje głównego `core`). */
 export interface OutboxMessage {
@@ -38,21 +39,31 @@ const COLUMNS: DataTableColumn<OutboxMessage>[] = [
 export function OutboxViewer() {
   const [result, setResult] = useState<ApiResult<OutboxMessage[]> | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const redirectIfUnauthorized = useSessionExpiredRedirect();
+
+  const show = useCallback(
+    (loaded: ApiResult<OutboxMessage[]>) => {
+      if (!redirectIfUnauthorized(loaded)) {
+        setResult(loaded);
+      }
+    },
+    [redirectIfUnauthorized],
+  );
 
   const reload = useCallback(async () => {
     setResult(null);
-    setResult(await apiCall<OutboxMessage[]>(OUTBOX_PATH));
-  }, []);
+    show(await apiCall<OutboxMessage[]>(OUTBOX_PATH));
+  }, [show]);
 
   useEffect(() => {
     const controller = new AbortController();
     apiCall<OutboxMessage[]>(OUTBOX_PATH, { signal: controller.signal }).then((loaded) => {
       if (!controller.signal.aborted) {
-        setResult(loaded);
+        show(loaded);
       }
     });
     return () => controller.abort();
-  }, []);
+  }, [show]);
 
   if (result && !result.ok && result.error.code === NOT_FOUND_CODE) {
     return (

@@ -37,7 +37,7 @@ describe("bramki stron panelu operatora na prawdziwej aplikacji", () => {
     const response = await open("/admin", "devmentor_session=to-nie-jest-jwt");
     const body = await response.text();
 
-    expect(body).toContain("NEXT_REDIRECT;replace;/login?next=%2Fadmin");
+    expect(body).toContain("NEXT_REDIRECT;replace;/login?next=%2Fadmin&notice=session_expired");
     expect(body).not.toContain("Stan usług aplikacji");
   });
 

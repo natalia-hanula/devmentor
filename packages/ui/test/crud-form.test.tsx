@@ -352,7 +352,7 @@ describe("CrudForm — pola e-mail i hasło (DS01)", () => {
     expect(onSubmit).toHaveBeenLastCalledWith({ email: "ola@example.com", password: "drugie-haslo" });
   });
 
-  it("błąd serwera przy polu hasła jest powiązany przez aria-describedby, wartość hasła zostaje", async () => {
+  it("błąd serwera przy polu hasła jest powiązany przez aria-describedby, pole hasła czyszczone, e-mail zostaje", async () => {
     const onSubmit = vi.fn(
       async (): Promise<ApiResult<unknown>> => ({
         ok: false,
@@ -375,7 +375,12 @@ describe("CrudForm — pola e-mail i hasło (DS01)", () => {
     const password = screen.getByLabelText("Hasło");
     expect(password).toHaveAttribute("aria-invalid", "true");
     expect(password).toHaveAccessibleDescription("Hasło jest za krótkie");
-    expect(password).toHaveValue("krotkie");
+    expect(password).toHaveValue("");
+    expect(screen.getByLabelText("E-mail")).toHaveValue("ola@example.com");
     expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("aria-describedby");
+
+    // Stan też jest wyczyszczony: ponowna wysyłka bez hasła zatrzymuje się na walidacji klienta.
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+    expect(onSubmit).toHaveBeenCalledOnce();
   });
 });

@@ -1,3 +1,4 @@
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
 import { config, proxy } from "../proxy";
@@ -34,7 +35,20 @@ describe("proxy (optymistyczne przekierowanie)", () => {
     expect(response.headers.get("location")).toBe("http://localhost:3000/login?next=%2F");
   });
 
-  it("matcher obejmuje /admin, /mentor i /account, a nie stronę główną ani API", () => {
-    expect(config.matcher).toEqual(["/admin/:path*", "/mentor/:path*", "/account"]);
+  it("matcher obejmuje /admin, /mentor i /account z podstronami, a nie stronę główną ani API", () => {
+    expect(config.matcher).toEqual(["/admin/:path*", "/mentor/:path*", "/account/:path*"]);
+  });
+
+  it.each([
+    ["/account", true],
+    ["/account/x", true],
+    ["/admin/technologies", true],
+    ["/mentor", true],
+    ["/accounts", false],
+    ["/login", false],
+    ["/api/auth/me", false],
+    ["/", false],
+  ])("proxy działa dla %s: %s", (url, matches) => {
+    expect(unstable_doesMiddlewareMatch({ config, url })).toBe(matches);
   });
 });

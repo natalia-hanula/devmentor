@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getSessionFromCookieValue = vi.hoisted(() => vi.fn());
@@ -9,13 +10,16 @@ const redirect = vi.hoisted(() =>
   }),
 );
 const connection = vi.hoisted(() => vi.fn(async () => undefined));
+const router = vi.hoisted(() => ({ replace: vi.fn() }));
+const apiCall = vi.hoisted(() => vi.fn());
 
 vi.mock("@devmentor/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@devmentor/core")>()),
   getSessionFromCookieValue,
 }));
 vi.mock("next/headers", () => ({ cookies: async () => cookieStore }));
-vi.mock("next/navigation", () => ({ redirect }));
+vi.mock("next/navigation", () => ({ redirect, useRouter: () => router }));
+vi.mock("@devmentor/ui/backend/api/api-call", () => ({ apiCall }));
 vi.mock("next/server", () => ({ connection }));
 
 const { PageRoleGate, requirePageRole, RoleGate } = await import("../app/_lib/require-page-role");
@@ -45,15 +49,15 @@ describe("requirePageRole", () => {
     expect(redirect).not.toHaveBeenCalled();
   });
 
-  it("brak sesji → przekierowanie na /login z zakodowanym next", async () => {
+  it("ciasteczko bez ważnej sesji → /login z zakodowanym next i „Sesja wygasła” (decyzja 17)", async () => {
     getSessionFromCookieValue.mockResolvedValue(null);
 
     await expect(requirePageRole("operator", "/admin/technologies?x=1")).rejects.toThrow(
-      "NEXT_REDIRECT /login?next=%2Fadmin%2Ftechnologies%3Fx%3D1",
+      "NEXT_REDIRECT /login?next=%2Fadmin%2Ftechnologies%3Fx%3D1&notice=session_expired",
     );
   });
 
-  it("brak ciasteczka → przekierowanie, bez sesji", async () => {
+  it("brak ciasteczka → przekierowanie bez komunikatu, bez sesji", async () => {
     cookieStore.get.mockReturnValue(undefined);
     getSessionFromCookieValue.mockResolvedValue(null);
 
@@ -64,7 +68,9 @@ describe("requirePageRole", () => {
   it("złośliwa ścieżka docelowa nie trafia do next (safeNextPath)", async () => {
     getSessionFromCookieValue.mockResolvedValue(null);
 
-    await expect(requirePageRole("operator", "//evil.pl")).rejects.toThrow("NEXT_REDIRECT /login?next=%2F");
+    await expect(requirePageRole("operator", "//evil.pl")).rejects.toThrow(
+      "NEXT_REDIRECT /login?next=%2F&notice=session_expired",
+    );
   });
 
   it.each([
@@ -80,6 +86,29 @@ describe("requirePageRole", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("Nie masz dostępu do tej strony");
     expect(screen.getByRole("alert")).toHaveTextContent(sentence);
+  });
+
+  it.each([
+    ["operator", ["mentee"], "/account"],
+    ["operator", ["mentee", "mentor"], "/mentor"],
+    ["mentor", ["operator"], "/admin/invitations"],
+  ] as const)("„Brak dostępu” (%s) dla ról %j: „Wróć do swojej strony startowej” → %s", async (role, roles, start) => {
+    getSessionFromCookieValue.mockResolvedValue(session([...roles]));
+
+    render(await requirePageRole(role, "/x"));
+
+    expect(screen.getByRole("link", { name: "Wróć do swojej strony startowej" })).toHaveAttribute("href", start);
+  });
+
+  it("„Zaloguj się innym kontem” najpierw wylogowuje, potem /login z „Wylogowano”", async () => {
+    getSessionFromCookieValue.mockResolvedValue(session(["mentee"]));
+    apiCall.mockResolvedValue({ ok: true, data: null });
+
+    render(await requirePageRole("operator", "/admin"));
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj się innym kontem" }));
+
+    expect(apiCall).toHaveBeenCalledWith("/api/auth/logout", { method: "POST" });
+    expect(router.replace).toHaveBeenCalledWith("/login?notice=logged_out");
   });
 });
 

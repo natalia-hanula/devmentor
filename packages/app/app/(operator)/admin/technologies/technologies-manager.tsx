@@ -9,6 +9,7 @@ import { CrudForm, type CrudFormField } from "@devmentor/ui/backend/forms/crud-f
 import { DataTable, type DataTableColumn } from "@devmentor/ui/backend/tables/data-table";
 import { Button } from "@devmentor/ui/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@devmentor/ui/components/ui/card";
+import { useSessionExpiredRedirect } from "../../../_lib/use-session-expired-redirect";
 
 interface Technology {
   id: string;
@@ -38,20 +39,39 @@ const FORM_FIELDS: CrudFormField<TechnologyCreateInput>[] = [
 export function TechnologiesManager() {
   const [result, setResult] = useState<ApiResult<Technology[]> | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const redirectIfUnauthorized = useSessionExpiredRedirect();
+
+  const show = useCallback(
+    (loaded: ApiResult<Technology[]>) => {
+      if (!redirectIfUnauthorized(loaded)) {
+        setResult(loaded);
+      }
+    },
+    [redirectIfUnauthorized],
+  );
 
   const reload = useCallback(async () => {
-    setResult(await apiCall<Technology[]>(TECHNOLOGIES_PATH));
-  }, []);
+    show(await apiCall<Technology[]>(TECHNOLOGIES_PATH));
+  }, [show]);
 
   useEffect(() => {
     const controller = new AbortController();
-    apiCall<Technology[]>(TECHNOLOGIES_PATH, { signal: controller.signal }).then(setResult);
+    apiCall<Technology[]>(TECHNOLOGIES_PATH, { signal: controller.signal }).then(show);
     return () => controller.abort();
-  }, []);
+  }, [show]);
+
+  async function handleCreate(values: TechnologyCreateInput) {
+    const created = await apiCall<Technology>(TECHNOLOGIES_PATH, { method: "POST", body: values });
+    redirectIfUnauthorized(created);
+    return created;
+  }
 
   async function handleDelete(technology: Technology) {
     setActionError(null);
     const deletion = await apiCall(`${TECHNOLOGIES_PATH}?id=${encodeURIComponent(technology.id)}`, { method: "DELETE" });
+    if (redirectIfUnauthorized(deletion)) {
+      return;
+    }
     if (!deletion.ok) {
       setActionError(deletion.error.message);
       return;
@@ -89,7 +109,7 @@ export function TechnologiesManager() {
             schema={technologyCreateSchema}
             fields={FORM_FIELDS}
             submitLabel="Dodaj"
-            onSubmit={(values) => apiCall<Technology>(TECHNOLOGIES_PATH, { method: "POST", body: values })}
+            onSubmit={handleCreate}
             onSuccess={reload}
           />
         </CardContent>

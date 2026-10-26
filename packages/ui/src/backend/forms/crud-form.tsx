@@ -44,7 +44,8 @@ export interface CrudFormProps<TValues extends Record<string, unknown>> {
   fields: CrudFormField<TValues>[];
   /**
    * Pola `type: "password"` nie przyjmują wartości początkowej (startują puste). Wpisane hasło żyje
-   * w stanie i w DOM-ie, dopóki formularz go nie wyczyści: po sukcesie i po wyjątku przy wysyłce.
+   * w stanie i w DOM-ie tylko do końca wysyłki: formularz czyści je po sukcesie, po odpowiedzi
+   * `ok: false` i po wyjątku przy wysyłce (błąd walidacji klienta hasła nie czyści — nic nie wyszło).
    */
   initialValues?: Partial<Record<keyof TValues, string>>;
   onSubmit: (values: TValues) => Promise<ApiResult<unknown>>;
@@ -117,6 +118,8 @@ export function CrudForm<TValues extends Record<string, unknown>>({
     }
 
     if (!result.ok) {
+      // Decyzja 15: po odmowie serwera (np. złe hasło przy logowaniu) hasło wpisuje się od nowa.
+      setValues((current) => ({ ...current, ...emptyPasswords }));
       showErrors(result.error.fieldErrors ?? {}, result.error.message);
       return;
     }

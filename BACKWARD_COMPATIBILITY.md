@@ -25,7 +25,7 @@ Chronione powierzchnie kontraktu tego repozytorium i to, jak je zmieniać. Skill
 - **Ścieżka:** zaktualizuj wszystkich konsumentów w `ui`/`app` w tym samym PR-ze. Poszerzenie dostępu (`"public"`) wymaga uzasadnienia w PR-ze i etykiety `security`.
 
 ### 5. Trasy stron (`packages/app/app/(persona)/…/page.tsx`)
-- Obecnie: `/`, `/admin`, `/admin/technologies`, `/admin/outbox`.
+- Obecnie: `/`, `/admin`, `/admin/technologies`, `/admin/outbox`, grupa `(auth)`: `/login` (parametry `next` — bezpieczna ścieżka powrotu, `notice` — zamknięta lista `logged_out`, `session_expired`), `/register` (`next`), `/account` (sesja). Strony startowe ról: mentee → `/account`, mentor → `/mentor`, operator → `/admin/invitations` (dwie ostatnie powstają w fazie 4 E01). Linki z parametrami `next`/`notice` budują strony i wiadomości — zmiana nazw lub wartości parametrów jest łamiąca.
 - **Łamiące:** zmiana lub usunięcie publicznego adresu URL z grupy `(marketing)`.
 - **Ścieżka:** przed wydaniem — zmiana dozwolona z aktualizacją linków. Po wydaniu — przekierowanie (`redirects` w `next.config.ts`) dla starego adresu.
 

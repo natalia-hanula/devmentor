@@ -3,7 +3,12 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiCall = vi.fn();
+const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("@devmentor/ui/backend/api/api-call", () => ({ apiCall }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/admin/technologies" }));
+
+const SESSION_EXPIRED_LOGIN = "/login?next=%2Fadmin%2Ftechnologies&notice=session_expired";
+const UNAUTHORIZED = { ok: false, error: { code: "UNAUTHORIZED", message: "Wymagane zalogowanie" } };
 
 const { TechnologiesManager } = await import("../app/(operator)/admin/technologies/technologies-manager");
 
@@ -19,6 +24,7 @@ function respond(handler: (path: string, options: Call[1]) => unknown) {
 describe("TechnologiesManager", () => {
   beforeEach(() => {
     apiCall.mockReset();
+    router.replace.mockReset();
   });
 
   it("ładuje listę technologii do tabeli", async () => {
@@ -60,10 +66,10 @@ describe("TechnologiesManager", () => {
     expect(apiCall).toHaveBeenCalledWith(`/api/technologies?id=${GO.id}`, { method: "DELETE" });
   });
 
-  it("pokazuje błąd usuwania (np. brak sesji)", async () => {
+  it("pokazuje błąd usuwania (np. brak uprawnień)", async () => {
     respond((_path, options) =>
       options?.method === "DELETE"
-        ? { ok: false, error: { code: "UNAUTHORIZED", message: "Wymagane zalogowanie" } }
+        ? { ok: false, error: { code: "FORBIDDEN", message: "Brak uprawnień" } }
         : { ok: true, data: [GO] },
     );
 
@@ -71,7 +77,39 @@ describe("TechnologiesManager", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Usuń" }));
 
     expect(await screen.findByText("Nie usunięto")).toBeInTheDocument();
-    expect(screen.getByText("Wymagane zalogowanie")).toBeInTheDocument();
+    expect(screen.getByText("Brak uprawnień")).toBeInTheDocument();
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  it("401 przy ładowaniu listy → /login z „Sesja wygasła” i powrotem tutaj, bez komunikatu błędu", async () => {
+    respond(() => UNAUTHORIZED);
+
+    render(<TechnologiesManager />);
+
+    await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith(SESSION_EXPIRED_LOGIN));
+    expect(screen.queryByText("Wymagane zalogowanie")).not.toBeInTheDocument();
+  });
+
+  it("401 przy usuwaniu → przekierowanie zamiast komunikatu „Nie usunięto”", async () => {
+    respond((_path, options) => (options?.method === "DELETE" ? UNAUTHORIZED : { ok: true, data: [GO] }));
+
+    render(<TechnologiesManager />);
+    await userEvent.click(await screen.findByRole("button", { name: "Usuń" }));
+
+    await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith(SESSION_EXPIRED_LOGIN));
+    expect(screen.queryByText("Nie usunięto")).not.toBeInTheDocument();
+  });
+
+  it("401 przy dodawaniu → przekierowanie na /login z „Sesja wygasła”", async () => {
+    respond((_path, options) => (options?.method === "POST" ? UNAUTHORIZED : { ok: true, data: [GO] }));
+
+    render(<TechnologiesManager />);
+    await screen.findByRole("cell", { name: "Go" });
+    await userEvent.type(screen.getByLabelText("Nazwa"), "Rust");
+    await userEvent.type(screen.getByLabelText("Slug"), "rust");
+    await userEvent.click(screen.getByRole("button", { name: "Dodaj" }));
+
+    await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith(SESSION_EXPIRED_LOGIN));
   });
 
   it("dodaje technologię formularzem i przeładowuje listę", async () => {

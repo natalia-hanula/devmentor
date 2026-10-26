@@ -3,7 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiCall = vi.fn();
+const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("@devmentor/ui/backend/api/api-call", () => ({ apiCall }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/admin/outbox" }));
 
 const { OutboxViewer } = await import("../app/(operator)/admin/outbox/outbox-viewer");
 
@@ -35,6 +37,18 @@ function deferred<T>() {
 describe("OutboxViewer", () => {
   beforeEach(() => {
     apiCall.mockReset();
+    router.replace.mockReset();
+  });
+
+  it("401 → /login z „Sesja wygasła” i powrotem na skrzynkę; zostaje stan ładowania zamiast błędu", async () => {
+    apiCall.mockResolvedValue({ ok: false, error: { code: "UNAUTHORIZED", message: "Wymagane zalogowanie" } });
+
+    render(<OutboxViewer />);
+
+    await vi.waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith("/login?next=%2Fadmin%2Foutbox&notice=session_expired"),
+    );
+    expect(screen.queryByText("Wymagane zalogowanie")).not.toBeInTheDocument();
   });
 
   it("pobiera /api/mail/outbox przez apiCall i podczas ładowania pokazuje adnotację i stan ładowania", () => {
