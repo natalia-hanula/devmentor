@@ -14,9 +14,11 @@ const {
   getContainer,
   NoopMailAdapter,
   OutboxMailAdapter,
+  PasswordHasher,
   RateLimiter,
   ServiceUnavailableError,
   TechnologyService,
+  UserTokenService,
   withScope,
 } = await import("../src");
 
@@ -63,6 +65,19 @@ describe("getContainer / withScope", () => {
     expect(fromSecondScope).toBe(container.cradle.rateLimiter);
   });
 
+  it("rejestruje PasswordHasher jako singleton kontenera głównego, a UserTokenService osobno w każdym scope", async () => {
+    initOrm.mockResolvedValue(orm);
+    const container = await getContainer();
+
+    const first = await withScope(async (cradle) => [cradle.passwordHasher, cradle.userTokenService] as const);
+    const second = await withScope(async (cradle) => [cradle.passwordHasher, cradle.userTokenService] as const);
+
+    expect(container.cradle.passwordHasher).toBeInstanceOf(PasswordHasher);
+    expect(first[0]).toBe(container.cradle.passwordHasher);
+    expect(second[0]).toBe(container.cradle.passwordHasher);
+    expect(first[1]).not.toBe(second[1]);
+  });
+
   it("przy MAIL_ADAPTER=outbox rejestruje jedną skrzynkę jako mailGateway i mailOutbox, wspólną dla scope", async () => {
     initOrm.mockResolvedValue(orm);
     vi.stubEnv("APP_ENV", "test");
@@ -93,6 +108,8 @@ describe("getContainer / withScope", () => {
       expect(cradle.databaseHealthService).toBeInstanceOf(DatabaseHealthService);
       expect(cradle.technologyService).toBeInstanceOf(TechnologyService);
       expect(cradle.technologyService).toBe(cradle.technologyService);
+      expect(cradle.userTokenService).toBeInstanceOf(UserTokenService);
+      expect(cradle.userTokenService).toBe(cradle.userTokenService);
       return "wynik";
     });
 

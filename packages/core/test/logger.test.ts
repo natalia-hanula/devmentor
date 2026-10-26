@@ -49,6 +49,24 @@ describe("createLogger", () => {
 
     expect(lines.join("")).not.toMatch(/example\.com|token=|devmentor_session/);
   });
+
+  it("redaguje hashe haseł i tokenów", () => {
+    const { logger, lines } = captureLogger();
+
+    logger.info(
+      {
+        passwordHash: "$2b$12$tajnyhashhasla",
+        tokenHash: "a".repeat(64),
+        user: { id: "u1", passwordHash: "$2b$12$drugihash" },
+        userToken: { tokenHash: "b".repeat(64), token: "surowy-token" },
+      },
+      "token",
+    );
+
+    const output = lines.join("");
+    expect(output).not.toMatch(/tajnyhashhasla|drugihash|a{64}|b{64}|surowy-token/);
+    expect(output).toContain("u1");
+  });
 });
 
 describe("getLogger", () => {

@@ -29,7 +29,15 @@ export {
 } from "./http/auth";
 export { getSessionFromCookieValue } from "./http/session";
 export { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "./http/session-constants";
+export { BCRYPT_COST, DUMMY_PASSWORD_HASH, PasswordHasher } from "./services/auth/password-hasher.service";
 export { SessionTokenService } from "./services/auth/session-token.service";
+export {
+  EMAIL_VERIFICATION_TTL_MS,
+  generateRawToken,
+  hashToken,
+  UserTokenService,
+  type UserTokenPurpose,
+} from "./services/auth/user-token.service";
 export { DatabaseHealthService, type DatabaseHealth } from "./services/health/database-health.service";
 export { TechnologyService, type TechnologyDto } from "./services/mentors/technology.service";
 export type { MailGateway, MailMessage } from "./services/mail/mail.port";

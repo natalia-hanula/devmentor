@@ -1,7 +1,9 @@
 import type { EntityManager, MikroORM } from "@devmentor/db";
 import type { Env } from "../config/env";
 import type { Logger } from "../logger";
+import type { PasswordHasher } from "../services/auth/password-hasher.service";
 import type { SessionTokenService } from "../services/auth/session-token.service";
+import type { UserTokenService } from "../services/auth/user-token.service";
 import type { OutboxMailAdapter } from "../services/mail/adapters/outbox-mail.adapter";
 import type { MailGateway } from "../services/mail/mail.port";
 import type { DatabaseHealthService } from "../services/health/database-health.service";
@@ -14,6 +16,7 @@ export interface AppCradle {
   logger: Logger;
   orm: MikroORM;
   sessionTokenService: SessionTokenService;
+  passwordHasher: PasswordHasher;
   rateLimiter: RateLimiter;
   mailGateway: MailGateway;
   /**
@@ -28,4 +31,5 @@ export interface RequestCradle extends AppCradle {
   em: EntityManager;
   databaseHealthService: DatabaseHealthService;
   technologyService: TechnologyService;
+  userTokenService: UserTokenService;
 }

@@ -15,6 +15,22 @@ export function createFakeEntityManager() {
     remove: vi.fn(),
     flush: vi.fn(async () => undefined),
     execute: vi.fn(),
+    upsert: vi.fn(async () => undefined),
+    nativeDelete: vi.fn(async () => 0),
+    createQueryBuilder: vi.fn(() => createFakeQueryBuilder().qb),
   };
   return { fake, em: fake as unknown as EntityManager };
+}
+
+/**
+ * Minimalna atrapa QueryBuildera (DELETE przez natywny builder): zapisuje wywołania łańcucha.
+ * Sprawdza kształt zapytania, nie jego semantykę — tę sprawdzają testy integracyjne na prawdziwej bazie.
+ */
+export function createFakeQueryBuilder() {
+  const nativeQuery = { returning: vi.fn(() => nativeQuery) };
+  const qb = {
+    delete: vi.fn(() => qb),
+    getNativeQuery: vi.fn(() => nativeQuery),
+  };
+  return { qb, nativeQuery };
 }

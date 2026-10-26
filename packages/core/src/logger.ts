@@ -8,6 +8,8 @@ export const LOG_REDACT_PATHS = [
   "*.password",
   "passwordHash",
   "*.passwordHash",
+  "tokenHash",
+  "*.tokenHash",
   "token",
   "*.token",
   "accessToken",

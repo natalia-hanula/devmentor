@@ -3,7 +3,9 @@ import { initOrm } from "@devmentor/db";
 import { parseEnv } from "../config/env";
 import { ServiceUnavailableError } from "../http/errors";
 import { getLogger } from "../logger";
+import { PasswordHasher } from "../services/auth/password-hasher.service";
 import { SessionTokenService } from "../services/auth/session-token.service";
+import { UserTokenService } from "../services/auth/user-token.service";
 import { createMailAdapters } from "../services/mail/mail-gateway";
 import { DatabaseHealthService } from "../services/health/database-health.service";
 import { TechnologyService } from "../services/mentors/technology.service";
@@ -33,6 +35,7 @@ async function buildContainer(): Promise<AwilixContainer<AppCradle>> {
     logger: asValue(logger),
     orm: asValue(orm),
     sessionTokenService: asClass(SessionTokenService).singleton(),
+    passwordHasher: asClass(PasswordHasher).singleton(),
     rateLimiter: asFunction(() => new RateLimiter()).singleton(),
     mailGateway: asValue(mailGateway),
     mailOutbox: asValue(mailOutbox),
@@ -59,6 +62,7 @@ function registerRequestDependencies(scope: AwilixContainer<RequestCradle>, orm:
     em: asValue(orm.em.fork()),
     databaseHealthService: asClass(DatabaseHealthService).scoped(),
     technologyService: asClass(TechnologyService).scoped(),
+    userTokenService: asClass(UserTokenService).scoped(),
   });
 }
 
