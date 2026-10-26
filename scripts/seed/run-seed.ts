@@ -14,7 +14,7 @@ export interface SeedBackend {
   /** `APP_ENV` z `parseEnv()` — brak wpisu w `.env` oznacza `production`. */
   appEnv(): Env["APP_ENV"];
   createOperator(input: TestAccountInput): Promise<AccountDto>;
-  createMentee(input: TestAccountInput): Promise<AccountDto>;
+  createMentee(input: TestAccountInput, emailVerified: boolean): Promise<AccountDto>;
   createMentor(input: TestAccountInput, grantedByEmail: string): Promise<AccountDto>;
   /** Zamyka pulę połączeń ORM, żeby proces mógł się zakończyć. */
   close(): Promise<void>;
@@ -22,12 +22,18 @@ export interface SeedBackend {
 
 export type WriteLine = (line: string) => void;
 
+/** „e-mail (role)”, przy niepotwierdzonym adresie z dopiskiem — do linii wyjścia. */
+function describeAccount(account: TestAccount): string {
+  const details = account.emailVerified ? account.roles : [...account.roles, "adres niepotwierdzony"];
+  return `${account.email} (${details.join(", ")})`;
+}
+
 export const MESSAGES = {
   production:
     "Odmowa: npm run db:seed zakłada konta testowe ze znanym hasłem i nie działa przy APP_ENV=production (brak APP_ENV w .env też oznacza production).",
   intro: "Konta testowe DevMentor:",
-  created: (account: TestAccount) => `  ${account.email} (${account.roles.join(", ")}) — utworzone`,
-  skipped: (account: TestAccount) => `  ${account.email} (${account.roles.join(", ")}) — już istnieje, pomijam`,
+  created: (account: TestAccount) => `  ${describeAccount(account)} — utworzone`,
+  skipped: (account: TestAccount) => `  ${describeAccount(account)} — już istnieje, pomijam`,
   password: `Hasło wszystkich kont testowych: ${TEST_PASSWORD} (dane testowe, nie sekret)`,
   databaseUnavailable:
     "Baza danych jest niedostępna — seed przerwany. Uruchom bazę (npm run db:up) i sprawdź DATABASE_URL w .env.",
@@ -36,7 +42,7 @@ export const MESSAGES = {
 } as const;
 
 /**
- * `npm run db:seed`: zakłada konta operatora, mentee i mentora i zwraca kod wyjścia (0 sukces, 1 błąd).
+ * `npm run db:seed`: zakłada konta operatora, mentee, mentora i mentee z niepotwierdzonym adresem i zwraca kod wyjścia (0 sukces, 1 błąd).
  * Operator pierwszy, bo nadaje rolę mentora (`granted_by`). Istniejące konto → „już istnieje”, dalej.
  */
 export async function runSeed(write: WriteLine, backend: SeedBackend): Promise<number> {
@@ -56,11 +62,12 @@ async function seed(write: WriteLine, backend: SeedBackend): Promise<number> {
     return 1;
   }
 
-  const { operator, mentee, mentor } = TEST_ACCOUNTS;
+  const { operator, mentee, mentor, menteeUnverified } = TEST_ACCOUNTS;
   const steps: [TestAccount, () => Promise<AccountDto>][] = [
     [operator, () => backend.createOperator(input(operator))],
-    [mentee, () => backend.createMentee(input(mentee))],
+    [mentee, () => backend.createMentee(input(mentee), mentee.emailVerified)],
     [mentor, () => backend.createMentor(input(mentor), operator.email)],
+    [menteeUnverified, () => backend.createMentee(input(menteeUnverified), menteeUnverified.emailVerified)],
   ];
 
   write(MESSAGES.intro);

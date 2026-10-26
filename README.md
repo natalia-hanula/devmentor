@@ -121,7 +121,7 @@ Skrypt pyta o e-mail, wyświetlaną nazwę i hasło (min. 12 znaków; hasło wpi
 npm run db:seed
 ```
 
-Zakłada trzy fikcyjne konta z potwierdzonym adresem: `operator.test@example.com` (rola `operator`), `mentee.test@example.com` (`mentee`) i `mentor.test@example.com` (`mentee` + `mentor`, rolę nadaje konto operatora z seeda). Wszystkie mają hasło `test-haslo-nie-sekret` — to jawne dane testowe, nie sekret. Ponowne uruchomienie pomija istniejące konta. Przy `APP_ENV=production` (także gdy `APP_ENV` brak w `.env`) seed odmawia działania.
+Zakłada cztery fikcyjne konta: trzy z potwierdzonym adresem — `operator.test@example.com` (rola `operator`), `mentee.test@example.com` (`mentee`) i `mentor.test@example.com` (`mentee` + `mentor`, rolę nadaje konto operatora z seeda) — oraz `mentee.niepotwierdzone@example.com` (`mentee`, adres niepotwierdzony). To ostatnie służy do sprawdzenia banera „Potwierdź adres e-mail” na `/account`: seed nie wysyła maila, więc link weryfikacyjny pojawi się w `/admin/outbox` dopiero po kliknięciu „Wyślij ponownie”. Wszystkie mają hasło `test-haslo-nie-sekret` — to jawne dane testowe, nie sekret. Ponowne uruchomienie pomija istniejące konta. Przy `APP_ENV=production` (także gdy `APP_ENV` brak w `.env`) seed odmawia działania.
 
 ## Dostępne skrypty
 
@@ -142,7 +142,7 @@ Uruchamiane z katalogu głównego:
 | `npm run db:migrate`                  | Wykonanie oczekujących migracji                             |
 | `npm run db:migration:create`         | Nowa migracja na podstawie zmian w encjach                  |
 | `npm run db:migration:list`           | Lista wykonanych migracji                                   |
-| `npm run db:seed`                     | Konta testowe mentee, mentor, operator (hasło `test-haslo-nie-sekret`; odmowa przy `APP_ENV=production`) |
+| `npm run db:seed`                     | Konta testowe mentee, mentor, operator i mentee z niepotwierdzonym adresem (hasło `test-haslo-nie-sekret`; odmowa przy `APP_ENV=production`) |
 | `npm run operator:create`             | Konto operatora (interaktywnie, hasło bez echa)             |
 
 

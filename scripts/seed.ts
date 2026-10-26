@@ -5,7 +5,7 @@ import { runSeed } from "./seed/run-seed.ts";
 process.exitCode = await runSeed((line) => process.stdout.write(`${line}\n`), {
   appEnv: () => parseEnv().APP_ENV,
   createOperator: (input) => withScope((cradle) => cradle.seedService.createOperator(input)),
-  createMentee: (input) => withScope((cradle) => cradle.seedService.createMentee(input)),
+  createMentee: (input, emailVerified) => withScope((cradle) => cradle.seedService.createMentee(input, emailVerified)),
   createMentor: (input, grantedByEmail) => withScope((cradle) => cradle.seedService.createMentor(input, grantedByEmail)),
   close: closeContainer,
 });

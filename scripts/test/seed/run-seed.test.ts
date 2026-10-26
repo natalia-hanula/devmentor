@@ -18,8 +18,8 @@ function setup(appEnv: Env["APP_ENV"] = "local") {
       order.push("operator");
       return account(input.email, ["operator"]);
     }),
-    createMentee: vi.fn(async (input: { email: string }) => {
-      order.push("mentee");
+    createMentee: vi.fn(async (input: { email: string }, emailVerified: boolean) => {
+      order.push(emailVerified ? "mentee" : "mentee-unverified");
       return account(input.email, ["mentee"]);
     }),
     createMentor: vi.fn(async (input: { email: string }) => {
@@ -36,24 +36,29 @@ function setup(appEnv: Env["APP_ENV"] = "local") {
 const conflict = () => new ConflictError("Ten e-mail ma już konto", { email: ["Ten e-mail ma już konto"] });
 
 describe("runSeed", () => {
-  it("zakłada operatora, mentee i mentora (w tej kolejności) hasłem testowym, wypisuje konta i hasło, kod 0", async () => {
+  it("zakłada operatora, mentee, mentora i mentee z niepotwierdzonym adresem (w tej kolejności) hasłem testowym, wypisuje konta i hasło, kod 0", async () => {
     const { lines, order, backend, write } = setup();
 
     const code = await runSeed(write, backend);
 
     expect(code).toBe(0);
-    expect(order).toEqual(["operator", "mentee", "mentor", "close"]);
-    const { operator, mentee, mentor } = TEST_ACCOUNTS;
+    expect(order).toEqual(["operator", "mentee", "mentor", "mentee-unverified", "close"]);
+    const { operator, mentee, mentor, menteeUnverified } = TEST_ACCOUNTS;
     expect(backend.createOperator).toHaveBeenCalledWith({
       email: operator.email,
       displayName: operator.displayName,
       password: TEST_PASSWORD,
     });
-    expect(backend.createMentee).toHaveBeenCalledWith({
-      email: mentee.email,
-      displayName: mentee.displayName,
-      password: TEST_PASSWORD,
-    });
+    expect(backend.createMentee).toHaveBeenNthCalledWith(
+      1,
+      { email: mentee.email, displayName: mentee.displayName, password: TEST_PASSWORD },
+      true,
+    );
+    expect(backend.createMentee).toHaveBeenNthCalledWith(
+      2,
+      { email: menteeUnverified.email, displayName: menteeUnverified.displayName, password: TEST_PASSWORD },
+      false,
+    );
     expect(backend.createMentor).toHaveBeenCalledWith(
       { email: mentor.email, displayName: mentor.displayName, password: TEST_PASSWORD },
       operator.email,
@@ -63,6 +68,7 @@ describe("runSeed", () => {
       "  operator.test@example.com (operator) — utworzone",
       "  mentee.test@example.com (mentee) — utworzone",
       "  mentor.test@example.com (mentee, mentor) — utworzone",
+      "  mentee.niepotwierdzone@example.com (mentee, adres niepotwierdzony) — utworzone",
       "Hasło wszystkich kont testowych: test-haslo-nie-sekret (dane testowe, nie sekret)",
     ]);
   });
@@ -91,6 +97,7 @@ describe("runSeed", () => {
       "  operator.test@example.com (operator) — już istnieje, pomijam",
       "  mentee.test@example.com (mentee) — już istnieje, pomijam",
       "  mentor.test@example.com (mentee, mentor) — już istnieje, pomijam",
+      "  mentee.niepotwierdzone@example.com (mentee, adres niepotwierdzony) — już istnieje, pomijam",
       MESSAGES.password,
     ]);
     expect(backend.close).toHaveBeenCalledOnce();

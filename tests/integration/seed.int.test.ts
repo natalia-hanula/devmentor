@@ -44,7 +44,7 @@ describe("npm run db:seed (runSeed + SeedService na prawdziwej bazie) → logowa
   const backend: SeedBackend = {
     appEnv: () => "test",
     createOperator: (input) => seedService().createOperator(input),
-    createMentee: (input) => seedService().createMentee(input),
+    createMentee: (input, emailVerified) => seedService().createMentee(input, emailVerified),
     createMentor: (input, grantedByEmail) => seedService().createMentor(input, grantedByEmail),
     close: async () => undefined,
   };
@@ -63,11 +63,11 @@ describe("npm run db:seed (runSeed + SeedService na prawdziwej bazie) → logowa
     await orm.close(true);
   });
 
-  it("zakłada trzy konta (role, potwierdzony adres, granted_by mentora); każde loguje się hasłem testowym", async () => {
+  it("zakłada cztery konta (role, granted_by mentora, jeden niepotwierdzony adres); każde loguje się hasłem testowym", async () => {
     const lines: string[] = [];
 
     expect(await runSeed((line) => lines.push(line), backend)).toBe(0);
-    expect(lines.filter((line) => line.endsWith("— utworzone"))).toHaveLength(3);
+    expect(lines.filter((line) => line.endsWith("— utworzone"))).toHaveLength(4);
     expect(lines.at(-1)).toBe(MESSAGES.password);
 
     const em = orm.em.fork();
@@ -76,6 +76,8 @@ describe("npm run db:seed (runSeed + SeedService na prawdziwej bazie) → logowa
     const mentorRole = mentor.roles.getItems().find((entry) => entry.role === "mentor");
     expect(mentorRole?.grantedBy?.id).toBe(operator.id);
     expect(await em.count(UserToken, { user: { email: { $in: SEED_EMAILS } } })).toBe(0);
+    const unverified = await em.findOneOrFail(User, { email: TEST_ACCOUNTS.menteeUnverified.email });
+    expect(unverified.emailVerifiedAt).toBeNull();
 
     for (const account of Object.values(TEST_ACCOUNTS)) {
       const login = await fetch(`${baseUrl}/api/auth/login`, {
@@ -87,7 +89,7 @@ describe("npm run db:seed (runSeed + SeedService na prawdziwej bazie) → logowa
       const cookie = login.headers.getSetCookie()[0]!.split(";")[0]!;
 
       const me = (await (await fetch(`${baseUrl}/api/auth/me`, { headers: { cookie } })).json()) as Envelope;
-      expect(me.data).toMatchObject({ email: account.email, roles: [...account.roles], emailVerified: true });
+      expect(me.data).toMatchObject({ email: account.email, roles: [...account.roles], emailVerified: account.emailVerified });
     }
   });
 
@@ -95,7 +97,7 @@ describe("npm run db:seed (runSeed + SeedService na prawdziwej bazie) → logowa
     const lines: string[] = [];
 
     expect(await runSeed((line) => lines.push(line), backend)).toBe(0);
-    expect(lines.filter((line) => line.endsWith("— już istnieje, pomijam"))).toHaveLength(3);
-    expect(await orm.em.fork().count(User, { email: { $in: SEED_EMAILS } })).toBe(3);
+    expect(lines.filter((line) => line.endsWith("— już istnieje, pomijam"))).toHaveLength(4);
+    expect(await orm.em.fork().count(User, { email: { $in: SEED_EMAILS } })).toBe(4);
   });
 });

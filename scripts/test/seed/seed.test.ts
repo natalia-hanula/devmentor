@@ -22,7 +22,7 @@ describe("scripts/seed.ts", () => {
       {
         appEnv: () => string;
         createOperator: (input: unknown) => Promise<unknown>;
-        createMentee: (input: unknown) => Promise<unknown>;
+        createMentee: (input: unknown, emailVerified: boolean) => Promise<unknown>;
         createMentor: (input: unknown, grantedByEmail: string) => Promise<unknown>;
         close: unknown;
       },
@@ -46,10 +46,10 @@ describe("scripts/seed.ts", () => {
     const input = { email: "a@example.com", displayName: "A", password: "test-haslo-nie-sekret" };
 
     await expect(backend.createOperator(input)).resolves.toBe("operator");
-    await expect(backend.createMentee(input)).resolves.toBe("mentee");
+    await expect(backend.createMentee(input, false)).resolves.toBe("mentee");
     await expect(backend.createMentor(input, "op@example.com")).resolves.toBe("mentor");
     expect(seedService.createOperator).toHaveBeenCalledWith(input);
-    expect(seedService.createMentee).toHaveBeenCalledWith(input);
+    expect(seedService.createMentee).toHaveBeenCalledWith(input, false);
     expect(seedService.createMentor).toHaveBeenCalledWith(input, "op@example.com");
     expect(core.withScope).toHaveBeenCalledTimes(3);
   });

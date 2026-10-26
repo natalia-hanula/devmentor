@@ -39,7 +39,7 @@ function storedOperator(roles: string[] = ["operator"]) {
 describe("SeedService — blokada produkcji (fail closed w core)", () => {
   it.each([
     ["createOperator", (service: SeedService) => service.createOperator(INPUT)],
-    ["createMentee", (service: SeedService) => service.createMentee(INPUT)],
+    ["createMentee", (service: SeedService) => service.createMentee(INPUT, false)],
     ["createMentor", (service: SeedService) => service.createMentor(INPUT, OPERATOR_EMAIL)],
   ])("%s przy APP_ENV=production → ForbiddenError, bez odczytu, hashowania i zapisu", async (_name, call) => {
     const { fake, service, passwordHasher, accountService } = setup("production");
@@ -58,7 +58,7 @@ describe("SeedService — blokada produkcji (fail closed w core)", () => {
   it.each(["local", "test", "staging"] as const)("APP_ENV=%s → działa", async (appEnv) => {
     const { service } = setup(appEnv);
 
-    await expect(service.createMentee(INPUT)).resolves.toMatchObject({ roles: ["mentee"] });
+    await expect(service.createMentee(INPUT, true)).resolves.toMatchObject({ roles: ["mentee"] });
   });
 });
 
@@ -76,7 +76,7 @@ describe("SeedService.createMentee", () => {
     const { fake, service, passwordHasher } = setup();
     const before = Date.now();
 
-    const account = await service.createMentee(INPUT);
+    const account = await service.createMentee(INPUT, true);
 
     expect(passwordHasher.hash).toHaveBeenCalledWith("test-haslo-nie-sekret");
     expect(fake.create).toHaveBeenCalledTimes(2);
@@ -102,11 +102,38 @@ describe("SeedService.createMentee", () => {
     expect(JSON.stringify(account)).not.toContain(PASSWORD_HASH);
   });
 
+  it("emailVerified: false → adres niepotwierdzony (emailVerifiedAt null), rola mentee, bez tokenu", async () => {
+    const { fake, service } = setup();
+
+    const account = await service.createMentee(
+      { ...INPUT, email: "mentee.niepotwierdzone@example.com", displayName: "Mentee z niepotwierdzonym adresem" },
+      false,
+    );
+
+    expect(fake.create).toHaveBeenCalledTimes(2);
+    expect(fake.create).toHaveBeenNthCalledWith(1, User, {
+      email: "mentee.niepotwierdzone@example.com",
+      displayName: "Mentee z niepotwierdzonym adresem",
+      passwordHash: PASSWORD_HASH,
+      emailVerifiedAt: null,
+    });
+    const user = fake.create.mock.results[0]?.value as unknown;
+    expect(fake.create).toHaveBeenNthCalledWith(2, UserRole, { user, role: "mentee", grantedBy: null });
+    expect(fake.create).not.toHaveBeenCalledWith(UserToken, expect.anything());
+    expect(fake.flush).toHaveBeenCalledOnce();
+    expect(account).toMatchObject({
+      email: "mentee.niepotwierdzone@example.com",
+      roles: ["mentee"],
+      emailVerified: false,
+      hasPassword: true,
+    });
+  });
+
   it("waliduje wejście schematem rejestracji — nic nie hashuje ani nie zapisuje", async () => {
     const { fake, service, passwordHasher } = setup();
 
     const error = await service
-      .createMentee({ email: "zly", displayName: " ", password: "krotkie" })
+      .createMentee({ email: "zly", displayName: " ", password: "krotkie" }, true)
       .catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(ValidationError);
@@ -118,7 +145,7 @@ describe("SeedService.createMentee", () => {
     const { fake, service } = setup();
     fake.flush.mockRejectedValue(new UniqueConstraintViolationException(new Error("duplicate key users_email_lower_unique")));
 
-    await expect(service.createMentee(INPUT)).rejects.toBeInstanceOf(ConflictError);
+    await expect(service.createMentee(INPUT, true)).rejects.toBeInstanceOf(ConflictError);
     expect(fake.findOne).not.toHaveBeenCalled();
   });
 });

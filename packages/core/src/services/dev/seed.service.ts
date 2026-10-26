@@ -29,7 +29,8 @@ export interface SeedServiceDependencies {
 /**
  * Konta testowe dla `npm run db:seed` — wyłącznie poza produkcją. Każda metoda sprawdza `APP_ENV` sama
  * (fail closed), niezależnie od skryptu. Bez trasy HTTP, limitera, tokenów i maila: adresy są od razu
- * potwierdzone, a skrzynka outbox żyje w pamięci innego procesu (`next dev`), więc mail z seeda by przepadł.
+ * potwierdzone (wyjątek: mentee z `emailVerified: false` do sprawdzania banera i „Wyślij ponownie”), a skrzynka
+ * outbox żyje w pamięci innego procesu (`next dev`), więc mail z seeda by przepadł.
  * Zajęty adres → `ConflictError` z constraintu (jak przy rejestracji), więc ponowny seed niczego nie dubluje.
  */
 export class SeedService {
@@ -51,10 +52,13 @@ export class SeedService {
     return this.accountService.createOperator(input);
   }
 
-  /** Mentee jak po rejestracji (walidacja, normalizacja, hash, rola `mentee`), ale z potwierdzonym adresem. */
-  async createMentee(input: TestAccountInput): Promise<AccountDto> {
+  /**
+   * Mentee jak po rejestracji (walidacja, normalizacja, hash, rola `mentee`), ale bez tokenu i maila.
+   * `emailVerified: false` → adres niepotwierdzony; link weryfikacyjny daje dopiero „Wyślij ponownie” w aplikacji.
+   */
+  async createMentee(input: TestAccountInput, emailVerified: boolean): Promise<AccountDto> {
     this.assertNotProduction();
-    return this.createVerifiedAccount(input, null);
+    return this.createAccount(input, null, emailVerified);
   }
 
   /**
@@ -67,7 +71,7 @@ export class SeedService {
     if (!operator || !operator.roles.getItems().some((entry) => entry.role === "operator")) {
       throw new NotFoundError(`Brak konta operatora ${grantedByEmail} — nie można nadać roli mentora`);
     }
-    return this.createVerifiedAccount(input, operator);
+    return this.createAccount(input, operator, true);
   }
 
   private assertNotProduction(): void {
@@ -77,14 +81,18 @@ export class SeedService {
   }
 
   /** `mentorGrantedBy` = operator nadający rolę mentora; `null` → samo konto mentee. */
-  private async createVerifiedAccount(input: TestAccountInput, mentorGrantedBy: User | null): Promise<AccountDto> {
+  private async createAccount(
+    input: TestAccountInput,
+    mentorGrantedBy: User | null,
+    emailVerified: boolean,
+  ): Promise<AccountDto> {
     const { email, displayName, password } = parseInput(registerSchema, input);
 
     const user = this.em.create(User, {
       email,
       displayName,
       passwordHash: await this.passwordHasher.hash(password),
-      emailVerifiedAt: new Date(),
+      emailVerifiedAt: emailVerified ? new Date() : null,
     });
     const roles: Role[] = ["mentee"];
     this.em.create(UserRole, { user, role: "mentee", grantedBy: null });
