@@ -10,6 +10,7 @@ vi.mock("@devmentor/db", async (importOriginal) => ({
 }));
 
 const {
+  AccountService,
   DatabaseHealthService,
   getContainer,
   NoopMailAdapter,
@@ -32,6 +33,8 @@ describe("getContainer / withScope", () => {
     initOrm.mockReset();
     vi.stubEnv("DATABASE_URL", "postgresql://u:p@localhost:5432/db");
     vi.stubEnv("AUTH_JWT_SECRET", "s".repeat(32));
+    // Bez APP_ENV obowiązuje production, która wymaga TRUST_PROXY=true.
+    vi.stubEnv("TRUST_PROXY", "true");
   });
 
   afterEach(() => {
@@ -110,6 +113,8 @@ describe("getContainer / withScope", () => {
       expect(cradle.technologyService).toBe(cradle.technologyService);
       expect(cradle.userTokenService).toBeInstanceOf(UserTokenService);
       expect(cradle.userTokenService).toBe(cradle.userTokenService);
+      expect(cradle.accountService).toBeInstanceOf(AccountService);
+      expect(cradle.accountService).toBe(cradle.accountService);
       return "wynik";
     });
 

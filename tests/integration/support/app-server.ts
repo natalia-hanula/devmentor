@@ -23,7 +23,16 @@ export async function startAppServer(databaseUrl: string): Promise<AppServer> {
   const child = spawn(NEXT_BIN, ["start", "--port", String(port), "--hostname", "127.0.0.1"], {
     cwd: APP_DIR,
     // Zmienne procesu mają pierwszeństwo przed `.env`, więc lokalny `.env` nie przesłoni bazy testowej.
-    env: { ...process.env, DATABASE_URL: databaseUrl, LOG_LEVEL: "warn", AUTH_JWT_SECRET: TEST_AUTH_JWT_SECRET, APP_ENV: TEST_APP_ENV },
+    // `TRUST_PROXY=true`: limiter jest wspólny dla całego przebiegu, więc każdy test podaje własny
+    // `x-forwarded-for` (`support/client-ip.ts`) i nie wyczerpuje limitów innym testom.
+    env: {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+      LOG_LEVEL: "warn",
+      AUTH_JWT_SECRET: TEST_AUTH_JWT_SECRET,
+      APP_ENV: TEST_APP_ENV,
+      TRUST_PROXY: "true",
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
   child.stdout?.on("data", (chunk: Buffer) => output.push(chunk.toString()));

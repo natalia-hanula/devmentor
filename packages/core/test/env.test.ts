@@ -3,7 +3,8 @@ import { parseEnv } from "../src";
 
 const DATABASE_URL = "postgresql://u:p@localhost:5432/db";
 const SECRET = "s".repeat(32);
-const valid = { DATABASE_URL, AUTH_JWT_SECRET: SECRET };
+// Bez APP_ENV obowiązuje production, a tam TRUST_PROXY=true jest wymagany.
+const valid = { DATABASE_URL, AUTH_JWT_SECRET: SECRET, TRUST_PROXY: "true" };
 
 describe("parseEnv", () => {
   it("uzupełnia wartości domyślne; APP_ENV domyślnie production (fail closed)", () => {
@@ -16,7 +17,7 @@ describe("parseEnv", () => {
       AUTH_JWT_SECRET: SECRET,
       APP_BASE_URL: "http://localhost:3000",
       APP_ENV: "production",
-      TRUST_PROXY: false,
+      TRUST_PROXY: true,
       MAIL_ADAPTER: "noop",
     });
   });
@@ -91,11 +92,24 @@ describe("parseEnv", () => {
     expect(() => parseEnv({ ...valid, APP_ENV: "local", MAIL_ADAPTER: "smtp" })).toThrow(/MAIL_ADAPTER musi być jedną z/);
   });
 
-  it("TRUST_PROXY: domyślnie false, napisy true/false zamienia na boolean", () => {
-    expect(parseEnv(valid).TRUST_PROXY).toBe(false);
-    expect(parseEnv({ ...valid, TRUST_PROXY: "true" }).TRUST_PROXY).toBe(true);
-    expect(parseEnv({ ...valid, TRUST_PROXY: "false" }).TRUST_PROXY).toBe(false);
+  it.each(["local", "test"] as const)("TRUST_PROXY przy APP_ENV=%s: domyślnie false, napisy true/false → boolean", (appEnv) => {
+    const local = { DATABASE_URL, AUTH_JWT_SECRET: SECRET, APP_ENV: appEnv };
+
+    expect(parseEnv(local).TRUST_PROXY).toBe(false);
+    expect(parseEnv({ ...local, TRUST_PROXY: "true" }).TRUST_PROXY).toBe(true);
+    expect(parseEnv({ ...local, TRUST_PROXY: "false" }).TRUST_PROXY).toBe(false);
   });
+
+  it.each(["staging", "production", undefined])(
+    "TRUST_PROXY przy APP_ENV=%s wymagany jako true — brak lub false blokuje start (fail closed)",
+    (appEnv) => {
+      const deployed = { DATABASE_URL, AUTH_JWT_SECRET: SECRET, APP_ENV: appEnv };
+
+      expect(() => parseEnv(deployed)).toThrow(/TRUST_PROXY: TRUST_PROXY=true jest wymagany przy APP_ENV=staging i production/);
+      expect(() => parseEnv({ ...deployed, TRUST_PROXY: "false" })).toThrow(/TRUST_PROXY=true jest wymagany/);
+      expect(parseEnv({ ...deployed, TRUST_PROXY: "true" }).TRUST_PROXY).toBe(true);
+    },
+  );
 
   it.each(["1", "yes", "TRUE", ""])("odrzuca TRUST_PROXY=%j", (value) => {
     expect(() => parseEnv({ ...valid, TRUST_PROXY: value })).toThrow(/TRUST_PROXY musi mieć wartość true albo false/);

@@ -29,6 +29,14 @@ export {
 } from "./http/auth";
 export { getSessionFromCookieValue } from "./http/session";
 export { SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "./http/session-constants";
+export {
+  AccountService,
+  EMAIL_TAKEN_MESSAGE,
+  INVALID_CREDENTIALS_MESSAGE,
+  type AccountDto,
+  type AuthenticatedAccount,
+} from "./services/auth/account.service";
+export { AUTH_RATE_LIMITS, consumeLoginAttempt, consumeRegisterAttempt } from "./services/auth/auth-rate-limits";
 export { BCRYPT_COST, DUMMY_PASSWORD_HASH, PasswordHasher } from "./services/auth/password-hasher.service";
 export { SessionTokenService } from "./services/auth/session-token.service";
 export {

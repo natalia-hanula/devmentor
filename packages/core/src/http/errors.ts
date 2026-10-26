@@ -53,11 +53,15 @@ export class NotFoundError extends AppError {
   }
 }
 
+/** `fieldErrors` wskazuje pole, którego dotyczy konflikt (np. zajęty e-mail przy rejestracji). */
 export class ConflictError extends AppError {
   readonly status = 409;
   readonly code = "CONFLICT";
 
-  constructor(message = "Konflikt z istniejącymi danymi") {
+  constructor(
+    message = "Konflikt z istniejącymi danymi",
+    readonly fieldErrors?: FieldErrors,
+  ) {
     super(message);
   }
 }

@@ -1,6 +1,6 @@
 # E01 — Konto, logowanie i rola mentora
 
-> Status: **zaakceptowana** (Natalia, 2026-10-18), **rewizja 5** — korekty z mapy ekranów E01 (L03–L10, L13, L14, L16, L18, L21, L23; L06 opcja A), Natalia 2026-10-20 (wcześniej: przegląd Gemini/GPT i grill-me, zob. „Revision log”); grill-me zakończony (G1–G11, 2026-10-18). Epik #11: story #17 (taski #18, #19) i #20. Wymaga `2026-10-18-platform-primitives.md` (etap A primitives przed etapem A tej specyfikacji, zob. Phasing).
+> Status: **zaakceptowana** (Natalia, 2026-10-18), **rewizja 6** — `TRUST_PROXY=true` wymagany na stagingu i produkcji (Q-IP), `githubLinked` w `AccountDto` od etapu B, Natalia 2026-10-26; rewizja 5 — korekty z mapy ekranów E01 (L03–L10, L13, L14, L16, L18, L21, L23; L06 opcja A), Natalia 2026-10-20 (wcześniej: przegląd Gemini/GPT i grill-me, zob. „Revision log”); grill-me zakończony (G1–G11, 2026-10-18). Epik #11: story #17 (taski #18, #19) i #20. Wymaga `2026-10-18-platform-primitives.md` (etap A primitives przed etapem A tej specyfikacji, zob. Phasing).
 
 ## 📝 TLDR
 
@@ -165,7 +165,7 @@ flowchart LR
 
 ## 📝 API Contracts
 
-Koperta `{ ok, data }`. CSRF (`x-devmentor-request`) na wszystkich metodach zmieniających stan, również na logowaniu i rejestracji. Odpowiedzi z kontem zwracają `AccountDto = { id, email, displayName, roles, emailVerified, hasPassword, githubLinked }`.
+Koperta `{ ok, data }`. CSRF (`x-devmentor-request`) na wszystkich metodach zmieniających stan, również na logowaniu i rejestracji. Odpowiedzi z kontem zwracają `AccountDto = { id, email, displayName, roles, emailVerified, hasPassword, githubLinked }`; `githubLinked` dochodzi w etapie B razem z kolumną `github_user_id` (rewizja 6) — w etapie A DTO ma pozostałe pola.
 
 | Metoda i trasa | Dostęp | Wejście | Sukces | Błędy |
 |---|---|---|---|---|
@@ -204,7 +204,7 @@ Koperta `{ ok, data }`. CSRF (`x-devmentor-request`) na wszystkich metodach zmie
 | `token-confirm:ip` (weryfikacja, reset, przyjęcie zaproszenia) | 20 / 15 min |
 | `github-callback:ip` | 20 / 15 min |
 
-`login:ip+email` i `login:ip` liczą **każdą** próbę (nie zdradzają, czy hasło było poprawne). Limitu na sam adres e-mail przy logowaniu **nie ma** (rewizja 2): blokowałby logowanie na cudze konto, a nie chronił przed zgadywaniem rozproszonym po wielu IP (zob. Risks).
+`login:ip+email` i `login:ip` liczą **każdą** próbę (nie zdradzają, czy hasło było poprawne). IP pochodzi z `clientIp` (primitives): na stagingu i produkcji `TRUST_PROXY=true` jest wymagany przez `parseEnv`, a lokalnie wszyscy klienci dzielą klucz `"unknown"` (Q-IP, rewizja 6). Limitu na sam adres e-mail przy logowaniu **nie ma** (rewizja 2): blokowałby logowanie na cudze konto, a nie chronił przed zgadywaniem rozproszonym po wielu IP (zob. Risks).
 
 **Wysyłka poczty:** po `flush`. Błąd `MailGateway`:
 - rejestracja i ponowna wysyłka: log z kontekstem, odpowiedź sukcesu (użytkownik może wysłać ponownie z `/account`);
@@ -455,3 +455,4 @@ Każdy krok: `npm run lint`, `npm run typecheck`, `npm test` (100% na plik). Kro
 | 2026-10-18 | spójność | Poprawki spójności po przeglądzie agentem z czystym kontekstem — tylko brzmienie, bez zmian merytorycznych (odwołania do etapów G9, `APP_ENV` zamiast `NODE_ENV` dla flagi `secure` zgodnie z G2, G7 w opisach weryfikacji, liczba migracji, lista walidatorów, `ON DELETE SET NULL` zgodnie z zapisem w E01). | Natalia |
 | 2026-10-20 | 5 | Korekty z mapy ekranów E01: (1) L23 — `/verify-email` z `#token=` zawsze wysyła token, niezależnie od sesji; token innego konta → „Potwierdzono adres b@…. To inne konto…”, sesja bez zmian; „już potwierdzony” tylko bez tokenu; `confirm` zwraca `email`; Edge Cases i krok 5. (2) L16 — `password-reset/request` dla operatora bez tokenu i maila. (3) L06 opcja A — `PUT /api/auth/display-name` → 403 dla operatora, `/account` operatora tylko do odczytu, wyjątek dopisany do G6, krok 4/4b. (4) L18 — teksty neutralne płciowo, nowy tekst zaproszenia. (5) L14 — „Link jest nieważny albo wygasł” na `/invite`, `/verify-email`, `/reset-password`; L17 — wskazówka przy nieważnym zaproszeniu. (6) L03, L04, L05, L07, L08, L13 — strony startowe ról, wylogowanie, zalogowana osoba na `/login`/`/register`, „Sesja wygasła”, kontekst zaproszenia, CTA. (7) L09 — treść „Brak dostępu”. (8) L10 — `mentorRoleRemoved` wyliczane w `GET /api/auth/invitations`, statusy po polsku (L12), L20 w panelu linku, L19 przy 409. (9) L21 — nagłówek zalogowanego e01 w etapie A (krok 19a) i nowe kryterium akceptacji epiku. Dwa pytania nieblokujące w Open Questions. | `lekcja-07/mapa-ekranow.md` + decyzje Natalii 2026-10-20 |
 | 2026-10-21 | 5a | G2: jedno zdanie — na stagingu outbox tylko po jawnym `MAIL_ADAPTER=outbox` (domyślna `noop` zmieniona w primitives rew. 12); bez zmian merytorycznych G1/G2. | Review fazy 2, decyzja 14 runu E01 etap A (Natalia) |
+| 2026-10-26 | 6 | (1) Limiter: IP z `clientIp`; `TRUST_PROXY=true` wymagany przy `APP_ENV` `staging`/`production`, lokalnie wspólny klucz `"unknown"` (Q-IP z primitives rew. 13); reguły bez zmian. (2) API Contracts: `githubLinked` w `AccountDto` dochodzi w etapie B (kolumna `github_user_id`); etap A zwraca `{ id, email, displayName, roles, emailVerified, hasPassword }`. | Decyzja 16 runu E01 etap A, zadanie 3.3 (Natalia) |

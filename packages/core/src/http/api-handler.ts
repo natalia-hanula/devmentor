@@ -1,7 +1,14 @@
 import { isDatabaseUnavailableError } from "@devmentor/db";
 import { z } from "zod";
 import { getLogger } from "../logger";
-import { AppError, ForbiddenError, ServiceUnavailableError, ValidationError, type FieldErrors } from "./errors";
+import {
+  AppError,
+  ConflictError,
+  ForbiddenError,
+  ServiceUnavailableError,
+  ValidationError,
+  type FieldErrors,
+} from "./errors";
 
 /**
  * Koperta odpowiedzi API. To konwencja kształtu, nie współdzielony typ — `@devmentor/ui`
@@ -114,7 +121,8 @@ function errorResponse(caught: unknown, request: Request): Response {
     if (error.status >= 500) {
       logger.error({ err: error, route }, "Błąd infrastruktury w trasie API");
     }
-    const fieldErrors = error instanceof ValidationError ? error.fieldErrors : undefined;
+    const fieldErrors =
+      error instanceof ValidationError || error instanceof ConflictError ? error.fieldErrors : undefined;
     return json(
       { ok: false, error: { code: error.code, message: error.message, ...(fieldErrors && { fieldErrors }) } },
       error.status,

@@ -74,6 +74,24 @@ describe("apiHandler", () => {
     expect(notFoundResponse.status).toBe(404);
     expect(await notFoundResponse.json()).toEqual({ ok: false, error: { code: "NOT_FOUND", message: "Brak" } });
     expect(conflictResponse.status).toBe(409);
+    expect(await conflictResponse.json()).toEqual({
+      ok: false,
+      error: { code: "CONFLICT", message: "Konflikt z istniejącymi danymi" },
+    });
+  });
+
+  it("ConflictError z fieldErrors → 409 z błędem przy polu", async () => {
+    const handler = apiHandler(async () => {
+      throw new ConflictError("Ten e-mail ma już konto", { email: ["Ten e-mail ma już konto"] });
+    });
+
+    const response = await handler(request("GET"), context);
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: { code: "CONFLICT", message: "Ten e-mail ma już konto", fieldErrors: { email: ["Ten e-mail ma już konto"] } },
+    });
   });
 
   it("TooManyRequestsError → 429 z kopertą TOO_MANY_REQUESTS", async () => {

@@ -1,6 +1,7 @@
 import type { EntityManager, MikroORM } from "@devmentor/db";
 import type { Env } from "../config/env";
 import type { Logger } from "../logger";
+import type { AccountService } from "../services/auth/account.service";
 import type { PasswordHasher } from "../services/auth/password-hasher.service";
 import type { SessionTokenService } from "../services/auth/session-token.service";
 import type { UserTokenService } from "../services/auth/user-token.service";
@@ -32,4 +33,5 @@ export interface RequestCradle extends AppCradle {
   databaseHealthService: DatabaseHealthService;
   technologyService: TechnologyService;
   userTokenService: UserTokenService;
+  accountService: AccountService;
 }
