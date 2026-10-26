@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { AUTH_RATE_LIMITS, consumeLoginAttempt, consumeRegisterAttempt, RateLimiter, TooManyRequestsError } from "../src";
+import {
+  AUTH_RATE_LIMITS,
+  consumeLoginAttempt,
+  consumeRegisterAttempt,
+  consumeTokenConfirmAttempt,
+  consumeVerifyResendAttempt,
+  RateLimiter,
+  TooManyRequestsError,
+} from "../src";
 
 const MINUTE_MS = 60 * 1000;
 
@@ -16,6 +24,8 @@ describe("reguły limitera kont", () => {
       loginIp: { limit: 20, windowMs: 15 * MINUTE_MS },
       registerIp: { limit: 5, windowMs: 60 * MINUTE_MS },
       registerEmail: { limit: 3, windowMs: 60 * MINUTE_MS },
+      verifyResendUser: { limit: 3, windowMs: 60 * MINUTE_MS },
+      tokenConfirmIp: { limit: 20, windowMs: 15 * MINUTE_MS },
     });
   });
 
@@ -67,5 +77,25 @@ describe("reguły limitera kont", () => {
 
     now = 60 * MINUTE_MS;
     expect(() => consumeRegisterAttempt(limiter, "203.0.113.4", "ola@example.com")).not.toThrow();
+  });
+
+  it("verify-resend:user — czwarta prośba konta w godzinie → 429, inne konto przechodzi, po godzinie znowu można", () => {
+    let now = 0;
+    const limiter = new RateLimiter(() => now);
+    exhaust(3, () => consumeVerifyResendAttempt(limiter, "konto-a"));
+
+    expect(() => consumeVerifyResendAttempt(limiter, "konto-a")).toThrow(TooManyRequestsError);
+    expect(() => consumeVerifyResendAttempt(limiter, "konto-b")).not.toThrow();
+
+    now = 60 * MINUTE_MS;
+    expect(() => consumeVerifyResendAttempt(limiter, "konto-a")).not.toThrow();
+  });
+
+  it("token-confirm:ip — 21. próba z jednego IP w 15 minut → 429, inne IP przechodzi", () => {
+    const limiter = new RateLimiter(() => 0);
+    exhaust(20, () => consumeTokenConfirmAttempt(limiter, "203.0.113.1"));
+
+    expect(() => consumeTokenConfirmAttempt(limiter, "203.0.113.1")).toThrow(TooManyRequestsError);
+    expect(() => consumeTokenConfirmAttempt(limiter, "203.0.113.2")).not.toThrow();
   });
 });

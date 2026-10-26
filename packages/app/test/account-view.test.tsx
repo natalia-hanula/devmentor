@@ -99,4 +99,77 @@ describe("AccountView (s04)", () => {
     expect(options.signal.aborted).toBe(true);
     expect(router.replace).not.toHaveBeenCalled();
   });
+
+  describe("baner niepotwierdzonego adresu (s04.3, s04.4)", () => {
+    const banner = () => screen.getByRole("region", { name: "Potwierdzenie adresu e-mail" });
+
+    it("niepotwierdzony → baner z „Wyślij ponownie”, bez „Zmień adres” (etap B)", async () => {
+      apiCall.mockResolvedValue({ ok: true, data: ACCOUNT });
+
+      render(<AccountView />);
+
+      await screen.findByText("ola@example.com");
+      expect(banner()).toHaveTextContent("Potwierdź adres e-mail — będzie potrzebny przed pierwszą rezerwacją");
+      expect(screen.getByRole("button", { name: "Wyślij ponownie" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Zmień adres/ })).not.toBeInTheDocument();
+    });
+
+    it("potwierdzony → bez banera", async () => {
+      apiCall.mockResolvedValue({ ok: true, data: { ...ACCOUNT, emailVerified: true } });
+
+      render(<AccountView />);
+
+      await screen.findByText("ola@example.com");
+      expect(screen.queryByRole("region", { name: "Potwierdzenie adresu e-mail" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Wyślij ponownie" })).not.toBeInTheDocument();
+    });
+
+    it("„Wyślij ponownie” → POST resend, „Wysyłanie…” w trakcie, potem potwierdzenie", async () => {
+      let resolveResend!: (value: unknown) => void;
+      apiCall.mockImplementation((path: string) =>
+        path === "/api/auth/me" ? Promise.resolve({ ok: true, data: ACCOUNT }) : new Promise((done) => (resolveResend = done)),
+      );
+      render(<AccountView />);
+      await screen.findByText("ola@example.com");
+
+      await userEvent.click(screen.getByRole("button", { name: "Wyślij ponownie" }));
+      expect(screen.getByRole("button", { name: "Wysyłanie…" })).toBeDisabled();
+      resolveResend({ ok: true, data: null });
+
+      expect(await screen.findByText("Wysłaliśmy nowy link. Sprawdź skrzynkę.")).toHaveAttribute("role", "status");
+      expect(apiCall).toHaveBeenCalledWith("/api/auth/email-verification/resend", { method: "POST" });
+      expect(screen.getByRole("button", { name: "Wyślij ponownie" })).toBeEnabled();
+    });
+
+    it("429 → komunikat z serwera, przycisk znowu aktywny", async () => {
+      apiCall.mockImplementation(async (path: string) =>
+        path === "/api/auth/me"
+          ? { ok: true, data: ACCOUNT }
+          : { ok: false, error: { code: "TOO_MANY_REQUESTS", message: "Za dużo prób. Spróbuj za chwilę." } },
+      );
+      render(<AccountView />);
+      await screen.findByText("ola@example.com");
+
+      await userEvent.click(screen.getByRole("button", { name: "Wyślij ponownie" }));
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("Nie udało się wysłać linku");
+      expect(alert).toHaveTextContent("Za dużo prób. Spróbuj za chwilę.");
+      expect(screen.queryByText("Wysłaliśmy nowy link. Sprawdź skrzynkę.")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Wyślij ponownie" })).toBeEnabled();
+    });
+
+    it("401 przy wysyłce → „Sesja wygasła”, bez komunikatu błędu", async () => {
+      apiCall.mockImplementation(async (path: string) =>
+        path === "/api/auth/me" ? { ok: true, data: ACCOUNT } : { ok: false, error: { code: "UNAUTHORIZED", message: "x" } },
+      );
+      render(<AccountView />);
+      await screen.findByText("ola@example.com");
+
+      await userEvent.click(screen.getByRole("button", { name: "Wyślij ponownie" }));
+
+      await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith("/login?next=%2Faccount&notice=session_expired"));
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
 });

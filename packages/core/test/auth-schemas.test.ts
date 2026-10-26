@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { emailSchema, normalizeEmail } from "../src/validators/auth/email.schema";
 import { loginSchema } from "../src/validators/auth/login.schema";
 import { registerSchema } from "../src/validators/auth/register.schema";
+import { INVALID_LINK_MESSAGE, TOKEN_MAX_LENGTH, tokenConfirmSchema } from "../src/validators/auth/token-confirm.schema";
 
 const VALID = { email: "ola@example.com", password: "dlugie-haslo-123", displayName: "Ola" };
 
@@ -114,5 +115,27 @@ describe("loginSchema", () => {
   it("puste lub brakujące hasło → „Podaj hasło”", () => {
     expect(fieldMessages(loginSchema.safeParse({ email: VALID.email, password: "" }))).toEqual({ password: ["Podaj hasło"] });
     expect(fieldMessages(loginSchema.safeParse({ email: VALID.email }))).toEqual({ password: ["Podaj hasło"] });
+  });
+});
+
+describe("tokenConfirmSchema", () => {
+  it("przyjmuje token i zwraca tylko pole token", () => {
+    const token = "a".repeat(43);
+
+    expect(tokenConfirmSchema.parse({ token, extra: "x" })).toEqual({ token });
+    expect(tokenConfirmSchema.safeParse({ token: "a".repeat(TOKEN_MAX_LENGTH) }).success).toBe(true);
+  });
+
+  it.each([
+    ["brak tokenu", {}],
+    ["token nie jest napisem", { token: 123 }],
+    ["pusty token", { token: "" }],
+    ["za długi token", { token: "a".repeat(TOKEN_MAX_LENGTH + 1) }],
+  ])("%s → jeden komunikat „Link jest nieważny albo wygasł”", (_case, input) => {
+    const result = tokenConfirmSchema.safeParse(input);
+
+    expect(result.success).toBe(false);
+    expect(result.error?.issues.map((issue) => issue.message)).toEqual([INVALID_LINK_MESSAGE]);
+    expect(INVALID_LINK_MESSAGE).toBe("Link jest nieważny albo wygasł");
   });
 });

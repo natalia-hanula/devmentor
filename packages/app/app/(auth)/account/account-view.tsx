@@ -8,6 +8,7 @@ import { Badge } from "@devmentor/ui/components/ui/badge";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { LogoutButton } from "../../_lib/logout-button";
 import { useSessionExpiredRedirect } from "../../_lib/use-session-expired-redirect";
+import { ResendVerification } from "../resend-verification";
 
 /** Pola `AccountDto` z `@devmentor/core`, które pokazuje strona (kopia — kod przeglądarki nie importuje `core`). */
 export interface Account {
@@ -54,9 +55,23 @@ export function AccountView() {
       {result && !result.ok && (
         <ErrorMessage title="Nie udało się wczytać konta" message={result.error.message} onRetry={reload} />
       )}
+      {result?.ok && !result.data.emailVerified && <VerificationBanner />}
       {result?.ok && <AccountDetails account={result.data} />}
       <LogoutButton>Wyloguj</LogoutButton>
     </>
+  );
+}
+
+/** s04.3: niepotwierdzony adres. „Zmień adres” dochodzi w etapie B. Luka DS02 — baner z tokenów, bez `Alert`. */
+function VerificationBanner() {
+  return (
+    <section
+      aria-label="Potwierdzenie adresu e-mail"
+      className="flex flex-col gap-in-group rounded-md border border-border bg-muted px-between-groups py-in-group"
+    >
+      <p className="text-body">Potwierdź adres e-mail — będzie potrzebny przed pierwszą rezerwacją</p>
+      <ResendVerification />
+    </section>
   );
 }
 

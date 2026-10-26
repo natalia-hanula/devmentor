@@ -5,15 +5,26 @@ import {
   USER_ROLES,
   type EntityManager,
 } from "@devmentor/db";
+import type { Env } from "../../config/env";
 import type { Role } from "../../http/auth";
-import { ConflictError, UnauthorizedError } from "../../http/errors";
+import { ConflictError, UnauthorizedError, ValidationError } from "../../http/errors";
+import type { Logger } from "../../logger";
 import { normalizeEmail } from "../../validators/auth/email.schema";
 import type { LoginInput } from "../../validators/auth/login.schema";
 import type { RegisterInput } from "../../validators/auth/register.schema";
+import { INVALID_LINK_MESSAGE } from "../../validators/auth/token-confirm.schema";
+import type { MailGateway } from "../mail/mail.port";
 import type { RateLimiter } from "../rate-limit/rate-limiter.service";
-import { consumeLoginAttempt, consumeRegisterAttempt } from "./auth-rate-limits";
+import { verificationMail } from "./auth-mail";
+import {
+  consumeLoginAttempt,
+  consumeRegisterAttempt,
+  consumeTokenConfirmAttempt,
+  consumeVerifyResendAttempt,
+} from "./auth-rate-limits";
 import type { PasswordHasher } from "./password-hasher.service";
 import type { SessionSubject } from "./session-token.service";
+import { EMAIL_VERIFICATION_TTL_MS, type UserTokenService } from "./user-token.service";
 
 export const EMAIL_TAKEN_MESSAGE = "Ten e-mail ma już konto";
 /** Jeden komunikat dla nieznanego e-maila, złego hasła i konta bez hasła — nie zdradza, który to przypadek. */
@@ -32,6 +43,25 @@ export interface AccountDto {
   hasPassword: boolean;
 }
 
+/**
+ * Wynik potwierdzenia adresu. `email` to adres potwierdzonego konta — strona porównuje go z kontem
+ * zalogowanym, bo link mógł należeć do innego konta (L23).
+ */
+export interface EmailVerificationResult {
+  emailVerified: true;
+  email: string;
+}
+
+export interface AccountServiceDependencies {
+  em: EntityManager;
+  passwordHasher: PasswordHasher;
+  rateLimiter: RateLimiter;
+  userTokenService: UserTokenService;
+  mailGateway: MailGateway;
+  logger: Logger;
+  env: Pick<Env, "APP_BASE_URL">;
+}
+
 /** Konto i dane do podpisania tokenu sesji (trasa ustawia ciasteczko przez `SessionTokenService`). */
 export interface AuthenticatedAccount {
   account: AccountDto;
@@ -42,17 +72,26 @@ export class AccountService {
   private readonly em: EntityManager;
   private readonly passwordHasher: PasswordHasher;
   private readonly rateLimiter: RateLimiter;
+  private readonly userTokenService: UserTokenService;
+  private readonly mailGateway: MailGateway;
+  private readonly logger: Logger;
+  private readonly appBaseUrl: string;
 
-  constructor({ em, passwordHasher, rateLimiter }: { em: EntityManager; passwordHasher: PasswordHasher; rateLimiter: RateLimiter }) {
+  constructor({ em, passwordHasher, rateLimiter, userTokenService, mailGateway, logger, env }: AccountServiceDependencies) {
     this.em = em;
     this.passwordHasher = passwordHasher;
     this.rateLimiter = rateLimiter;
+    this.userTokenService = userTokenService;
+    this.mailGateway = mailGateway;
+    this.logger = logger;
+    this.appBaseUrl = env.APP_BASE_URL;
   }
 
   /**
-   * Zakłada konto z rolą `mentee` (konto i rola w jednym `flush`, czyli jednej transakcji). Zajęty adres
-   * rozpoznaje constraint bazy (także indeks `lower(email)`), nie zapytanie przed zapisem — bez wyścigu.
-   * Wysyłka linku weryfikacyjnego (krok 5 E01) dojdzie po zapisie.
+   * Zakłada konto z rolą `mentee` i tokenem weryfikacji e-maila — wszystko w jednym `flush`, czyli jednej
+   * transakcji: nie powstanie konto bez tokenu (bez linku do czasu ponownej wysyłki) ani token bez konta.
+   * Zajęty adres rozpoznaje constraint bazy (także indeks `lower(email)`), nie zapytanie przed zapisem.
+   * Mail z linkiem wychodzi dopiero po zapisie; jego błąd nie psuje rejestracji (konto i sesja zostają).
    */
   async register(input: RegisterInput, clientIp: string): Promise<AuthenticatedAccount> {
     const email = normalizeEmail(input.email);
@@ -65,6 +104,7 @@ export class AccountService {
       emailVerifiedAt: null,
     });
     this.em.create(UserRole, { user, role: "mentee", grantedBy: null });
+    const rawToken = this.userTokenService.issueForNewUser(user, "email_verification", EMAIL_VERIFICATION_TTL_MS);
     try {
       await this.em.flush();
     } catch (error) {
@@ -73,7 +113,51 @@ export class AccountService {
       }
       throw error;
     }
+    await this.sendVerificationMail(user, rawToken);
     return authenticated(user, ["mentee"]);
+  }
+
+  /**
+   * Nowy link weryfikacyjny dla własnego konta. Limiter liczy każde żądanie. Potwierdzony adres → nic nie
+   * wysyła (odpowiedź jak przy wysyłce). Nowy token zastępuje poprzedni (upsert), więc stary link przestaje działać.
+   */
+  async resendVerification(userId: string): Promise<void> {
+    consumeVerifyResendAttempt(this.rateLimiter, userId);
+
+    const user = await this.em.findOne(User, { id: userId });
+    if (!user) {
+      throw new UnauthorizedError();
+    }
+    if (user.emailVerifiedAt !== null) {
+      return;
+    }
+    const rawToken = await this.userTokenService.issue(user.id, "email_verification", EMAIL_VERIFICATION_TTL_MS);
+    await this.sendVerificationMail(user, rawToken);
+  }
+
+  /**
+   * Potwierdza adres konta, do którego należy token — niezależnie od sesji (L23). Zły, wygasły, zużyty albo
+   * cudzego celu token → jeden komunikat (L14). Zużycie to atomowe `DELETE … RETURNING`, więc link działa
+   * raz; potem usuwamy wszystkie tokeny konta (także ewentualny reset hasła z etapu B).
+   */
+  async verifyEmail(rawToken: string, clientIp: string): Promise<EmailVerificationResult> {
+    consumeTokenConfirmAttempt(this.rateLimiter, clientIp);
+
+    const userId = await this.userTokenService.consume(rawToken, "email_verification");
+    if (userId === null) {
+      throw new ValidationError(INVALID_LINK_MESSAGE);
+    }
+    // Konto usunięte między zużyciem tokenu a odczytem — ten sam komunikat.
+    const user = await this.em.findOne(User, { id: userId });
+    if (!user) {
+      throw new ValidationError(INVALID_LINK_MESSAGE);
+    }
+    if (user.emailVerifiedAt === null) {
+      user.emailVerifiedAt = new Date();
+      await this.em.flush();
+    }
+    await this.userTokenService.deleteAllForUser(user.id);
+    return { emailVerified: true, email: user.email };
   }
 
   /**
@@ -99,6 +183,21 @@ export class AccountService {
       throw new UnauthorizedError();
     }
     return toDto(user, rolesOf(user));
+  }
+
+  /**
+   * Wysyłka po zapisie (port e-mail: nigdy dla wycofanej transakcji). Błąd poczty logujemy bez adresata,
+   * treści i tokenu, a odpowiedź pozostaje sukcesem — nowy link można wysłać z `/account`.
+   */
+  private async sendVerificationMail(user: User, rawToken: string): Promise<void> {
+    try {
+      await this.mailGateway.send(verificationMail({ to: user.email, appBaseUrl: this.appBaseUrl, rawToken }));
+    } catch (error) {
+      this.logger.error(
+        { err: error, userId: user.id, mail: "email_verification" },
+        "Nie udało się wysłać linku weryfikacyjnego",
+      );
+    }
   }
 }
 

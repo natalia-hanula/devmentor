@@ -1,7 +1,7 @@
 import { initOrm, User, type MikroORM } from "@devmentor/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, inject, it } from "vitest";
 import { createAccount, deleteTestAccounts, sessionCookieFor, TEST_EMAIL_PREFIX } from "./support/accounts";
-import { createBrowser, type Browser } from "./support/browser";
+import { createBrowser, waitForHydration, type Browser } from "./support/browser";
 import { uniqueClientIp } from "./support/client-ip";
 
 const baseUrl = inject("baseUrl");
@@ -43,6 +43,7 @@ describe("strony kont w przeglądarce: /register, /login, /account, „Brak dost
   it("rejestracja z formularza → /account z e-mailem i rolą mentee; „Wyloguj” → /login z „Wylogowano”", async () => {
     const email = `${TEST_EMAIL_PREFIX}ui-rejestracja@example.com`;
     await browser.run("open", `${baseUrl}/register`);
+    await waitForHydration(browser, "form");
     await browser.run("find", "label", "Wyświetlana nazwa", "fill", "Ola z testu");
     await browser.run("find", "label", "E-mail", "fill", email);
     await browser.run("find", "label", "Hasło", "fill", PASSWORD);
@@ -69,6 +70,7 @@ describe("strony kont w przeglądarce: /register, /login, /account, „Brak dost
   it("złe hasło → „Nieprawidłowy e-mail lub hasło” i puste pole hasła; poprawne z next=/admin → /admin (operator)", async () => {
     await createAccount(orm.em.fork(), { email: "ui-operator@example.com", roles: ["operator"], password: PASSWORD });
     await browser.run("open", `${baseUrl}/login?next=%2Fadmin`);
+    await waitForHydration(browser, "form");
     await browser.run("find", "label", "E-mail", "fill", `${TEST_EMAIL_PREFIX}ui-operator@example.com`);
     await browser.run("find", "label", "Hasło", "fill", "zle-haslo-12345");
     await browser.run("find", "role", "button", "click", "--name", "Zaloguj się");

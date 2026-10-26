@@ -34,9 +34,18 @@ export {
   EMAIL_TAKEN_MESSAGE,
   INVALID_CREDENTIALS_MESSAGE,
   type AccountDto,
+  type AccountServiceDependencies,
   type AuthenticatedAccount,
+  type EmailVerificationResult,
 } from "./services/auth/account.service";
-export { AUTH_RATE_LIMITS, consumeLoginAttempt, consumeRegisterAttempt } from "./services/auth/auth-rate-limits";
+export { VERIFICATION_MAIL_SUBJECT, VERIFY_EMAIL_PATH, verificationLink, verificationMail } from "./services/auth/auth-mail";
+export {
+  AUTH_RATE_LIMITS,
+  consumeLoginAttempt,
+  consumeRegisterAttempt,
+  consumeTokenConfirmAttempt,
+  consumeVerifyResendAttempt,
+} from "./services/auth/auth-rate-limits";
 export { BCRYPT_COST, DUMMY_PASSWORD_HASH, PasswordHasher } from "./services/auth/password-hasher.service";
 export { SessionTokenService } from "./services/auth/session-token.service";
 export {

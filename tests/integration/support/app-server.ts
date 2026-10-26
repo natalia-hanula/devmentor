@@ -32,6 +32,8 @@ export async function startAppServer(databaseUrl: string): Promise<AppServer> {
       AUTH_JWT_SECRET: TEST_AUTH_JWT_SECRET,
       APP_ENV: TEST_APP_ENV,
       TRUST_PROXY: "true",
+      // Linki w mailach (weryfikacja e-maila) wskazują aplikację testową, więc da się je otworzyć w przeglądarce.
+      APP_BASE_URL: url,
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

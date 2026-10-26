@@ -37,3 +37,16 @@ export function createBrowser(): Browser {
     },
   };
 }
+
+/**
+ * Czeka, aż React podepnie się pod element (hydratacja). `fill` przed hydratacją trafia w HTML z serwera,
+ * a hydratacja potrafi wyczyścić wpisaną wartość albo na chwilę podmienić formularz.
+ */
+export async function waitForHydration(browser: Browser, selector: string): Promise<void> {
+  const target = JSON.stringify(selector);
+  await browser.run(
+    "wait",
+    "--fn",
+    `(() => { const el = document.querySelector(${target}); return !!el && Object.keys(el).some((key) => key.startsWith("__reactFiber")); })()`,
+  );
+}

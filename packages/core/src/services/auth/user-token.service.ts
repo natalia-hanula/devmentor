@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { UserToken, type EntityManager, type USER_TOKEN_PURPOSES } from "@devmentor/db";
+import { UserToken, type EntityManager, type User, type USER_TOKEN_PURPOSES } from "@devmentor/db";
 
 export type UserTokenPurpose = (typeof USER_TOKEN_PURPOSES)[number];
 
@@ -57,6 +57,22 @@ export class UserTokenService {
         onConflictMergeFields: ["tokenHash", "expiresAt", "updatedAt"],
       },
     );
+    return rawToken;
+  }
+
+  /**
+   * Token dla konta zakładanego w tej samej jednostce pracy: zapisuje go najbliższy `em.flush()` razem z kontem
+   * (jedna transakcja — konto bez tokenu albo token bez konta nie powstaną). Zwykły INSERT zamiast upsertu,
+   * bo nowe konto nie ma jeszcze żadnych tokenów. Zwraca surowy token (do linku).
+   */
+  issueForNewUser(user: User, purpose: UserTokenPurpose, ttlMs: number): string {
+    const rawToken = generateRawToken();
+    this.em.create(UserToken, {
+      user,
+      purpose,
+      tokenHash: hashToken(rawToken),
+      expiresAt: new Date(this.now() + ttlMs),
+    });
     return rawToken;
   }
 

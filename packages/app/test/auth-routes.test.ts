@@ -4,8 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AccountService,
   ConflictError,
+  createLogger,
   RateLimiter,
   SessionTokenService,
+  UserTokenService,
+  ValidationError,
   type PasswordHasher,
   type RequestCradle,
 } from "@devmentor/core";
@@ -21,15 +24,22 @@ const ACCOUNT = {
 const SESSION = { id: ACCOUNT.id, sessionVersion: 1 };
 const PASSWORD = "Sekretne-Haslo-Testowe-123";
 
+type ServiceMethod = "register" | "login" | "me" | "resendVerification" | "verifyEmail";
+
+function freshService(): Pick<AccountService, ServiceMethod> {
+  const service = { register: vi.fn(), login: vi.fn(), me: vi.fn(), resendVerification: vi.fn(), verifyEmail: vi.fn() };
+  return service as unknown as Pick<AccountService, ServiceMethod>;
+}
+
 const cradle: {
   env: { TRUST_PROXY: boolean };
   sessionTokenService: SessionTokenService;
-  accountService: Pick<AccountService, "register" | "login" | "me">;
+  accountService: Pick<AccountService, ServiceMethod>;
 } = {
   env: { TRUST_PROXY: true },
   // `production` — ciasteczko z flagą Secure, jak na wdrożeniu.
   sessionTokenService: new SessionTokenService({ env: { AUTH_JWT_SECRET: "s".repeat(32), APP_ENV: "production" } }),
-  accountService: { register: vi.fn(), login: vi.fn(), me: vi.fn() },
+  accountService: freshService(),
 };
 
 const logLines = vi.hoisted((): string[] => []);
@@ -50,6 +60,8 @@ const register = await import("../app/api/auth/register/route");
 const login = await import("../app/api/auth/login/route");
 const logout = await import("../app/api/auth/logout/route");
 const me = await import("../app/api/auth/me/route");
+const resend = await import("../app/api/auth/email-verification/resend/route");
+const confirm = await import("../app/api/auth/email-verification/confirm/route");
 
 const context = { params: Promise.resolve({}) };
 
@@ -62,12 +74,12 @@ function post(path: string, body?: unknown, headers: Record<string, string> = {}
 }
 
 function mocks() {
-  return cradle.accountService as Record<"register" | "login" | "me", ReturnType<typeof vi.fn>>;
+  return cradle.accountService as Record<ServiceMethod, ReturnType<typeof vi.fn>>;
 }
 
 beforeEach(() => {
   cradle.env.TRUST_PROXY = true;
-  cradle.accountService = { register: vi.fn(), login: vi.fn(), me: vi.fn() };
+  cradle.accountService = freshService();
   getSession.mockReset();
   getSession.mockResolvedValue(null);
   logLines.length = 0;
@@ -200,7 +212,15 @@ describe("POST /api/auth/login", () => {
   it("prawdziwy AccountService: ogólny 401 dla nieznanego konta, a szósta próba z tego IP → 429; hasło nie w logach", async () => {
     const em = { findOne: vi.fn(async () => null) } as unknown as RequestCradle["em"];
     const passwordHasher = { verify: vi.fn(async () => false) } as unknown as PasswordHasher;
-    cradle.accountService = new AccountService({ em, passwordHasher, rateLimiter: new RateLimiter() });
+    cradle.accountService = new AccountService({
+      em,
+      passwordHasher,
+      rateLimiter: new RateLimiter(),
+      userTokenService: new UserTokenService({ em }),
+      mailGateway: { send: vi.fn() },
+      logger: createLogger({ level: "silent" }),
+      env: { APP_BASE_URL: "http://localhost:3000" },
+    });
     const attempt = () => login.POST(post("/api/auth/login", VALID, { "x-forwarded-for": "203.0.113.20" }), context);
 
     for (let i = 0; i < 5; i += 1) {
@@ -257,5 +277,142 @@ describe("GET /api/auth/me", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, data: ACCOUNT });
     expect(mocks().me).toHaveBeenCalledWith(ACCOUNT.id);
+  });
+});
+
+describe("POST /api/auth/email-verification/resend", () => {
+  it("bez nagłówka CSRF → 403, serwis nie jest wołany", async () => {
+    getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: false });
+
+    const response = await resend.POST(
+      new Request("http://localhost/api/auth/email-verification/resend", { method: "POST" }),
+      context,
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks().resendVerification).not.toHaveBeenCalled();
+  });
+
+  it("bez sesji → 401", async () => {
+    const response = await resend.POST(post("/api/auth/email-verification/resend"), context);
+
+    expect(response.status).toBe(401);
+    expect(mocks().resendVerification).not.toHaveBeenCalled();
+  });
+
+  it("z sesją → 200 z data: null; konto z sesji, nie z żądania", async () => {
+    getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: false });
+    mocks().resendVerification.mockResolvedValue(undefined);
+
+    const response = await resend.POST(post("/api/auth/email-verification/resend", { userId: "inne-konto" }), context);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, data: null });
+    expect(mocks().resendVerification).toHaveBeenCalledWith(ACCOUNT.id);
+  });
+
+  it("prawdziwy AccountService: czwarta prośba w godzinie → 429", async () => {
+    getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: true });
+    const em = { findOne: vi.fn(async () => ({ id: ACCOUNT.id, email: ACCOUNT.email, emailVerifiedAt: new Date() })) };
+    cradle.accountService = new AccountService({
+      em: em as unknown as RequestCradle["em"],
+      passwordHasher: {} as PasswordHasher,
+      rateLimiter: new RateLimiter(),
+      userTokenService: new UserTokenService({ em: em as unknown as RequestCradle["em"] }),
+      mailGateway: { send: vi.fn() },
+      logger: createLogger({ level: "silent" }),
+      env: { APP_BASE_URL: "http://localhost:3000" },
+    });
+
+    for (let i = 0; i < 3; i += 1) {
+      expect((await resend.POST(post("/api/auth/email-verification/resend"), context)).status).toBe(200);
+    }
+    const limited = await resend.POST(post("/api/auth/email-verification/resend"), context);
+
+    expect(limited.status).toBe(429);
+    expect((await limited.json()).error.code).toBe("TOO_MANY_REQUESTS");
+  });
+});
+
+describe("POST /api/auth/email-verification/confirm", () => {
+  const TOKEN = "surowy-token-z-linku-1234567890";
+
+  it("bez nagłówka CSRF → 403", async () => {
+    const response = await confirm.POST(
+      new Request("http://localhost/api/auth/email-verification/confirm", { method: "POST", body: JSON.stringify({ token: TOKEN }) }),
+      context,
+    );
+
+    expect(response.status).toBe(403);
+    expect(mocks().verifyEmail).not.toHaveBeenCalled();
+  });
+
+  it("pusty token → 400 przy polu token, serwis nie jest wołany", async () => {
+    const response = await confirm.POST(post("/api/auth/email-verification/confirm", { token: "" }), context);
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body.error.fieldErrors).toEqual({ token: ["Link jest nieważny albo wygasł"] });
+    expect(mocks().verifyEmail).not.toHaveBeenCalled();
+  });
+
+  it("publiczna: 200 { emailVerified, email } bez sesji; IP z zaufanego proxy; sesja nie jest czytana ani zmieniana", async () => {
+    mocks().verifyEmail.mockResolvedValue({ emailVerified: true, email: "b@example.com" });
+
+    const response = await confirm.POST(
+      post("/api/auth/email-verification/confirm", { token: TOKEN }, { "x-forwarded-for": "203.0.113.30" }),
+      context,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, data: { emailVerified: true, email: "b@example.com" } });
+    expect(mocks().verifyEmail).toHaveBeenCalledWith(TOKEN, "203.0.113.30");
+    expect(getSession).not.toHaveBeenCalled();
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("nieważny link → 400 „Link jest nieważny albo wygasł”", async () => {
+    mocks().verifyEmail.mockRejectedValue(new ValidationError("Link jest nieważny albo wygasł"));
+
+    const response = await confirm.POST(post("/api/auth/email-verification/confirm", { token: TOKEN }), context);
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toEqual({ code: "VALIDATION_ERROR", message: "Link jest nieważny albo wygasł" });
+  });
+
+  it("prawdziwy AccountService: 21. próba z jednego IP → 429", async () => {
+    const em = { createQueryBuilder: vi.fn(), execute: vi.fn(async () => []) };
+    const nativeQuery = { returning: vi.fn(() => nativeQuery) };
+    const qb = { delete: vi.fn(() => qb), getNativeQuery: vi.fn(() => nativeQuery) };
+    em.createQueryBuilder.mockReturnValue(qb);
+    cradle.accountService = new AccountService({
+      em: em as unknown as RequestCradle["em"],
+      passwordHasher: {} as PasswordHasher,
+      rateLimiter: new RateLimiter(),
+      userTokenService: new UserTokenService({ em: em as unknown as RequestCradle["em"] }),
+      mailGateway: { send: vi.fn() },
+      logger: createLogger({ level: "silent" }),
+      env: { APP_BASE_URL: "http://localhost:3000" },
+    });
+    const attempt = () =>
+      confirm.POST(post("/api/auth/email-verification/confirm", { token: TOKEN }, { "x-forwarded-for": "203.0.113.31" }), context);
+
+    for (let i = 0; i < 20; i += 1) {
+      expect((await attempt()).status).toBe(400);
+    }
+    const limited = await attempt();
+
+    expect(limited.status).toBe(429);
+  });
+
+  it("nieoczekiwany błąd → 500; log ma tylko ścieżkę, bez tokenu", async () => {
+    mocks().verifyEmail.mockRejectedValue(new Error("awaria"));
+
+    const response = await confirm.POST(post("/api/auth/email-verification/confirm", { token: TOKEN }), context);
+
+    expect(response.status).toBe(500);
+    const logs = logLines.join("");
+    expect(logs).toContain("POST /api/auth/email-verification/confirm");
+    expect(logs).not.toContain(TOKEN);
   });
 });

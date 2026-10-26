@@ -13,6 +13,8 @@ export const AUTH_RATE_LIMITS = {
   loginIp: { limit: 20, windowMs: FIFTEEN_MINUTES_MS },
   registerIp: { limit: 5, windowMs: ONE_HOUR_MS },
   registerEmail: { limit: 3, windowMs: ONE_HOUR_MS },
+  verifyResendUser: { limit: 3, windowMs: ONE_HOUR_MS },
+  tokenConfirmIp: { limit: 20, windowMs: FIFTEEN_MINUTES_MS },
 } as const satisfies Record<string, RateLimitRule>;
 
 // Spacja rozdziela IP i e-mail: nie występuje w adresie po walidacji ani w przyciętym wpisie `x-forwarded-for`.
@@ -27,4 +29,14 @@ export function consumeLoginAttempt(rateLimiter: RateLimiter, ip: string, email:
 export function consumeRegisterAttempt(rateLimiter: RateLimiter, ip: string, email: string): void {
   rateLimiter.consume(`register:ip:${ip}`, AUTH_RATE_LIMITS.registerIp);
   rateLimiter.consume(`register:email:${email}`, AUTH_RATE_LIMITS.registerEmail);
+}
+
+/** Ponowna wysyłka linku weryfikacyjnego — klucz to konto z sesji, więc limit nie zależy od IP. */
+export function consumeVerifyResendAttempt(rateLimiter: RateLimiter, userId: string): void {
+  rateLimiter.consume(`verify-resend:user:${userId}`, AUTH_RATE_LIMITS.verifyResendUser);
+}
+
+/** Każda próba użycia tokenu z linku (weryfikacja; później reset hasła i zaproszenie) — ogranicza zgadywanie. */
+export function consumeTokenConfirmAttempt(rateLimiter: RateLimiter, ip: string): void {
+  rateLimiter.consume(`token-confirm:ip:${ip}`, AUTH_RATE_LIMITS.tokenConfirmIp);
 }

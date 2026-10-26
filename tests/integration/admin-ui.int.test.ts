@@ -1,7 +1,8 @@
 import { initOrm, type MikroORM } from "@devmentor/db";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
-import { createAccount, deleteTestAccounts, sessionCookieFor } from "./support/accounts";
+import { createAccount, deleteTestAccounts, sessionCookieFor, TEST_EMAIL_PREFIX } from "./support/accounts";
 import { createBrowser, type Browser } from "./support/browser";
+import { uniqueClientIp } from "./support/client-ip";
 
 const baseUrl = inject("baseUrl");
 const SEEDED_TECHNOLOGIES = 8;
@@ -54,13 +55,23 @@ describe("panel admina w przeglądarce (agent-browser)", () => {
     expect(Number(await browser.run("get", "count", "tbody tr"))).toBe(SEEDED_TECHNOLOGIES);
   });
 
-  it("/admin/outbox pokazuje tytuł, adnotację i pustą skrzynkę, a nawigacja ma pozycję „Skrzynka”", async () => {
+  // Skrzynka jest wspólna dla całego przebiegu (rejestracje z innych plików wysyłają linki weryfikacyjne),
+  // więc test nie zakłada pustej skrzynki — sam wysyła wiadomość i jej szuka. Pusty stan sprawdzają testy jednostkowe.
+  it("/admin/outbox pokazuje tytuł, adnotację i wiadomość z linkiem weryfikacyjnym, a nawigacja ma pozycję „Skrzynka”", async () => {
+    const email = `${TEST_EMAIL_PREFIX}panel-ui-skrzynka-${Date.now()}@example.com`;
+    const registered = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-devmentor-request": "1", ...uniqueClientIp() },
+      body: JSON.stringify({ email, password: "integracyjne-haslo-123", displayName: "Skrzynka" }),
+    });
+    expect(registered.status).toBe(201);
+
     await browser.run("open", `${baseUrl}/admin/outbox`);
-    await browser.run("wait", "--text", "Brak wiadomości");
+    await browser.run("wait", "--text", email);
 
     expect(await browser.run("get", "text", "h1")).toBe("Skrzynka");
     expect(await browser.run("get", "text", "main")).toContain("Skrzynka deweloperska — wiadomości nie są wysyłane");
-    expect(await browser.run("get", "text", "main")).toContain("Skrzynka czyści się po restarcie serwera.");
+    expect(await browser.run("get", "text", "tbody tr:first-child")).toContain("Potwierdź adres e-mail");
     expect(Number(await browser.run("get", "count", "nav a[href='/admin/outbox']"))).toBe(1);
   });
 });

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { UserToken } from "@devmentor/db";
+import { UserToken, type User } from "@devmentor/db";
 import { describe, expect, it } from "vitest";
 import { EMAIL_VERIFICATION_TTL_MS, generateRawToken, hashToken, UserTokenService } from "../src";
 import { createFakeEntityManager, createFakeQueryBuilder } from "./fake-entity-manager";
@@ -101,5 +101,23 @@ describe("UserTokenService", () => {
     await new UserTokenService({ em }).deleteAllForUser(USER_ID);
 
     expect(fake.nativeDelete).toHaveBeenCalledWith(UserToken, { user: USER_ID });
+  });
+
+  it("issueForNewUser dokłada token do jednostki pracy (zapisze go flush razem z kontem) — bez upsertu i bez flush", () => {
+    const { fake, em } = createFakeEntityManager();
+    const user = { id: USER_ID } as unknown as User;
+
+    const raw = new UserTokenService({ em }, clock).issueForNewUser(user, "email_verification", EMAIL_VERIFICATION_TTL_MS);
+
+    expect(raw).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(fake.create).toHaveBeenCalledWith(UserToken, {
+      user,
+      purpose: "email_verification",
+      tokenHash: hashToken(raw),
+      expiresAt: new Date(NOW + EMAIL_VERIFICATION_TTL_MS),
+    });
+    expect(JSON.stringify(fake.create.mock.calls)).not.toContain(raw);
+    expect(fake.upsert).not.toHaveBeenCalled();
+    expect(fake.flush).not.toHaveBeenCalled();
   });
 });
