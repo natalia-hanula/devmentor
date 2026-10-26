@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const em = { forked: true };
-const orm = { em: { fork: vi.fn(() => em) } };
+const orm = { em: { fork: vi.fn(() => em) }, close: vi.fn(async () => undefined) };
 const initOrm = vi.fn();
 
 vi.mock("@devmentor/db", async (importOriginal) => ({
@@ -11,6 +11,7 @@ vi.mock("@devmentor/db", async (importOriginal) => ({
 
 const {
   AccountService,
+  closeContainer,
   DatabaseHealthService,
   getContainer,
   NoopMailAdapter,
@@ -31,6 +32,7 @@ describe("getContainer / withScope", () => {
   beforeEach(() => {
     resetContainer();
     initOrm.mockReset();
+    orm.close.mockClear();
     vi.stubEnv("DATABASE_URL", "postgresql://u:p@localhost:5432/db");
     vi.stubEnv("AUTH_JWT_SECRET", "s".repeat(32));
     // Bez APP_ENV obowiązuje production, która wymaga TRUST_PROXY=true.
@@ -130,6 +132,27 @@ describe("getContainer / withScope", () => {
         throw new Error("błąd w serwisie");
       }),
     ).rejects.toThrow("błąd w serwisie");
+  });
+
+  it("closeContainer zamyka pulę ORM i zapomina kontener — kolejne getContainer tworzy nowy", async () => {
+    initOrm.mockResolvedValue(orm);
+    const first = await getContainer();
+
+    await closeContainer();
+
+    expect(orm.close).toHaveBeenCalledExactlyOnceWith(true);
+    expect(await getContainer()).not.toBe(first);
+    expect(initOrm).toHaveBeenCalledTimes(2);
+  });
+
+  it("closeContainer bez kontenera albo po nieudanym starcie nic nie zamyka i nie rzuca", async () => {
+    await expect(closeContainer()).resolves.toBeUndefined();
+
+    initOrm.mockRejectedValueOnce(new Error("bad config"));
+    const failed = getContainer();
+    await expect(closeContainer()).resolves.toBeUndefined();
+    await expect(failed).rejects.toBeInstanceOf(ServiceUnavailableError);
+    expect(orm.close).not.toHaveBeenCalled();
   });
 
   it("zamienia błąd inicjalizacji ORM na ServiceUnavailableError i pozwala spróbować ponownie", async () => {

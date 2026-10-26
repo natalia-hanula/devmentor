@@ -1,8 +1,9 @@
 export { parseEnv, type Env } from "./config/env";
 export { createLogger, getLogger, LOG_REDACT_PATHS, type Logger } from "./logger";
-export { createAppContainer, getContainer, withScope } from "./container/container";
+export { closeContainer, createAppContainer, getContainer, withScope } from "./container/container";
 export type { AppCradle, RequestCradle } from "./container/cradle";
 export * from "./http/errors";
+export { isDatabaseUnavailableError } from "@devmentor/db";
 export {
   apiHandler,
   withCookies,
@@ -37,6 +38,7 @@ export {
   type AccountServiceDependencies,
   type AuthenticatedAccount,
   type EmailVerificationResult,
+  type OperatorInput,
 } from "./services/auth/account.service";
 export { VERIFICATION_MAIL_SUBJECT, VERIFY_EMAIL_PATH, verificationLink, verificationMail } from "./services/auth/auth-mail";
 export {

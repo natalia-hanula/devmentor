@@ -7,11 +7,12 @@
   ],
   "scripts": {
     "setup": "node --experimental-strip-types scripts/setup.ts",
+    "operator:create": "tsx --env-file-if-exists=.env scripts/create-operator.ts",
     "dev": "npm run dev -w @devmentor/app",
     "build": "npm run build -w @devmentor/app",
     "start": "npm run start -w @devmentor/app",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit && tsc -p scripts && npm run typecheck --workspaces --if-present",
+    "typecheck": "tsc --noEmit && tsc -p scripts && tsc -p scripts/tsconfig.operator.json && npm run typecheck --workspaces --if-present",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "db:up": "docker compose up -d --wait",
@@ -38,6 +39,7 @@
     "jsdom": "^30.1.3",
     "pg": "^8.23.1",
     "testcontainers": "^12.2.1",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.5"
   },

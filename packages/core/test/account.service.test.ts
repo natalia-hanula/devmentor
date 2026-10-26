@@ -210,6 +210,92 @@ describe("AccountService.register", () => {
   });
 });
 
+describe("AccountService.createOperator", () => {
+  const OPERATOR = { email: "  Admin@Example.COM ", displayName: "  Operatorka ", password: "dlugie-haslo-operatora" };
+
+  it("zakłada konto tylko z rolą operator, z potwierdzonym adresem i hashem — bez tokenów, maila i limitera", async () => {
+    const { fake, service, passwordHasher, mailGateway, rateLimiter } = setup();
+    const consume = vi.spyOn(rateLimiter, "consume");
+    const before = Date.now();
+
+    const account = await service.createOperator(OPERATOR);
+
+    expect(passwordHasher.hash).toHaveBeenCalledWith("dlugie-haslo-operatora");
+    expect(fake.create).toHaveBeenCalledTimes(2);
+    expect(fake.create).toHaveBeenNthCalledWith(1, User, {
+      email: "admin@example.com",
+      displayName: "Operatorka",
+      passwordHash: PASSWORD_HASH,
+      emailVerifiedAt: expect.any(Date),
+    });
+    const user = fake.create.mock.results[0]?.value as { emailVerifiedAt: Date };
+    expect(user.emailVerifiedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(fake.create).toHaveBeenNthCalledWith(2, UserRole, { user, role: "operator", grantedBy: null });
+    expect(fake.create).not.toHaveBeenCalledWith(UserToken, expect.anything());
+    expect(fake.flush).toHaveBeenCalledOnce();
+    expect(mailGateway.send).not.toHaveBeenCalled();
+    expect(consume).not.toHaveBeenCalled();
+    expect(account).toEqual({
+      id: ID,
+      email: "admin@example.com",
+      displayName: "Operatorka",
+      roles: ["operator"],
+      emailVerified: true,
+      hasPassword: true,
+    });
+    expect(JSON.stringify(account)).not.toContain(PASSWORD_HASH);
+  });
+
+  it("waliduje wejście schematem rejestracji — błędy przy polach, nic nie zapisuje ani nie hashuje", async () => {
+    const { fake, service, passwordHasher } = setup();
+
+    const error = await service
+      .createOperator({ email: "to-nie-email", displayName: "   ", password: "krotkie" })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error).toMatchObject({
+      fieldErrors: {
+        email: ["Podaj poprawny adres e-mail, np. ola@example.com"],
+        password: ["Hasło musi mieć co najmniej 12 znaków"],
+        displayName: ["Podaj wyświetlaną nazwę"],
+      },
+    });
+    expect(JSON.stringify(error)).not.toContain("krotkie");
+    expect(passwordHasher.hash).not.toHaveBeenCalled();
+    expect(fake.create).not.toHaveBeenCalled();
+    expect(fake.flush).not.toHaveBeenCalled();
+  });
+
+  it("odrzuca hasło dłuższe niż 72 bajty (limit bcrypt)", async () => {
+    const { service } = setup();
+
+    await expect(service.createOperator({ ...OPERATOR, password: "ą".repeat(37) })).rejects.toMatchObject({
+      fieldErrors: { password: [expect.stringContaining("Hasło jest za długie")] },
+    });
+  });
+
+  it("zajęty e-mail → 409 z constraintu (bez zapytania wcześniej)", async () => {
+    const { fake, service } = setup();
+    fake.flush.mockRejectedValue(new UniqueConstraintViolationException(new Error("duplicate key users_email_lower_unique")));
+
+    const error = await service.createOperator(OPERATOR).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ConflictError);
+    expect(error).toMatchObject({ message: "Ten e-mail ma już konto", fieldErrors: { email: ["Ten e-mail ma już konto"] } });
+    expect(fake.findOne).not.toHaveBeenCalled();
+    expect(fake.find).not.toHaveBeenCalled();
+  });
+
+  it("inne błędy zapisu lecą dalej bez zmian", async () => {
+    const { fake, service } = setup();
+    const failure = new Error("connect ECONNREFUSED");
+    fake.flush.mockRejectedValue(failure);
+
+    await expect(service.createOperator(OPERATOR)).rejects.toBe(failure);
+  });
+});
+
 describe("AccountService.resendVerification", () => {
   it("niepotwierdzony adres → nowy token upsertem (stary przestaje działać) i mail z nowym linkiem", async () => {
     const { fake, service, mailGateway } = setup();

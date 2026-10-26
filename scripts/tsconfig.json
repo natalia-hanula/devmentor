@@ -8,5 +8,7 @@
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts"],
+  // CLI operatora (`tsx`, importuje `@devmentor/core`) ma osobną konfigurację: `tsconfig.operator.json`.
+  "exclude": ["create-operator.ts", "operator/**", "test/operator/**"]
 }

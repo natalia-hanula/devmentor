@@ -15,6 +15,8 @@ export default defineConfig({
         "packages/app/proxy.ts",
         "scripts/setup.ts",
         "scripts/setup/**/*.ts",
+        "scripts/create-operator.ts",
+        "scripts/operator/**/*.ts",
       ],
       exclude: ["**/*.d.ts", "**/*.config.{ts,mts}", "packages/db/migrations/**"],
       thresholds: { 100: true, perFile: true },

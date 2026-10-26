@@ -41,6 +41,7 @@ Chronione powierzchnie kontraktu tego repozytorium i to, jak je zmieniać. Skill
 
 ### 8. Skrypty `npm` i CI (`package.json`, `.github/workflows/ci.yml`, `.ai/agentic.config.json`)
 - Skrypty `lint`, `typecheck`, `test`, `build`, `test:integration`, `db:*` są używane przez CI, dokumentację i bramkę walidacji agentów.
+- `operator:create` (E01) — jedyna droga założenia konta operatora; interaktywny, bez argumentów (dowolny argument → kod 1; `--reset-password` zarezerwowany na etap B). Uruchamiany przez `tsx` (devDependency w głównym `package.json`); podpowiedź wypisuje `npm run setup`, a README go opisuje. `typecheck` sprawdza go osobną konfiguracją `scripts/tsconfig.operator.json`.
 - **Łamiące:** zmiana nazwy lub usunięcie skryptu, obniżenie progu pokrycia, usunięcie zadania CI.
 - **Ścieżka:** zaktualizuj w jednym PR-ze `package.json`, `ci.yml`, `validation.commands` w `.ai/agentic.config.json`, sekcję „Validation gate” w `SDLC.md` i `AGENTS.md`. Obniżenie progów wymaga zgody człowieka.
 

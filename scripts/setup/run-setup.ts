@@ -21,6 +21,8 @@ export async function runSetup(system: SetupSystem, steps: readonly SetupStep[])
     }
     system.write("");
     system.write("Gotowe. Uruchom aplikację: npm run dev");
+    // Instalator jest nieinteraktywny — konta operatora nie zakłada, tylko podpowiada (spec E01 → „CLI”).
+    system.write("Konto operatora: npm run operator:create");
     return 0;
   } finally {
     await closeClient(context);

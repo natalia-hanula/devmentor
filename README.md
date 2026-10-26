@@ -47,7 +47,7 @@ npm run setup
 npm run dev
 ```
 
-Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje, tylko dopisuje brakujące `AUTH_JWT_SECRET` (losowy, 48 bajtów) i `APP_ENV=local`. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
+Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje, tylko dopisuje brakujące `AUTH_JWT_SECRET` (losowy, 48 bajtów) i `APP_ENV=local`. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Konta operatora nie zakłada — na końcu przypomina o `npm run operator:create` (krok 5). Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
 
 > Na Node 22 instalator wypisuje ostrzeżenie `ExperimentalWarning` o type stripping. To jest oczekiwane.
 
@@ -107,6 +107,14 @@ npm run dev
 
 Aplikacja będzie dostępna pod adresem [http://localhost:3000](http://localhost:3000), panel admina (ze stanem połączenia z bazą) pod [http://localhost:3000/admin](http://localhost:3000/admin), a słownik technologii pod [http://localhost:3000/admin/technologies](http://localhost:3000/admin/technologies). Zapisy wymagają zalogowania, a auth nie jest jeszcze wdrożone, więc na razie serwer odpowiada na nie 401.
 
+#### 5. Konto operatora
+
+```bash
+npm run operator:create
+```
+
+Skrypt pyta o e-mail, wyświetlaną nazwę i hasło (min. 12 znaków; hasło wpisujesz bez echa i dwa razy). Hasła nie podaje się jako argumentu, żeby nie trafiło do historii powłoki. Konto dostaje wyłącznie rolę `operator` i od razu potwierdzony adres. Zapomniane hasło operatora: w wersji 1.0 załóż nowe konto operatora tym samym skryptem (reset hasła przez CLI wejdzie w etapie B). Instalator `npm run setup` tylko o tym przypomina — konta nie zakłada.
+
 ## Dostępne skrypty
 
 Uruchamiane z katalogu głównego:
@@ -126,6 +134,7 @@ Uruchamiane z katalogu głównego:
 | `npm run db:migrate`                  | Wykonanie oczekujących migracji                             |
 | `npm run db:migration:create`         | Nowa migracja na podstawie zmian w encjach                  |
 | `npm run db:migration:list`           | Lista wykonanych migracji                                   |
+| `npm run operator:create`             | Konto operatora (interaktywnie, hasło bez echa)             |
 
 
 ## Testy i CI

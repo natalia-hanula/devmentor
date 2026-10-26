@@ -57,6 +57,21 @@ export function getContainer(): Promise<AwilixContainer<AppCradle>> {
   return globalForContainer.__devmentorContainer;
 }
 
+/**
+ * Zamyka pulę połączeń ORM i zapomina kontener — dla procesów krótkich (skrypty CLI), które muszą się
+ * zakończyć. Aplikacja Next tego nie woła: kontener żyje tyle co proces. Kontener, który nie powstał,
+ * nie ma puli do zamknięcia (jego błąd zgłosiło już `getContainer`).
+ */
+export async function closeContainer(): Promise<void> {
+  const pending = globalForContainer.__devmentorContainer;
+  globalForContainer.__devmentorContainer = undefined;
+  if (!pending) {
+    return;
+  }
+  const container = await pending.catch(() => null);
+  await container?.cradle.orm.close(true);
+}
+
 /** Rejestracja zależności żądania — każdy serwis jawnie, bez skanowania folderów. */
 function registerRequestDependencies(scope: AwilixContainer<RequestCradle>, orm: AppCradle["orm"]): void {
   scope.register({

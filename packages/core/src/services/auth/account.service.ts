@@ -7,11 +7,12 @@ import {
 } from "@devmentor/db";
 import type { Env } from "../../config/env";
 import type { Role } from "../../http/auth";
+import { parseInput } from "../../http/api-handler";
 import { ConflictError, UnauthorizedError, ValidationError } from "../../http/errors";
 import type { Logger } from "../../logger";
 import { normalizeEmail } from "../../validators/auth/email.schema";
 import type { LoginInput } from "../../validators/auth/login.schema";
-import type { RegisterInput } from "../../validators/auth/register.schema";
+import { registerSchema, type RegisterInput } from "../../validators/auth/register.schema";
 import { INVALID_LINK_MESSAGE } from "../../validators/auth/token-confirm.schema";
 import type { MailGateway } from "../mail/mail.port";
 import type { RateLimiter } from "../rate-limit/rate-limiter.service";
@@ -62,6 +63,9 @@ export interface AccountServiceDependencies {
   env: Pick<Env, "APP_BASE_URL">;
 }
 
+/** Dane konta operatora z CLI — surowe, serwis waliduje je tymi samymi regułami co rejestrację. */
+export type OperatorInput = Pick<RegisterInput, "email" | "displayName" | "password">;
+
 /** Konto i dane do podpisania tokenu sesji (trasa ustawia ciasteczko przez `SessionTokenService`). */
 export interface AuthenticatedAccount {
   account: AccountDto;
@@ -105,16 +109,29 @@ export class AccountService {
     });
     this.em.create(UserRole, { user, role: "mentee", grantedBy: null });
     const rawToken = this.userTokenService.issueForNewUser(user, "email_verification", EMAIL_VERIFICATION_TTL_MS);
-    try {
-      await this.em.flush();
-    } catch (error) {
-      if (error instanceof UniqueConstraintViolationException) {
-        throw new ConflictError(EMAIL_TAKEN_MESSAGE, { email: [EMAIL_TAKEN_MESSAGE] });
-      }
-      throw error;
-    }
+    await this.flushNewAccount();
     await this.sendVerificationMail(user, rawToken);
     return authenticated(user, ["mentee"]);
+  }
+
+  /**
+   * Konto operatora — wyłącznie z CLI (`npm run operator:create`), więc bez limitera, maila i tokenów.
+   * Wejście nie przeszło przez walidator trasy, dlatego serwis parsuje je schematem rejestracji
+   * (normalizacja e-maila, długość hasła, nazwa). Rola tylko `operator` (Q17), adres od razu potwierdzony.
+   * Zajęty adres rozpoznaje constraint bazy, nie zapytanie przed zapisem.
+   */
+  async createOperator(input: OperatorInput): Promise<AccountDto> {
+    const { email, displayName, password } = parseInput(registerSchema, input);
+
+    const user = this.em.create(User, {
+      email,
+      displayName,
+      passwordHash: await this.passwordHasher.hash(password),
+      emailVerifiedAt: new Date(),
+    });
+    this.em.create(UserRole, { user, role: "operator", grantedBy: null });
+    await this.flushNewAccount();
+    return toDto(user, ["operator"]);
   }
 
   /**
@@ -183,6 +200,18 @@ export class AccountService {
       throw new UnauthorizedError();
     }
     return toDto(user, rolesOf(user));
+  }
+
+  /** Zapis nowego konta; naruszenie unikalności e-maila (constraint, także `lower(email)`) → 409 przy polu `email`. */
+  private async flushNewAccount(): Promise<void> {
+    try {
+      await this.em.flush();
+    } catch (error) {
+      if (error instanceof UniqueConstraintViolationException) {
+        throw new ConflictError(EMAIL_TAKEN_MESSAGE, { email: [EMAIL_TAKEN_MESSAGE] });
+      }
+      throw error;
+    }
   }
 
   /**
