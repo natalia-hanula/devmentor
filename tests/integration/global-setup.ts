@@ -6,6 +6,7 @@ declare module "vitest" {
   export interface ProvidedContext {
     baseUrl: string;
     databaseUrl: string;
+    appLogPath: string;
   }
 }
 
@@ -17,6 +18,7 @@ export default async function setup(project: TestProject) {
     const app = await startAppServer(database.url);
     project.provide("baseUrl", app.url);
     project.provide("databaseUrl", database.url);
+    project.provide("appLogPath", app.logPath);
 
     return async () => {
       await app.stop();

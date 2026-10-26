@@ -1,5 +1,15 @@
-import { PasswordHasher, SESSION_COOKIE_NAME, SessionTokenService } from "@devmentor/core";
+import {
+  AccountService,
+  createLogger,
+  NoopMailAdapter,
+  PasswordHasher,
+  RateLimiter,
+  SESSION_COOKIE_NAME,
+  SessionTokenService,
+  UserTokenService,
+} from "@devmentor/core";
 import { User, UserRole, type EntityManager } from "@devmentor/db";
+import { uniqueClientIp } from "./client-ip";
 import { TEST_APP_ENV, TEST_AUTH_JWT_SECRET } from "./test-env";
 
 /** Adresy kont testowych mają prefiks, żeby sprzątanie nie ruszało danych aplikacji. */
@@ -46,4 +56,40 @@ const tokenService = (secret: string) =>
 export async function sessionCookieFor(user: User, secret = TEST_AUTH_JWT_SECRET): Promise<string> {
   const token = await tokenService(secret).sign({ id: user.id, sessionVersion: user.sessionVersion });
   return `${SESSION_COOKIE_NAME}=${token}`;
+}
+
+/** `AccountService` złożony jak w kontenerze, na podanym `EntityManager` (to, co robi `withScope` w CLI `operator:create`). */
+export function accountServiceFor(em: EntityManager, appBaseUrl: string): AccountService {
+  const logger = createLogger({ level: "silent" });
+  return new AccountService({
+    em,
+    passwordHasher: new PasswordHasher(),
+    rateLimiter: new RateLimiter(),
+    userTokenService: new UserTokenService({ em }),
+    mailGateway: new NoopMailAdapter({ logger }),
+    logger,
+    env: { APP_BASE_URL: appBaseUrl },
+  });
+}
+
+/**
+ * Konto operatora tą samą drogą co CLI (`AccountService.createOperator`) i zalogowane przez
+ * `/api/auth/login` (spec E01, krok 8). Adres dostaje prefiks kont testowych. Zwraca nagłówek `Cookie`.
+ */
+export async function createOperatorAndLogIn(
+  em: EntityManager,
+  baseUrl: string,
+  input: { email: string; password: string },
+): Promise<string> {
+  const email = `${TEST_EMAIL_PREFIX}${input.email}`;
+  await accountServiceFor(em, baseUrl).createOperator({ email, displayName: "Operator testowy", password: input.password });
+  const response = await fetch(`${baseUrl}/api/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-devmentor-request": "1", ...uniqueClientIp() },
+    body: JSON.stringify({ email, password: input.password }),
+  });
+  if (response.status !== 200) {
+    throw new Error(`Logowanie operatora nie powiodło się: ${response.status}`);
+  }
+  return response.headers.getSetCookie()[0]!.split(";")[0]!;
 }

@@ -1,6 +1,6 @@
 import { initOrm, User, UserToken, type MikroORM } from "@devmentor/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, inject, it } from "vitest";
-import { createAccount, deleteTestAccounts, sessionCookieFor, TEST_EMAIL_PREFIX } from "./support/accounts";
+import { createOperatorAndLogIn, deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
 import { createBrowser, waitForHydration, type Browser } from "./support/browser";
 import { uniqueClientIp } from "./support/client-ip";
 
@@ -34,8 +34,11 @@ describe("weryfikacja e-maila: link z outboxa, confirm, resend, /verify-email", 
   });
 
   beforeEach(async () => {
-    const operator = await createAccount(orm.em.fork(), { email: "weryfikacja-operator@example.com", roles: ["operator"] });
-    operatorCookie = await sessionCookieFor(operator);
+    // Operator jak z CLI `operator:create` (spec E01, krok 8), zalogowany formularzem API.
+    operatorCookie = await createOperatorAndLogIn(orm.em.fork(), baseUrl, {
+      email: "weryfikacja-operator@example.com",
+      password: PASSWORD,
+    });
   });
 
   afterEach(async () => {

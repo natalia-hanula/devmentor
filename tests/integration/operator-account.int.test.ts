@@ -1,15 +1,7 @@
-import {
-  AccountService,
-  ConflictError,
-  createLogger,
-  NoopMailAdapter,
-  PasswordHasher,
-  RateLimiter,
-  UserTokenService,
-} from "@devmentor/core";
+import { ConflictError } from "@devmentor/core";
 import { initOrm, User, UserToken, type MikroORM } from "@devmentor/db";
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
-import { deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
+import { accountServiceFor, deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
 import { uniqueClientIp } from "./support/client-ip";
 
 const PASSWORD = "integracyjne-haslo-operatora";
@@ -24,19 +16,7 @@ describe("AccountService.createOperator na prawdziwej bazie → logowanie w next
   let orm: MikroORM;
 
   /** Serwis jak w kontenerze, na własnym `EntityManager` (to, co robi `withScope` w CLI). */
-  function accountService(): AccountService {
-    const em = orm.em.fork();
-    const logger = createLogger({ level: "silent" });
-    return new AccountService({
-      em,
-      passwordHasher: new PasswordHasher(),
-      rateLimiter: new RateLimiter(),
-      userTokenService: new UserTokenService({ em }),
-      mailGateway: new NoopMailAdapter({ logger }),
-      logger,
-      env: { APP_BASE_URL: baseUrl },
-    });
-  }
+  const accountService = () => accountServiceFor(orm.em.fork(), baseUrl);
 
   beforeAll(async () => {
     orm = await initOrm(inject("databaseUrl"));

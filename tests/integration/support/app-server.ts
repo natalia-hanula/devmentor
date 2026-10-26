@@ -1,6 +1,8 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { createWriteStream, mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { TEST_APP_ENV, TEST_AUTH_JWT_SECRET } from "./test-env";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../../..");
@@ -11,6 +13,8 @@ const POLL_INTERVAL_MS = 250;
 
 export interface AppServer {
   url: string;
+  /** Plik z całym wyjściem (stdout + stderr) procesu `next start` — dla asercji „sekret nie trafia do logów”. */
+  logPath: string;
   stop: () => Promise<void>;
 }
 
@@ -19,6 +23,9 @@ export async function startAppServer(databaseUrl: string): Promise<AppServer> {
   const port = await findFreePort();
   const url = `http://127.0.0.1:${port}`;
   const output: string[] = [];
+  const logDir = mkdtempSync(join(tmpdir(), "devmentor-it-app-"));
+  const logPath = join(logDir, "next-start.log");
+  const logFile = createWriteStream(logPath);
 
   const child = spawn(NEXT_BIN, ["start", "--port", String(port), "--hostname", "127.0.0.1"], {
     cwd: APP_DIR,
@@ -28,7 +35,8 @@ export async function startAppServer(databaseUrl: string): Promise<AppServer> {
     env: {
       ...process.env,
       DATABASE_URL: databaseUrl,
-      LOG_LEVEL: "warn",
+      // Najniższy poziom: test „sekret nie trafia do logów” sprawdza wszystko, co aplikacja zapisuje.
+      LOG_LEVEL: "trace",
       AUTH_JWT_SECRET: TEST_AUTH_JWT_SECRET,
       APP_ENV: TEST_APP_ENV,
       TRUST_PROXY: "true",
@@ -37,17 +45,27 @@ export async function startAppServer(databaseUrl: string): Promise<AppServer> {
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
-  child.stdout?.on("data", (chunk: Buffer) => output.push(chunk.toString()));
-  child.stderr?.on("data", (chunk: Buffer) => output.push(chunk.toString()));
+  const capture = (chunk: Buffer) => {
+    output.push(chunk.toString());
+    logFile.write(chunk);
+  };
+  child.stdout?.on("data", capture);
+  child.stderr?.on("data", capture);
+
+  const stop = async () => {
+    await stopProcess(child);
+    await new Promise<void>((resolveClose) => logFile.end(resolveClose));
+    rmSync(logDir, { recursive: true, force: true });
+  };
 
   try {
     await waitUntilHealthy(url, child);
   } catch (error) {
-    await stopProcess(child);
+    await stop();
     throw new Error(`Aplikacja nie wystartowała: ${(error as Error).message}\n--- log next start ---\n${output.join("")}`);
   }
 
-  return { url, stop: () => stopProcess(child) };
+  return { url, logPath, stop };
 }
 
 async function waitUntilHealthy(url: string, child: ChildProcess): Promise<void> {

@@ -1,6 +1,6 @@
 import { initOrm, User, type MikroORM } from "@devmentor/db";
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
-import { deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
+import { createAccount, deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
 import { uniqueClientIp } from "./support/client-ip";
 
 const PASSWORD = "integracyjne-haslo-123";
@@ -161,6 +161,16 @@ describe("konta: rejestracja, logowanie, wylogowanie i me na next start i prawdz
     expect((await envelope(wrongPassword)).error).toEqual(INVALID_CREDENTIALS);
     expect((await envelope(unknownEmail)).error).toEqual(INVALID_CREDENTIALS);
     expect(wrongPassword.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("konto bez hasła (np. tylko z GitHubem) → ten sam ogólny 401 co złe hasło, bez ciasteczka", async () => {
+    const account = await createAccount(orm.em.fork(), { email: `konto-bez-hasla-${Date.now()}@example.com`, roles: ["mentee"] });
+
+    const response = await login(account.email, PASSWORD);
+
+    expect(response.status).toBe(401);
+    expect((await envelope(response)).error).toEqual(INVALID_CREDENTIALS);
+    expect(response.headers.getSetCookie()).toEqual([]);
   });
 
   it("limiter logowania: szósta próba z jednego IP na ten sam e-mail → 429, nawet z poprawnym hasłem", async () => {
