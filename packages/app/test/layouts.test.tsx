@@ -34,6 +34,7 @@ describe("AdminLayout", () => {
     render(AdminLayout(layoutProps(<p>Treść panelu</p>)));
 
     expect(screen.getByRole("link", { name: "DevMentor" })).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Zaproszenia" })).toHaveAttribute("href", "/admin/invitations");
     expect(screen.getByRole("link", { name: "Przegląd" })).toHaveAttribute("href", "/admin");
     expect(screen.getByRole("link", { name: "Technologie" })).toHaveAttribute("href", "/admin/technologies");
     expect(screen.getByRole("link", { name: "Skrzynka (atrapa)" })).toHaveClass("hover:text-foreground");

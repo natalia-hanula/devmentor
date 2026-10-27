@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { OutboxNavLink } from "./outbox-nav-link";
 
 const NAV_ITEMS = [
+  { href: "/admin/invitations", label: "Zaproszenia" },
   { href: "/admin", label: "Przegląd" },
   { href: "/admin/technologies", label: "Technologie" },
 ] as const;
