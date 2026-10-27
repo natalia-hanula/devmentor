@@ -132,6 +132,80 @@ describe("CrudForm", () => {
     expect(screen.getByRole("button", { name: "Zapisz" })).toBeEnabled();
   });
 
+  it("teksty przepływu z propsów: tytuł błędu, stan wysyłania i podpowiedź skrótu", async () => {
+    let resolve: (value: ApiResult<unknown>) => void = () => undefined;
+    const onSubmit = vi.fn(() => new Promise<ApiResult<unknown>>((r) => (resolve = r)));
+    renderForm({
+      onSubmit,
+      initialValues: { name: "Go" },
+      submitLabel: "Zaloguj",
+      submittingLabel: "Logowanie…",
+      errorTitle: "Nie zalogowano",
+      shortcutHint: "Ctrl/⌘ + Enter, aby się zalogować",
+    });
+
+    expect(screen.getByText("Ctrl/⌘ + Enter, aby się zalogować")).toBeInTheDocument();
+    expect(screen.queryByText("Ctrl/⌘ + Enter, aby zapisać")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+    expect(screen.getByRole("button", { name: "Logowanie…" })).toBeDisabled();
+
+    await act(async () => resolve({ ok: false, error: { code: "UNAUTHORIZED", message: "Nieprawidłowe dane logowania" } }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Nie zalogowano");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Nie zapisano");
+  });
+
+  it("pusta podpowiedź skrótu → bez pustego elementu obok przycisków", () => {
+    const { container } = render(
+      <CrudForm schema={schema} fields={fields} onSubmit={vi.fn(async () => ok)} shortcutHint="" />,
+    );
+
+    const actions = screen.getByRole("button", { name: "Zapisz" }).parentElement;
+    expect(actions?.querySelector("span")).toBeNull();
+    expect(container.textContent).not.toContain("Ctrl/⌘ + Enter");
+  });
+
+  it("gdy onSubmit rzuci wyjątek, pokazuje ogólny komunikat i odblokowuje formularz do ponownego wysłania", async () => {
+    let reject: (reason: Error) => void = () => undefined;
+    const onSubmit = vi
+      .fn<(values: Values) => Promise<ApiResult<unknown>>>()
+      .mockImplementationOnce(() => new Promise<ApiResult<unknown>>((_, r) => (reject = r)))
+      .mockResolvedValueOnce(ok);
+    const onSuccess = vi.fn();
+    renderForm({ onSubmit, onSuccess, initialValues: { name: "Go" } });
+
+    await userEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+    expect(screen.getByRole("button", { name: "Zapisywanie…" })).toBeDisabled();
+
+    await act(async () => reject(new Error("Brak sieci")));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Nie zapisano");
+    expect(screen.getByRole("alert")).toHaveTextContent("Nie udało się połączyć. Spróbuj ponownie.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Brak sieci");
+    expect(screen.getByRole("button", { name: "Zapisz" })).toBeEnabled();
+    expect(onSuccess).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(2);
+    expect(onSuccess).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("komunikat wyjątku onSubmit można podmienić propsem unexpectedErrorMessage", async () => {
+    renderForm({
+      onSubmit: vi.fn(async () => {
+        throw new Error("Brak sieci");
+      }),
+      initialValues: { name: "Go" },
+      unexpectedErrorMessage: "Serwer nie odpowiada.",
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Zapisz" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Serwer nie odpowiada.");
+    expect(screen.getByRole("alert")).not.toHaveTextContent("Nie udało się połączyć");
+  });
+
   it("Ctrl+Enter i ⌘+Enter wysyłają formularz, zwykły Enter w textarea nie", async () => {
     const { onSubmit } = renderForm({ initialValues: { name: "Go" } });
     const bio = screen.getByLabelText("Opis");
@@ -162,5 +236,161 @@ describe("CrudForm", () => {
     fireEvent.keyDown(screen.getByLabelText("Nazwa"), { key: "Escape" });
 
     expect(screen.getByLabelText("Nazwa")).toHaveValue("Go");
+  });
+});
+
+describe("CrudForm — pola e-mail i hasło (DS01)", () => {
+  const credentialsSchema = z.object({
+    email: z.string().email("Podaj poprawny adres e-mail"),
+    password: z.string().min(1, "Podaj hasło"),
+  });
+  type Credentials = z.infer<typeof credentialsSchema>;
+
+  function renderCredentials(
+    credentialFields: CrudFormField<Credentials>[],
+    onSubmit = vi.fn(async (): Promise<ApiResult<unknown>> => ok),
+  ) {
+    render(<CrudForm schema={credentialsSchema} fields={credentialFields} onSubmit={onSubmit} submitLabel="Zaloguj" />);
+    return { onSubmit };
+  }
+
+  it("logowanie: e-mail z type=email i autocomplete=username, hasło z type=password i current-password", () => {
+    renderCredentials([
+      { name: "email", label: "E-mail", type: "email", autoComplete: "username" },
+      { name: "password", label: "Hasło", type: "password", autoComplete: "current-password" },
+    ]);
+
+    expect(screen.getByLabelText("E-mail")).toHaveAttribute("type", "email");
+    expect(screen.getByLabelText("E-mail")).toHaveAttribute("autocomplete", "username");
+    expect(screen.getByLabelText("Hasło")).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("Hasło")).toHaveAttribute("autocomplete", "current-password");
+  });
+
+  it("rejestracja: autocomplete=email i new-password", () => {
+    renderCredentials([
+      { name: "email", label: "E-mail", type: "email", autoComplete: "email" },
+      { name: "password", label: "Hasło", type: "password", autoComplete: "new-password" },
+    ]);
+
+    expect(screen.getByLabelText("E-mail")).toHaveAttribute("autocomplete", "email");
+    expect(screen.getByLabelText("Hasło")).toHaveAttribute("autocomplete", "new-password");
+  });
+
+  it("e-mail bez autoComplete nie renderuje atrybutu autocomplete; hasło bez autoComplete to błąd typu", () => {
+    renderCredentials([
+      { name: "email", label: "E-mail", type: "email" },
+      { name: "password", label: "Hasło", type: "password", autoComplete: "current-password" },
+    ]);
+
+    expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("autocomplete");
+
+    // @ts-expect-error — pole hasła musi mieć autoComplete (logowanie i rejestracja potrzebują różnych wartości)
+    const passwordWithoutAutoComplete: CrudFormField<Credentials> = { name: "password", label: "Hasło", type: "password" };
+    expect(passwordWithoutAutoComplete.type).toBe("password");
+  });
+
+  it("pole bez typu nie dostaje atrybutów type ani autocomplete", () => {
+    renderForm();
+
+    expect(screen.getByLabelText("Nazwa")).not.toHaveAttribute("type");
+    expect(screen.getByLabelText("Nazwa")).not.toHaveAttribute("autocomplete");
+    expect(screen.getByLabelText("Opis")).not.toHaveAttribute("autocomplete");
+  });
+
+  it("initialValues nie wypełnia pól hasła", () => {
+    render(
+      <CrudForm
+        schema={credentialsSchema}
+        fields={[
+          { name: "email", label: "E-mail", type: "email", autoComplete: "email" },
+          { name: "password", label: "Hasło", type: "password", autoComplete: "new-password" },
+        ]}
+        initialValues={{ email: "ola@example.com", password: "sekret" }}
+        onSubmit={vi.fn(async () => ok)}
+      />,
+    );
+
+    expect(screen.getByLabelText("E-mail")).toHaveValue("ola@example.com");
+    expect(screen.getByLabelText("Hasło")).toHaveValue("");
+  });
+
+  it("textarea przekazuje autoComplete", () => {
+    render(
+      <CrudForm
+        schema={schema}
+        fields={[
+          { name: "name", label: "Nazwa", type: "text", autoComplete: "name" },
+          { name: "bio", label: "Opis", type: "textarea", autoComplete: "off" },
+        ]}
+        onSubmit={vi.fn(async () => ok)}
+      />,
+    );
+
+    expect(screen.getByLabelText("Nazwa")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("Nazwa")).toHaveAttribute("autocomplete", "name");
+    expect(screen.getByLabelText("Opis")).toHaveAttribute("autocomplete", "off");
+  });
+
+  it("po wyjątku przy wysyłce czyści pola hasła (stan i DOM), a pozostałe pola zostają", async () => {
+    const onSubmit = vi
+      .fn<() => Promise<ApiResult<unknown>>>()
+      .mockRejectedValueOnce(new Error("Brak sieci"))
+      .mockResolvedValueOnce(ok);
+    renderCredentials(
+      [
+        { name: "email", label: "E-mail", type: "email", autoComplete: "username" },
+        { name: "password", label: "Hasło", type: "password", autoComplete: "current-password" },
+      ],
+      onSubmit,
+    );
+
+    await userEvent.type(screen.getByLabelText("E-mail"), "ola@example.com");
+    await userEvent.type(screen.getByLabelText("Hasło"), "sekret-haslo");
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się połączyć. Spróbuj ponownie.");
+    expect(screen.getByLabelText("Hasło")).toHaveValue("");
+    expect(screen.getByLabelText("E-mail")).toHaveValue("ola@example.com");
+
+    // Stan też jest wyczyszczony: ponowna wysyłka bez wpisania hasła nie przechodzi walidacji klienta.
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+    expect(onSubmit).toHaveBeenCalledOnce();
+    expect(screen.getByLabelText("Hasło")).toHaveAccessibleDescription("Podaj hasło");
+
+    await userEvent.type(screen.getByLabelText("Hasło"), "drugie-haslo");
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+    expect(onSubmit).toHaveBeenLastCalledWith({ email: "ola@example.com", password: "drugie-haslo" });
+  });
+
+  it("błąd serwera przy polu hasła jest powiązany przez aria-describedby, pole hasła czyszczone, e-mail zostaje", async () => {
+    const onSubmit = vi.fn(
+      async (): Promise<ApiResult<unknown>> => ({
+        ok: false,
+        error: { code: "VALIDATION_ERROR", message: "Nieprawidłowe dane", fieldErrors: { password: ["Hasło jest za krótkie"] } },
+      }),
+    );
+    renderCredentials(
+      [
+        { name: "email", label: "E-mail", type: "email", autoComplete: "email" },
+        { name: "password", label: "Hasło", type: "password", autoComplete: "new-password" },
+      ],
+      onSubmit,
+    );
+
+    await userEvent.type(screen.getByLabelText("E-mail"), "ola@example.com");
+    await userEvent.type(screen.getByLabelText("Hasło"), "krotkie");
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ email: "ola@example.com", password: "krotkie" });
+    const password = screen.getByLabelText("Hasło");
+    expect(password).toHaveAttribute("aria-invalid", "true");
+    expect(password).toHaveAccessibleDescription("Hasło jest za krótkie");
+    expect(password).toHaveValue("");
+    expect(screen.getByLabelText("E-mail")).toHaveValue("ola@example.com");
+    expect(screen.getByLabelText("E-mail")).not.toHaveAttribute("aria-describedby");
+
+    // Stan też jest wyczyszczony: ponowna wysyłka bez hasła zatrzymuje się na walidacji klienta.
+    await userEvent.click(screen.getByRole("button", { name: "Zaloguj" }));
+    expect(onSubmit).toHaveBeenCalledOnce();
   });
 });

@@ -8,6 +8,8 @@ export const LOG_REDACT_PATHS = [
   "*.password",
   "passwordHash",
   "*.passwordHash",
+  "tokenHash",
+  "*.tokenHash",
   "token",
   "*.token",
   "accessToken",
@@ -24,6 +26,13 @@ export const LOG_REDACT_PATHS = [
   "headers.cookie",
   "*.headers.authorization",
   "*.headers.cookie",
+  "set-cookie",
+  "*.set-cookie",
+  // Dane osobowe i pełne adresy (mogą nieść tokeny w query stringu).
+  "email",
+  "*.email",
+  "url",
+  "*.url",
 ];
 
 export interface CreateLoggerOptions {

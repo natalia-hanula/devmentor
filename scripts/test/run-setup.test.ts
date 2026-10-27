@@ -20,6 +20,7 @@ describe("runSetup", () => {
       "– pominięto — B: już było",
       "",
       "Gotowe. Uruchom aplikację: npm run dev",
+      "Konto operatora: npm run operator:create",
     ]);
   });
 
@@ -33,6 +34,7 @@ describe("runSetup", () => {
     expect(later.run).not.toHaveBeenCalled();
     expect(system.lines[0]).toBe("✗ błąd — A: zepsute");
     expect(system.lines.at(-1)).toContain("uruchom ponownie `npm run setup`");
+    expect(system.lines).not.toContain("Konto operatora: npm run operator:create");
   });
 
   it("zamienia wyjątek kroku na błąd z jego komunikatem", async () => {

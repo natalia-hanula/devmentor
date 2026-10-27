@@ -1,18 +1,31 @@
+import { initOrm, type MikroORM } from "@devmentor/db";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
+import { createAccount, deleteTestAccounts, sessionCookieFor, TEST_EMAIL_PREFIX } from "./support/accounts";
 import { createBrowser, type Browser } from "./support/browser";
+import { uniqueClientIp } from "./support/client-ip";
 
 const baseUrl = inject("baseUrl");
 const SEEDED_TECHNOLOGIES = 8;
 
 describe("panel admina w przeglądarce (agent-browser)", () => {
   let browser: Browser;
+  let orm: MikroORM;
 
-  beforeAll(() => {
+  beforeAll(async () => {
+    orm = await initOrm(inject("databaseUrl"));
     browser = createBrowser();
+    // Panel wymaga roli operatora: przeglądarka dostaje ciasteczko sesji konta z fixture'a.
+    const operator = await createAccount(orm.em.fork(), { email: "panel-ui@example.com", roles: ["operator"] });
+    const [name, value] = (await sessionCookieFor(operator)).split(/=(.*)/s);
+    await browser.run("cookies", "set", name!, value!, "--url", baseUrl, "--httpOnly");
   });
 
   afterAll(async () => {
     await browser.close();
+    if (orm) {
+      await deleteTestAccounts(orm.em.fork());
+      await orm.close(true);
+    }
   });
 
   it("/admin pokazuje połączenie z bazą", async () => {
@@ -29,16 +42,36 @@ describe("panel admina w przeglądarce (agent-browser)", () => {
     expect(Number(await browser.run("get", "count", "tbody tr"))).toBe(SEEDED_TECHNOLOGIES);
   });
 
-  it("CrudForm waliduje po stronie klienta, a zapis bez sesji kończy się komunikatem 401", async () => {
+  it("CrudForm waliduje po stronie klienta, a błąd serwera (zajęty slug) pokazuje komunikat", async () => {
     await browser.run("find", "role", "button", "click", "--name", "Dodaj");
     await browser.run("wait", "--text", "Podaj nazwę");
 
-    await browser.run("find", "label", "Nazwa", "fill", "Go");
-    await browser.run("find", "label", "Slug", "fill", "go");
+    await browser.run("find", "label", "Nazwa", "fill", "Go lang");
+    await browser.run("find", "label", "Slug", "fill", "typescript");
     await browser.run("find", "role", "button", "click", "--name", "Dodaj");
-    await browser.run("wait", "--text", "Wymagane zalogowanie");
+    await browser.run("wait", "--text", "Technologia o tej nazwie lub slugu już istnieje");
 
-    expect(await browser.run("get", "text", "[role=alert]")).toContain("Wymagane zalogowanie");
+    expect(await browser.run("get", "text", "[role=alert]")).toContain("już istnieje");
     expect(Number(await browser.run("get", "count", "tbody tr"))).toBe(SEEDED_TECHNOLOGIES);
+  });
+
+  // Skrzynka jest wspólna dla całego przebiegu (rejestracje z innych plików wysyłają linki weryfikacyjne),
+  // więc test nie zakłada pustej skrzynki — sam wysyła wiadomość i jej szuka. Pusty stan sprawdzają testy jednostkowe.
+  it("/admin/outbox pokazuje tytuł, adnotację i wiadomość z linkiem weryfikacyjnym, a nawigacja ma pozycję „Skrzynka”", async () => {
+    const email = `${TEST_EMAIL_PREFIX}panel-ui-skrzynka-${Date.now()}@example.com`;
+    const registered = await fetch(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-devmentor-request": "1", ...uniqueClientIp() },
+      body: JSON.stringify({ email, password: "integracyjne-haslo-123", displayName: "Skrzynka" }),
+    });
+    expect(registered.status).toBe(201);
+
+    await browser.run("open", `${baseUrl}/admin/outbox`);
+    await browser.run("wait", "--text", email);
+
+    expect(await browser.run("get", "text", "h1")).toBe("Skrzynka");
+    expect(await browser.run("get", "text", "main")).toContain("Skrzynka deweloperska — wiadomości nie są wysyłane");
+    expect(await browser.run("get", "text", "tbody tr:first-child")).toContain("Potwierdź adres e-mail");
+    expect(Number(await browser.run("get", "count", "nav a[href='/admin/outbox']"))).toBe(1);
   });
 });

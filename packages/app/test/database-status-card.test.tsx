@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const apiCall = vi.fn();
 vi.mock("@devmentor/ui/backend/api/api-call", () => ({ apiCall }));
 
-const { DatabaseStatusCard } = await import("../app/(admin)/admin/database-status-card");
+const { DatabaseStatusCard } = await import("../app/(operator)/admin/database-status-card");
 
 describe("DatabaseStatusCard", () => {
   beforeEach(() => {

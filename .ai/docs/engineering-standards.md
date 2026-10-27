@@ -322,7 +322,7 @@ When asked to scaffold a new domain concept (e.g., "add reviews"):
    - Never write a bare `try/catch` + manual `NextResponse.json` — that's what
      `apiHandler`/`makeCrudRoute` exist to remove.
 6. Add the page(s) under the matching persona route group
-   (`(student)/`, `(mentor)/`, `(auth)/`, `(marketing)/`):
+   (`(mentee)/`, `(mentor)/`, `(auth)/`, `(marketing)/`):
    - Fetch through `apiCall`/`apiCallOrThrow` — never a raw `fetch`.
    - Create/edit UI → `CrudForm` bound to the same schema from step 3.
    - List UI → `DataTable`.
@@ -412,7 +412,7 @@ packages/
       (auth)/
         login/page.tsx                             # S04
         register/page.tsx
-      (student)/
+      (mentee)/
         book/[mentorId]/page.tsx                   # S05 booking flow
         checkout/[bookingId]/page.tsx               # S06 checkout
         dashboard/page.tsx                          # S07

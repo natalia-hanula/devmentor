@@ -1,10 +1,18 @@
-import { asClass, asValue, createContainer, InjectionMode, type AwilixContainer } from "awilix";
+import { asClass, asFunction, asValue, createContainer, InjectionMode, type AwilixContainer } from "awilix";
 import { initOrm } from "@devmentor/db";
 import { parseEnv } from "../config/env";
 import { ServiceUnavailableError } from "../http/errors";
 import { getLogger } from "../logger";
+import { AccountService } from "../services/auth/account.service";
+import { InvitationService } from "../services/auth/invitation.service";
+import { PasswordHasher } from "../services/auth/password-hasher.service";
+import { SessionTokenService } from "../services/auth/session-token.service";
+import { UserTokenService } from "../services/auth/user-token.service";
+import { createMailAdapters } from "../services/mail/mail-gateway";
+import { SeedService } from "../services/dev/seed.service";
 import { DatabaseHealthService } from "../services/health/database-health.service";
 import { TechnologyService } from "../services/mentors/technology.service";
+import { RateLimiter } from "../services/rate-limit/rate-limiter.service";
 import type { AppCradle, RequestCradle } from "./cradle";
 
 /**
@@ -22,11 +30,18 @@ async function buildContainer(): Promise<AwilixContainer<AppCradle>> {
     throw new ServiceUnavailableError("Baza danych jest niedostępna", { cause: error });
   });
 
+  const { mailGateway, mailOutbox } = createMailAdapters({ env, logger });
+
   const container = createAppContainer<AppCradle>();
   container.register({
     env: asValue(env),
     logger: asValue(logger),
     orm: asValue(orm),
+    sessionTokenService: asClass(SessionTokenService).singleton(),
+    passwordHasher: asClass(PasswordHasher).singleton(),
+    rateLimiter: asFunction(() => new RateLimiter()).singleton(),
+    mailGateway: asValue(mailGateway),
+    mailOutbox: asValue(mailOutbox),
   });
   return container;
 }
@@ -44,12 +59,31 @@ export function getContainer(): Promise<AwilixContainer<AppCradle>> {
   return globalForContainer.__devmentorContainer;
 }
 
+/**
+ * Zamyka pulę połączeń ORM i zapomina kontener — dla procesów krótkich (skrypty CLI), które muszą się
+ * zakończyć. Aplikacja Next tego nie woła: kontener żyje tyle co proces. Kontener, który nie powstał,
+ * nie ma puli do zamknięcia (jego błąd zgłosiło już `getContainer`).
+ */
+export async function closeContainer(): Promise<void> {
+  const pending = globalForContainer.__devmentorContainer;
+  globalForContainer.__devmentorContainer = undefined;
+  if (!pending) {
+    return;
+  }
+  const container = await pending.catch(() => null);
+  await container?.cradle.orm.close(true);
+}
+
 /** Rejestracja zależności żądania — każdy serwis jawnie, bez skanowania folderów. */
 function registerRequestDependencies(scope: AwilixContainer<RequestCradle>, orm: AppCradle["orm"]): void {
   scope.register({
     em: asValue(orm.em.fork()),
     databaseHealthService: asClass(DatabaseHealthService).scoped(),
     technologyService: asClass(TechnologyService).scoped(),
+    userTokenService: asClass(UserTokenService).scoped(),
+    accountService: asClass(AccountService).scoped(),
+    invitationService: asClass(InvitationService).scoped(),
+    seedService: asClass(SeedService).scoped(),
   });
 }
 

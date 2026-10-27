@@ -358,7 +358,7 @@ Stan: etap 1 skończony, etap 2 (komponenty bazowe) nie zaczęty. W prototypie k
 | DS12 | Rozwijany wiersz w `DataTable` | s12.3 | do sprawdzenia, czy `DataTable` to umie |
 | DS13 | Prymitywy z 13 znaleziskami `lint:tokens` (m.in. `text-white`, `ring-[3px]`) | wszystkie | do poprawy w etapie 2 |
 | DS14 | Żaden komponent nie ma własnej story | — | utrudnia składanie prototypu z „gotowych” kawałków |
-| DS15 | Otwarte pytanie z `packages/ui/POSTEP.md`: wysokość, promień i fokus kontrolek | wszystkie formularze | prototyp przyjmie wartości z obecnych prymitywów |
+| DS15 | Otwarte pytanie z `.ai/runs/2026-10-19-design-system-postep.md` (dawniej `packages/ui/POSTEP.md`): wysokość, promień i fokus kontrolek | wszystkie formularze | prototyp przyjmie wartości z obecnych prymitywów |
 
 ## 6. Liczby
 

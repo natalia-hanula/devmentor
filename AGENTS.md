@@ -66,7 +66,10 @@ Każda trasa i każda strona korzysta z dwóch wspólnych warstw zamiast pisać 
   - `errors.ts` — hierarchia `AppError` (`ValidationError`, `UnauthorizedError`, `ForbiddenError`, `NotFoundError`, `ConflictError`, `ServiceUnavailableError`). Serwisy rzucają tylko te błędy i nigdy nie budują odpowiedzi HTTP.
   - `api-handler.ts` — `apiHandler()` opakowuje każdą trasę: sprawdza nagłówek CSRF dla metod zmieniających stan, zwraca kopertę `{ ok: true, data }` / `{ ok: false, error: { code, message, fieldErrors? } }`, mapuje `AppError` i niedostępność bazy (503), loguje nieoczekiwane błędy, nie ujawnia stack trace'ów. `parseJsonBody()` / `parseInput()` walidują wejście schemą Zod. Żadna trasa nie pisze własnego `try/catch` ani `NextResponse.json`.
   - `make-crud-route.ts` — `export const { GET, POST, PUT, DELETE } = makeCrudRoute({ service, createSchema, updateSchema, access })` dla zwykłych zasobów CRUD (`PUT`/`DELETE` przez `?id=`). Przepływy (rezerwacja, płatność, przełożenie) używają `apiHandler` bezpośrednio i wołają serwisy przez `withScope`.
-  - `auth.ts` — `requireSession`, `requireRole`, `assertOwnership`. Do czasu wdrożenia auth `getSession` zwraca zawsze `null`, więc chronione trasy odpowiadają 401 (fail closed). Dostęp w `makeCrudRoute` domyślnie wymaga sesji; `"public"` wpisuj jawnie.
+  - `auth.ts` — `requireSession` (401), `requireRole`, `requireRoleAccess(role)` (reguła dostępu dla `makeCrudRoute`: sesja + rola, 403), `assertOwnership`. Role to `mentee | mentor | operator`, a `Session` to `{ userId, roles, emailVerified }`. Dostęp w `makeCrudRoute` domyślnie wymaga sesji; `"public"` wpisuj jawnie.
+  - `session.ts` — `getSession(request)` / `getSessionFromCookieValue(value)`: weryfikuje token (JWT HS256, `SessionTokenService`) i przy każdym żądaniu czyta konto i role z bazy; wszystko, co nie jest ważną sesją, daje `null` (fail closed), a błąd bazy leci dalej (503). `proxy.ts` bierze stałe sesji i `safeNextPath` z `@devmentor/core/http/*`, bez ORM-a.
+  - `api-handler.ts` przyjmuje też `withCookies(data, cookies)` — jedyny sposób, w jaki trasa ustawia ciasteczka (`Set-Cookie`, tylko przy sukcesie).
+  - `redirect-handler.ts` — `redirectHandler()`: drugi kanoniczny wrapper obok `apiHandler`, dla tras odpowiadających przekierowaniem (`GET` i `HEAD`, inne metody → 405; błąd → `302 /login?error=<kod>`; w logu wyłącznie `pathname`). Adres zwrócony przez handler (także w `withCookies`) zawsze przechodzi przez `safeNextPath` — niebezpieczny daje `/`. `safe-next-path.ts` — `safeNextPath()`: każdy `next` od użytkownika przechodzi przez nią, zanim trafi do przekierowania.
 - `packages/ui/src/backend/`:
   - `api/api-call.ts` — `apiCall` / `apiCallOrThrow`: jedyne dozwolone miejsce z `fetch()` do `/api/*` (ESLint blokuje `fetch` w `app` i `ui` poza tym plikiem). Dokleja nagłówek CSRF, bezpiecznie parsuje kopertę.
   - `forms/crud-form.tsx` — `CrudForm`: formularz z tej samej schemy Zod co trasa API, błędy serwera przy polach, Cmd/Ctrl+Enter wysyła, Escape anuluje. Każdy formularz create/edit.
@@ -84,7 +87,7 @@ Gdzie trafia nowy komponent:
 ### Baza danych (MikroORM)
 
 - MikroORM działa wyłącznie po stronie serwera. Jedna instancja (pula połączeń) na proces — trzyma ją kontener w `core`; każde żądanie pracuje na własnym `EntityManager` (`em.fork()` w `withScope`).
-- Encje przez `defineEntity` (bez dekoratorów z `emitDecoratorMetadata`), z `...baseProperties` z `entities/base.entity.ts` (UUID, `createdAt`, `updatedAt`). ID zawsze UUID.
+- Encje przez `defineEntity` (bez dekoratorów z `emitDecoratorMetadata`), z `...baseProperties` z `entities/base.entity.ts` (UUID, `createdAt`, `updatedAt`). ID zawsze UUID. Każda klasa encji dostaje `pinEntityName(Klasa, "Nazwa")` przed `Schema.setClass(...)` — bez tego `next start` zgłasza `MetadataError`, bo Turbopack minifikuje nazwy klas (zob. `.ai/lessons.md`).
 - Limity kolumn, których używają walidatory, trzymaj w `db/src/constants.ts` (bez importów ORM).
 - Każda zmiana schematu = migracja (`npm run db:migration:create -- --name <opis>`) zacommitowana razem z kodem, łącznie z `.snapshot-*.json`. Bez `schema:update` poza eksperymentami. Dane referencyjne (słowniki) mogą być osobną migracją.
 - Unikalność i inne niezmienniki współdzielonego stanu pilnuje baza (constraint) i/lub transakcja w serwisie — nigdy check-then-write w dwóch zapytaniach.
@@ -108,8 +111,9 @@ Gdzie trafia nowy komponent:
 
 ### Trasy i UI
 
-- Grupy tras per persona w `packages/app/app/`: `(marketing)` (strony publiczne), `(auth)`, `(student)`, `(mentor)`, `(admin)`. Grupę tworzymy z pierwszą stroną danej persony.
+- Grupy tras per persona w `packages/app/app/`: `(marketing)` (strony publiczne), `(auth)`, `(mentee)`, `(mentor)`, `(operator)`. Grupę tworzymy z pierwszą stroną danej persony.
 - Strony publiczne: Tailwind. Strony backendowe (panele): komponenty z `@devmentor/ui`.
+- Strona chroniona rolą opakowuje całą treść w `PageRoleGate role path` (`packages/app/app/_lib/require-page-role.tsx`): brak sesji → `/login?next=…`, zła rola → widok „Brak dostępu”. Bramka jest przy stronie, nie w layoucie (layout nie renderuje się przy nawigacji); autorytetem jest API (403). `packages/app/proxy.ts` robi tylko optymistyczne przekierowanie bez ciasteczka.
 - Strony pobierają dane przez `apiCall` w komponentach klienckich, listy przez `DataTable`, formularze przez `CrudForm`, stany przez `feedback/*`.
 - shadcn 4.x importuje `cn` z paczki npm `cn` (zamiennik `clsx` + `tailwind-merge`) — to oczekiwane.
 - Style: `packages/app/app/globals.css` importuje `@devmentor/ui/globals.css`. Nie importuj `tailwindcss` drugi raz.

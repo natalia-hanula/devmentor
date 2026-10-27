@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const em = { forked: true };
-const orm = { em: { fork: vi.fn(() => em) } };
+const orm = { em: { fork: vi.fn(() => em) }, close: vi.fn(async () => undefined) };
 const initOrm = vi.fn();
 
 vi.mock("@devmentor/db", async (importOriginal) => ({
@@ -9,9 +9,21 @@ vi.mock("@devmentor/db", async (importOriginal) => ({
   initOrm,
 }));
 
-const { DatabaseHealthService, getContainer, ServiceUnavailableError, TechnologyService, withScope } = await import(
-  "../src"
-);
+const {
+  AccountService,
+  closeContainer,
+  DatabaseHealthService,
+  getContainer,
+  NoopMailAdapter,
+  OutboxMailAdapter,
+  PasswordHasher,
+  RateLimiter,
+  SeedService,
+  ServiceUnavailableError,
+  TechnologyService,
+  UserTokenService,
+  withScope,
+} = await import("../src");
 
 function resetContainer() {
   delete (globalThis as { __devmentorContainer?: unknown }).__devmentorContainer;
@@ -21,7 +33,11 @@ describe("getContainer / withScope", () => {
   beforeEach(() => {
     resetContainer();
     initOrm.mockReset();
+    orm.close.mockClear();
     vi.stubEnv("DATABASE_URL", "postgresql://u:p@localhost:5432/db");
+    vi.stubEnv("AUTH_JWT_SECRET", "s".repeat(32));
+    // Bez APP_ENV obowiązuje production, która wymaga TRUST_PROXY=true.
+    vi.stubEnv("TRUST_PROXY", "true");
   });
 
   afterEach(() => {
@@ -43,6 +59,53 @@ describe("getContainer / withScope", () => {
     expect(typeof first.cradle.logger.info).toBe("function");
   });
 
+  it("rejestruje RateLimiter jako singleton kontenera głównego, wspólny dla wszystkich scope", async () => {
+    initOrm.mockResolvedValue(orm);
+    const container = await getContainer();
+
+    const fromFirstScope = await withScope(async (cradle) => cradle.rateLimiter);
+    const fromSecondScope = await withScope(async (cradle) => cradle.rateLimiter);
+
+    expect(container.cradle.rateLimiter).toBeInstanceOf(RateLimiter);
+    expect(fromFirstScope).toBe(container.cradle.rateLimiter);
+    expect(fromSecondScope).toBe(container.cradle.rateLimiter);
+  });
+
+  it("rejestruje PasswordHasher jako singleton kontenera głównego, a UserTokenService osobno w każdym scope", async () => {
+    initOrm.mockResolvedValue(orm);
+    const container = await getContainer();
+
+    const first = await withScope(async (cradle) => [cradle.passwordHasher, cradle.userTokenService] as const);
+    const second = await withScope(async (cradle) => [cradle.passwordHasher, cradle.userTokenService] as const);
+
+    expect(container.cradle.passwordHasher).toBeInstanceOf(PasswordHasher);
+    expect(first[0]).toBe(container.cradle.passwordHasher);
+    expect(second[0]).toBe(container.cradle.passwordHasher);
+    expect(first[1]).not.toBe(second[1]);
+  });
+
+  it("przy MAIL_ADAPTER=outbox rejestruje jedną skrzynkę jako mailGateway i mailOutbox, wspólną dla scope", async () => {
+    initOrm.mockResolvedValue(orm);
+    vi.stubEnv("APP_ENV", "test");
+    const container = await getContainer();
+
+    const fromScope = await withScope(async (cradle) => cradle.mailOutbox);
+
+    expect(container.cradle.env.MAIL_ADAPTER).toBe("outbox");
+    expect(container.cradle.mailGateway).toBeInstanceOf(OutboxMailAdapter);
+    expect(container.cradle.mailOutbox).toBe(container.cradle.mailGateway);
+    expect(fromScope).toBe(container.cradle.mailGateway);
+  });
+
+  it("przy APP_ENV=production rejestruje NoopMailAdapter i brak skrzynki", async () => {
+    initOrm.mockResolvedValue(orm);
+    vi.stubEnv("APP_ENV", "production");
+    const container = await getContainer();
+
+    expect(container.cradle.mailGateway).toBeInstanceOf(NoopMailAdapter);
+    expect(container.cradle.mailOutbox).toBeNull();
+  });
+
   it("withScope daje własny EntityManager i serwisy żądania, a wynik pracy przekazuje dalej", async () => {
     initOrm.mockResolvedValue(orm);
 
@@ -51,6 +114,12 @@ describe("getContainer / withScope", () => {
       expect(cradle.databaseHealthService).toBeInstanceOf(DatabaseHealthService);
       expect(cradle.technologyService).toBeInstanceOf(TechnologyService);
       expect(cradle.technologyService).toBe(cradle.technologyService);
+      expect(cradle.userTokenService).toBeInstanceOf(UserTokenService);
+      expect(cradle.userTokenService).toBe(cradle.userTokenService);
+      expect(cradle.accountService).toBeInstanceOf(AccountService);
+      expect(cradle.accountService).toBe(cradle.accountService);
+      expect(cradle.seedService).toBeInstanceOf(SeedService);
+      expect(cradle.seedService).toBe(cradle.seedService);
       return "wynik";
     });
 
@@ -66,6 +135,27 @@ describe("getContainer / withScope", () => {
         throw new Error("błąd w serwisie");
       }),
     ).rejects.toThrow("błąd w serwisie");
+  });
+
+  it("closeContainer zamyka pulę ORM i zapomina kontener — kolejne getContainer tworzy nowy", async () => {
+    initOrm.mockResolvedValue(orm);
+    const first = await getContainer();
+
+    await closeContainer();
+
+    expect(orm.close).toHaveBeenCalledExactlyOnceWith(true);
+    expect(await getContainer()).not.toBe(first);
+    expect(initOrm).toHaveBeenCalledTimes(2);
+  });
+
+  it("closeContainer bez kontenera albo po nieudanym starcie nic nie zamyka i nie rzuca", async () => {
+    await expect(closeContainer()).resolves.toBeUndefined();
+
+    initOrm.mockRejectedValueOnce(new Error("bad config"));
+    const failed = getContainer();
+    await expect(closeContainer()).resolves.toBeUndefined();
+    await expect(failed).rejects.toBeInstanceOf(ServiceUnavailableError);
+    expect(orm.close).not.toHaveBeenCalled();
   });
 
   it("zamienia błąd inicjalizacji ORM na ServiceUnavailableError i pozwala spróbować ponownie", async () => {

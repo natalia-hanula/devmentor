@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { withScope } from "../container/container";
 import type { RequestCradle } from "../container/cradle";
-import { apiHandler, parseInput, parseJsonBody, type RouteHandler } from "./api-handler";
+import { apiHandler, parseJsonBody, type RouteHandler } from "./api-handler";
 import { requireSession } from "./auth";
+import { ValidationError } from "./errors";
 
 export interface CrudService<TDto, TCreate, TUpdate> {
   list(): Promise<TDto[]>;
@@ -25,8 +26,6 @@ export interface CrudRouteConfig<K extends CrudServiceKey, C extends z.ZodType, 
   updateSchema: U;
   access?: { read?: AccessRule; write?: AccessRule };
 }
-
-const idQuerySchema = z.object({ id: z.uuid("Nieprawidłowy identyfikator") });
 
 /**
  * Trasy CRUD z konfiguracji: `GET` (lista), `POST` (tworzenie), `PUT ?id=` (zmiana), `DELETE ?id=`.
@@ -76,7 +75,18 @@ async function authorize(rule: AccessRule, request: Request): Promise<void> {
   await rule(request);
 }
 
-function parseIdQuery(request: Request): z.infer<typeof idQuerySchema> {
-  const id = new URL(request.url).searchParams.get("id");
-  return parseInput(idQuerySchema, { id });
+const uuidParamSchema = z.uuid("Nieprawidłowy identyfikator");
+
+/** Parametr zapytania jako UUID (400 z `fieldErrors` pod nazwą parametru) — także dla tras przepływów, które nie są CRUD-em. */
+export function parseUuidParam(request: Request, name: string): string {
+  const result = uuidParamSchema.safeParse(new URL(request.url).searchParams.get(name));
+  if (!result.success) {
+    throw new ValidationError(undefined, { [name]: result.error.issues.map((issue) => issue.message) });
+  }
+  return result.data;
+}
+
+/** `?id=` jako UUID — wspólne dla tras `DELETE`/`PUT`. */
+export function parseIdQuery(request: Request): { id: string } {
+  return { id: parseUuidParam(request, "id") };
 }

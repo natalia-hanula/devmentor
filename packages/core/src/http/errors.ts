@@ -53,11 +53,35 @@ export class NotFoundError extends AppError {
   }
 }
 
+/** `fieldErrors` wskazuje pole, którego dotyczy konflikt (np. zajęty e-mail przy rejestracji). */
 export class ConflictError extends AppError {
   readonly status = 409;
   readonly code = "CONFLICT";
 
-  constructor(message = "Konflikt z istniejącymi danymi") {
+  constructor(
+    message = "Konflikt z istniejącymi danymi",
+    readonly fieldErrors?: FieldErrors,
+  ) {
+    super(message);
+  }
+}
+
+/** Treść żądania większa niż dopuszcza trasa (zob. `parseJsonBody`). */
+export class PayloadTooLargeError extends AppError {
+  readonly status = 413;
+  readonly code = "PAYLOAD_TOO_LARGE";
+
+  constructor(message = "Treść żądania jest za duża") {
+    super(message);
+  }
+}
+
+/** Przekroczony limit prób (limiter). Komunikat jest ogólny — nie zdradza, który klucz się wyczerpał. */
+export class TooManyRequestsError extends AppError {
+  readonly status = 429;
+  readonly code = "TOO_MANY_REQUESTS";
+
+  constructor(message = "Za dużo prób. Spróbuj za chwilę.") {
     super(message);
   }
 }

@@ -1,19 +1,37 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/image", () => ({
   default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} />,
 }));
-vi.mock("../app/(admin)/admin/database-status-card", () => ({
+vi.mock("../app/_lib/require-page-role", () => ({
+  PageRoleGate: ({ role, path, children }: { role: string; path: string; children: ReactNode }) => (
+    <div data-testid="gate" data-role={role} data-path={path}>
+      {children}
+    </div>
+  ),
+}));
+vi.mock("../app/(operator)/admin/database-status-card", () => ({
   DatabaseStatusCard: () => <div>karta stanu bazy</div>,
 }));
-vi.mock("../app/(admin)/admin/technologies/technologies-manager", () => ({
+vi.mock("../app/(operator)/admin/technologies/technologies-manager", () => ({
   TechnologiesManager: () => <div>zarządzanie technologiami</div>,
 }));
 
+vi.mock("../app/(operator)/admin/invitations/invitations-manager", () => ({
+  InvitationsManager: () => <div>zarządzanie zaproszeniami</div>,
+}));
+
+vi.mock("../app/(operator)/admin/outbox/outbox-viewer", () => ({
+  OutboxViewer: () => <div>podgląd skrzynki</div>,
+}));
+
 const { default: HomePage } = await import("../app/(marketing)/page");
-const adminPage = await import("../app/(admin)/admin/page");
-const technologiesPage = await import("../app/(admin)/admin/technologies/page");
+const adminPage = await import("../app/(operator)/admin/page");
+const technologiesPage = await import("../app/(operator)/admin/technologies/page");
+const outboxPage = await import("../app/(operator)/admin/outbox/page");
+const invitationsPage = await import("../app/(operator)/admin/invitations/page");
 
 describe("strony", () => {
   it("HomePage renderuje stronę startową", () => {
@@ -29,6 +47,8 @@ describe("strony", () => {
     expect(screen.getByRole("heading", { name: "Panel admina" })).toBeInTheDocument();
     expect(screen.getByText("karta stanu bazy")).toBeInTheDocument();
     expect(adminPage.metadata.title).toContain("Panel admina");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-role", "operator");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-path", "/admin");
   });
 
   it("TechnologiesPage pokazuje nagłówek i zarządzanie technologiami", () => {
@@ -37,5 +57,27 @@ describe("strony", () => {
     expect(screen.getByRole("heading", { name: "Technologie" })).toBeInTheDocument();
     expect(screen.getByText("zarządzanie technologiami")).toBeInTheDocument();
     expect(technologiesPage.metadata.title).toContain("Technologie");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-role", "operator");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-path", "/admin/technologies");
+  });
+
+  it("OutboxPage pokazuje tytuł „Skrzynka” i podgląd za bramką operatora", () => {
+    render(<outboxPage.default />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Skrzynka" })).toBeInTheDocument();
+    expect(screen.getByText("podgląd skrzynki")).toBeInTheDocument();
+    expect(outboxPage.metadata.title).toContain("Skrzynka");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-role", "operator");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-path", "/admin/outbox");
+  });
+
+  it("InvitationsPage pokazuje tytuł „Zaproszenia” i zarządzanie za bramką operatora", () => {
+    render(<invitationsPage.default />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Zaproszenia" })).toBeInTheDocument();
+    expect(screen.getByText("zarządzanie zaproszeniami")).toBeInTheDocument();
+    expect(invitationsPage.metadata.title).toContain("Zaproszenia");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-role", "operator");
+    expect(screen.getByTestId("gate")).toHaveAttribute("data-path", "/admin/invitations");
   });
 });

@@ -38,7 +38,7 @@ Wymagania: **Node.js 22.17+** (wymóg MikroORM 7), npm oraz PostgreSQL 17.
 
 ### Szybko: `npm run setup`
 
-Uruchom PostgreSQL z rolą `devmentor` (zob. krok 2 poniżej): `docker compose up -d` tworzy ją sam, a przy Homebrew wykonaj `CREATE ROLE` z kroku 2, bez tworzenia baz. Potem:
+Uruchom PostgreSQL z rolą `devmentor` (zob. krok 2 poniżej): `npm run db:up` (skrót dla `docker compose up -d --wait` — czeka, aż healthcheck potwierdzi gotowość bazy) tworzy ją sam, a przy Homebrew wykonaj `CREATE ROLE` z kroku 2, bez tworzenia baz. Potem:
 
 ```bash
 git clone https://github.com/natalia-hanula/devmentor.git
@@ -47,7 +47,7 @@ npm run setup
 npm run dev
 ```
 
-Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
+Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje, tylko dopisuje brakujące `AUTH_JWT_SECRET` (losowy, 48 bajtów) i `APP_ENV=local`. Utworzonemu lub uzupełnionemu `.env` ustawia uprawnienia `0600` (odczyt i zapis tylko dla właściciela), bo plik trzyma sekrety. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Konta operatora nie zakłada — na końcu przypomina o `npm run operator:create` (krok 5). Konta testowe zakłada osobno `npm run db:seed` (krok 6). Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
 
 > Na Node 22 instalator wypisuje ostrzeżenie `ExperimentalWarning` o type stripping. To jest oczekiwane.
 
@@ -80,10 +80,12 @@ SQL
 **Wariant B — Docker:**
 
 ```bash
-docker compose up -d
+npm run db:up   # skrót dla: docker compose up -d --wait
 ```
 
 `docker-compose.yml` tworzy tę samą rolę oraz bazy `devmentor` i `devmentor_integration`, więc ten sam `.env` działa w obu wariantach.
+
+> Jeśli na porcie 5432 działa już lokalny PostgreSQL (np. z Homebrew), kontener wystartuje, ale `localhost:5432` trafi do lokalnego serwera. Przed użyciem bazy z Dockera zatrzymaj go: `brew services stop postgresql@17`.
 
 #### 3. Zmienne środowiskowe
 
@@ -91,6 +93,8 @@ docker compose up -d
 cp .env.example .env
 ln -s ../../.env packages/app/.env
 ```
+
+Bez instalatora dopisz do `.env` sekret sesji (min. 32 bajty; polecenie jest w `.env.example`). Zmiana `AUTH_JWT_SECRET` wylogowuje wszystkich użytkowników. `APP_ENV` (`local`, `test`, `staging`, `production`) mówi, gdzie działa aplikacja; brak wpisu oznacza `production`, czyli najostrzejsze reguły.
 
 `.env` jest jeden, w katalogu głównym. Next.js czyta `.env` tylko z katalogu aplikacji, dlatego `packages/app/.env` jest symlinkiem do pliku głównego.
 
@@ -101,7 +105,23 @@ npm run db:migrate
 npm run dev
 ```
 
-Aplikacja będzie dostępna pod adresem [http://localhost:3000](http://localhost:3000), panel admina (ze stanem połączenia z bazą) pod [http://localhost:3000/admin](http://localhost:3000/admin), a słownik technologii pod [http://localhost:3000/admin/technologies](http://localhost:3000/admin/technologies). Zapisy wymagają zalogowania, a auth nie jest jeszcze wdrożone, więc na razie serwer odpowiada na nie 401.
+Aplikacja będzie dostępna pod adresem [http://localhost:3000](http://localhost:3000), panel admina (ze stanem połączenia z bazą) pod [http://localhost:3000/admin](http://localhost:3000/admin), a słownik technologii pod [http://localhost:3000/admin/technologies](http://localhost:3000/admin/technologies). Panel operatora i zapisy w słowniku wymagają zalogowania kontem z rolą `operator` (krok 5); logowanie i rejestracja: [http://localhost:3000/login](http://localhost:3000/login).
+
+#### 5. Konto operatora
+
+```bash
+npm run operator:create
+```
+
+Skrypt pyta o e-mail, wyświetlaną nazwę i hasło (min. 12 znaków; hasło wpisujesz bez echa i dwa razy). Hasła nie podaje się jako argumentu, żeby nie trafiło do historii powłoki. Konto dostaje wyłącznie rolę `operator` i od razu potwierdzony adres. Zapomniane hasło operatora: w wersji 1.0 załóż nowe konto operatora tym samym skryptem (reset hasła przez CLI wejdzie w etapie B). Instalator `npm run setup` tylko o tym przypomina — konta nie zakłada.
+
+#### 6. Konta testowe (opcjonalnie)
+
+```bash
+npm run db:seed
+```
+
+Zakłada cztery fikcyjne konta: trzy z potwierdzonym adresem — `operator.test@example.com` (rola `operator`), `mentee.test@example.com` (`mentee`) i `mentor.test@example.com` (`mentee` + `mentor`, rolę nadaje konto operatora z seeda) — oraz `mentee.niepotwierdzone@example.com` (`mentee`, adres niepotwierdzony). To ostatnie służy do sprawdzenia banera „Potwierdź adres e-mail” na `/account`: seed nie wysyła maila, więc link weryfikacyjny pojawi się w `/admin/outbox` dopiero po kliknięciu „Wyślij ponownie”. Wszystkie mają hasło `test-haslo-nie-sekret` — to jawne dane testowe, nie sekret. Ponowne uruchomienie pomija istniejące konta. Przy `APP_ENV=production` (także gdy `APP_ENV` brak w `.env`) seed odmawia działania.
 
 ## Dostępne skrypty
 
@@ -118,9 +138,12 @@ Uruchamiane z katalogu głównego:
 | `npm test`                            | Testy jednostkowe z pokryciem (próg 100%)                   |
 | `npm run test:watch`                  | Vitest w trybie watch                                       |
 | `npm run test:integration`            | Build + testy integracyjne (PostgreSQL, API, agent-browser) |
+| `npm run db:up`                       | PostgreSQL w Dockerze (`docker compose up -d --wait`)       |
 | `npm run db:migrate`                  | Wykonanie oczekujących migracji                             |
 | `npm run db:migration:create`         | Nowa migracja na podstawie zmian w encjach                  |
 | `npm run db:migration:list`           | Lista wykonanych migracji                                   |
+| `npm run db:seed`                     | Konta testowe mentee, mentor, operator i mentee z niepotwierdzonym adresem (hasło `test-haslo-nie-sekret`; działa tylko przy `APP_ENV=local` lub `test`) |
+| `npm run operator:create`             | Konto operatora (interaktywnie, hasło bez echa)             |
 
 
 ## Testy i CI

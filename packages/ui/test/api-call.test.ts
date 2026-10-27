@@ -33,6 +33,24 @@ describe("apiCall", () => {
     expect(await apiCall("/api/technologies")).toEqual({ ok: false, error });
   });
 
+  it("429 z kopertą przekazuje kod TOO_MANY_REQUESTS i komunikat z serwera", async () => {
+    const error = { code: "TOO_MANY_REQUESTS", message: "Za dużo prób. Spróbuj za chwilę." };
+    mockFetch(Response.json({ ok: false, error }, { status: 429 }));
+
+    expect(await apiCall("/api/auth/login", { method: "POST", body: {} })).toEqual({ ok: false, error });
+  });
+
+  it("429 bez poprawnej koperty (np. limit na proxy) → TOO_MANY_REQUESTS z ogólnym komunikatem", async () => {
+    mockFetch(new Response("Too Many Requests", { status: 429 }));
+
+    const result = await apiCall("/api/auth/login", { method: "POST", body: {} });
+
+    expect(result).toEqual({
+      ok: false,
+      error: { code: "TOO_MANY_REQUESTS", message: "Za dużo prób. Spróbuj za chwilę." },
+    });
+  });
+
   it("nie wywraca się na odpowiedzi, która nie jest JSON-em (np. strona błędu proxy)", async () => {
     mockFetch(new Response("<html>502</html>", { status: 502 }));
 

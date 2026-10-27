@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"],
+    // CLI operatora i seed działają przez `tsx`, nie type stripping: importują `@devmentor/core` (źródła TS z importami
+    // bez rozszerzeń i składnią nieusuwalną), więc nie dziedziczy `erasableSyntaxOnly` z `scripts/tsconfig.json`.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["create-operator.ts", "operator/**/*.ts", "test/operator/**/*.ts", "seed.ts", "seed/**/*.ts", "test/seed/**/*.ts"]
+}

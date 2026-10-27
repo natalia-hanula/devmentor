@@ -14,8 +14,13 @@ export function isDatabaseUnavailableError(error: unknown): boolean {
   if (error instanceof ConnectionException) {
     return true;
   }
-  if (!(error instanceof DriverException) || typeof error.code !== "string") {
+  if (!(error instanceof Error) || !("code" in error) || typeof error.code !== "string") {
     return false;
   }
-  return NETWORK_ERROR_CODES.has(error.code) || error.code.startsWith(SQLSTATE_CONNECTION_CLASS);
+  // Kod sieciowy także na surowym błędzie sterownika: `flush` (początek transakcji) nie opakowuje go
+  // w `DriverException`, a przy `localhost` (IPv4 + IPv6) to `AggregateError` z pustym komunikatem.
+  if (NETWORK_ERROR_CODES.has(error.code)) {
+    return true;
+  }
+  return error instanceof DriverException && error.code.startsWith(SQLSTATE_CONNECTION_CLASS);
 }

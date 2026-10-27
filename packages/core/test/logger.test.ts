@@ -20,7 +20,7 @@ describe("createLogger", () => {
     logger.info(
       {
         password: "hunter2",
-        user: { email: "a@b.pl", password: "hunter2" },
+        user: { id: "u1", email: "a@b.pl", password: "hunter2" },
         token: "jwt-token",
         req: { headers: { authorization: "Bearer abc", cookie: "session=xyz" } },
       },
@@ -28,9 +28,44 @@ describe("createLogger", () => {
     );
 
     const output = lines.join("");
-    expect(output).not.toMatch(/hunter2|jwt-token|Bearer abc|session=xyz/);
+    expect(output).not.toMatch(/hunter2|jwt-token|Bearer abc|session=xyz|a@b\.pl/);
     expect(output).toContain("[REDACTED]");
-    expect(output).toContain("a@b.pl");
+    expect(output).toContain("u1");
+  });
+
+  it("redaguje adresy e-mail, pełne URL-e i set-cookie", () => {
+    const { logger, lines } = captureLogger();
+
+    logger.info(
+      {
+        email: "ola@example.com",
+        user: { email: "ala@example.com" },
+        url: "https://x.pl/verify?token=abc",
+        req: { url: "https://x.pl/reset?token=def" },
+        res: { "set-cookie": "devmentor_session=jwt" },
+      },
+      "żądanie",
+    );
+
+    expect(lines.join("")).not.toMatch(/example\.com|token=|devmentor_session/);
+  });
+
+  it("redaguje hashe haseł i tokenów", () => {
+    const { logger, lines } = captureLogger();
+
+    logger.info(
+      {
+        passwordHash: "$2b$12$tajnyhashhasla",
+        tokenHash: "a".repeat(64),
+        user: { id: "u1", passwordHash: "$2b$12$drugihash" },
+        userToken: { tokenHash: "b".repeat(64), token: "surowy-token" },
+      },
+      "token",
+    );
+
+    const output = lines.join("");
+    expect(output).not.toMatch(/tajnyhashhasla|drugihash|a{64}|b{64}|surowy-token/);
+    expect(output).toContain("u1");
   });
 });
 

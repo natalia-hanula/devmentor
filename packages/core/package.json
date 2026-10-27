@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./http/safe-next-path": "./src/http/safe-next-path.ts",
+    "./http/session-constants": "./src/http/session-constants.ts",
     "./validators/*": "./src/validators/*.ts"
   },
   "scripts": {
@@ -13,6 +15,8 @@
   "dependencies": {
     "@devmentor/db": "^0.1.0",
     "awilix": "^13.0.5",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.13",
     "pino": "^10.4.0",
     "zod": "^4.6.7"
   }

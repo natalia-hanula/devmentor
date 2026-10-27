@@ -1,13 +1,16 @@
+import type { USER_ROLES } from "@devmentor/db/constants";
+import type { AccessRule } from "./make-crud-route";
 import { ForbiddenError, UnauthorizedError } from "./errors";
 import { getSession } from "./session";
 
 export { getSession };
 
-export type Role = "student" | "mentor" | "admin";
+export type Role = (typeof USER_ROLES)[number];
 
 export interface Session {
   userId: string;
-  role: Role;
+  roles: readonly Role[];
+  emailVerified: boolean;
 }
 
 export async function requireSession(request: Request): Promise<Session> {
@@ -19,12 +22,21 @@ export async function requireSession(request: Request): Promise<Session> {
 }
 
 export function requireRole(session: Session, role: Role): void {
-  if (session.role !== role) {
+  if (!session.roles.includes(role)) {
     throw new ForbiddenError();
   }
 }
 
-/** Własność rekordu: student zmienia tylko swoje rezerwacje, mentor tylko swój profil. */
+/** `AccessRule` dla `makeCrudRoute`: wymaga sesji (401) i roli (403). */
+export function requireRoleAccess(role: Role): Exclude<AccessRule, "public"> {
+  return async (request) => {
+    const session = await requireSession(request);
+    requireRole(session, role);
+    return session;
+  };
+}
+
+/** Własność rekordu: mentee zmienia tylko swoje rezerwacje, mentor tylko swój profil. */
 export function assertOwnership(session: Session, ownerId: string): void {
   if (session.userId !== ownerId) {
     throw new ForbiddenError();
