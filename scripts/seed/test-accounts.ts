@@ -2,7 +2,7 @@ import type { Role } from "@devmentor/core";
 
 /**
  * Dane testowe, nie sekret (decyzja 2): jedno jawne hasło wszystkich kont z `npm run db:seed`.
- * Seed odmawia działania przy `APP_ENV=production` (skrypt i `SeedService`), więc te konta nie powstaną w produkcji.
+ * Seed działa tylko przy `APP_ENV=local` lub `test` (skrypt i `SeedService`), więc te konta nie powstaną na stagingu ani w produkcji.
  */
 export const TEST_PASSWORD = "test-haslo-nie-sekret";
 

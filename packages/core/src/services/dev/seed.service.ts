@@ -14,7 +14,14 @@ import {
 } from "../auth/account.service";
 import type { PasswordHasher } from "../auth/password-hasher.service";
 
-export const SEED_FORBIDDEN_MESSAGE = "Konta testowe (npm run db:seed) są zablokowane przy APP_ENV=production";
+export const SEED_FORBIDDEN_MESSAGE = "Konta testowe (npm run db:seed) działają tylko przy APP_ENV=local lub test";
+
+const SEED_ALLOWED_ENVS: ReadonlySet<Env["APP_ENV"]> = new Set(["local", "test"]);
+
+/** Lista dozwolonych środowisk, nie czarna lista: nowe `APP_ENV` domyślnie nie dostaje kont ze znanym hasłem. */
+export function isSeedAllowed(appEnv: Env["APP_ENV"]): boolean {
+  return SEED_ALLOWED_ENVS.has(appEnv);
+}
 
 /** Dane konta testowego — te same pola i reguły co przy rejestracji. */
 export type TestAccountInput = OperatorInput;
@@ -27,7 +34,7 @@ export interface SeedServiceDependencies {
 }
 
 /**
- * Konta testowe dla `npm run db:seed` — wyłącznie poza produkcją. Każda metoda sprawdza `APP_ENV` sama
+ * Konta testowe dla `npm run db:seed` — wyłącznie przy `APP_ENV=local` lub `test`. Każda metoda sprawdza `APP_ENV` sama
  * (fail closed), niezależnie od skryptu. Bez trasy HTTP, limitera, tokenów i maila: adresy są od razu
  * potwierdzone (wyjątek: mentee z `emailVerified: false` do sprawdzania banera i „Wyślij ponownie”), a skrzynka
  * outbox żyje w pamięci innego procesu (`next dev`), więc mail z seeda by przepadł.
@@ -48,7 +55,7 @@ export class SeedService {
 
   /** Operator tą samą drogą co CLI (`AccountService.createOperator`): tylko rola `operator`, adres potwierdzony. */
   async createOperator(input: TestAccountInput): Promise<AccountDto> {
-    this.assertNotProduction();
+    this.assertAllowed();
     return this.accountService.createOperator(input);
   }
 
@@ -57,7 +64,7 @@ export class SeedService {
    * `emailVerified: false` → adres niepotwierdzony; link weryfikacyjny daje dopiero „Wyślij ponownie” w aplikacji.
    */
   async createMentee(input: TestAccountInput, emailVerified: boolean): Promise<AccountDto> {
-    this.assertNotProduction();
+    this.assertAllowed();
     return this.createAccount(input, null, emailVerified);
   }
 
@@ -66,7 +73,7 @@ export class SeedService {
    * do czasu zaproszeń (faza 4) to jedyna droga do konta mentora.
    */
   async createMentor(input: TestAccountInput, grantedByEmail: string): Promise<AccountDto> {
-    this.assertNotProduction();
+    this.assertAllowed();
     const operator = await this.em.findOne(User, { email: normalizeEmail(grantedByEmail) }, { populate: ["roles"] });
     if (!operator || !operator.roles.getItems().some((entry) => entry.role === "operator")) {
       throw new NotFoundError(`Brak konta operatora ${grantedByEmail} — nie można nadać roli mentora`);
@@ -74,8 +81,8 @@ export class SeedService {
     return this.createAccount(input, operator, true);
   }
 
-  private assertNotProduction(): void {
-    if (this.appEnv === "production") {
+  private assertAllowed(): void {
+    if (!isSeedAllowed(this.appEnv)) {
       throw new ForbiddenError(SEED_FORBIDDEN_MESSAGE);
     }
   }

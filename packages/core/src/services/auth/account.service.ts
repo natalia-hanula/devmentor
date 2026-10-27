@@ -63,7 +63,7 @@ export interface EmailVerificationResult {
  * Wynik „Wyślij ponownie”: strona pokazuje inny komunikat dla każdego, żeby nie obiecywać maila, którego nie wysłano.
  * Dotyczy tylko własnego konta zalogowanej osoby, więc nie ujawnia stanu cudzych adresów.
  */
-export type VerificationResendStatus = "sent" | "already_verified" | "mail_disabled";
+export type VerificationResendStatus = "sent" | "already_verified" | "mail_disabled" | "mail_failed";
 
 export interface AccountServiceDependencies {
   em: EntityManager;
@@ -151,7 +151,8 @@ export class AccountService {
   /**
    * Nowy link weryfikacyjny dla własnego konta. Limiter liczy każde żądanie. Potwierdzony adres → nic nie
    * wysyła (`already_verified`); wyłączona poczta (`MAIL_ADAPTER=noop`) → też nic, bez wydawania tokenu
-   * (`mail_disabled`). Nowy token zastępuje poprzedni (upsert), więc stary link przestaje działać.
+   * (`mail_disabled`). Błąd wysyłki → `mail_failed`, żeby strona nie obiecywała maila, którego nie będzie.
+   * Nowy token zastępuje poprzedni (upsert), więc stary link przestaje działać.
    */
   async resendVerification(userId: string): Promise<VerificationResendStatus> {
     consumeVerifyResendAttempt(this.rateLimiter, userId);
@@ -167,8 +168,8 @@ export class AccountService {
       return "mail_disabled";
     }
     const rawToken = await this.userTokenService.issue(user.id, "email_verification", EMAIL_VERIFICATION_TTL_MS);
-    await this.sendVerificationMail(user, rawToken);
-    return "sent";
+    const mailSent = await this.sendVerificationMail(user, rawToken);
+    return mailSent ? "sent" : "mail_failed";
   }
 
   /**
@@ -241,16 +242,19 @@ export class AccountService {
 
   /**
    * Wysyłka po zapisie (port e-mail: nigdy dla wycofanej transakcji). Błąd poczty logujemy bez adresata,
-   * treści i tokenu, a odpowiedź pozostaje sukcesem — nowy link można wysłać z `/account`.
+   * treści i tokenu i zwracamy `false`: rejestracja pozostaje sukcesem (nowy link można wysłać z `/account`),
+   * a „Wyślij ponownie” zgłasza `mail_failed`.
    */
-  private async sendVerificationMail(user: User, rawToken: string): Promise<void> {
+  private async sendVerificationMail(user: User, rawToken: string): Promise<boolean> {
     try {
       await this.mailGateway.send(verificationMail({ to: user.email, appBaseUrl: this.appBaseUrl, rawToken }));
+      return true;
     } catch (error) {
       this.logger.error(
         { err: error, userId: user.id, mail: "email_verification" },
         "Nie udało się wysłać linku weryfikacyjnego",
       );
+      return false;
     }
   }
 }

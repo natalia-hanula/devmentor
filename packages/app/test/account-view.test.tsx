@@ -141,6 +141,21 @@ describe("AccountView (s04)", () => {
       expect(screen.getByRole("button", { name: "Wyślij ponownie" })).toBeEnabled();
     });
 
+    it("wynik mail_failed → błąd „Nie udało się wysłać linku”, bez obietnicy wysyłki", async () => {
+      apiCall.mockImplementation(async (path: string) =>
+        path === "/api/auth/me" ? { ok: true, data: ACCOUNT } : { ok: true, data: { status: "mail_failed" } },
+      );
+      render(<AccountView />);
+      await screen.findByText("ola@example.com");
+
+      await userEvent.click(screen.getByRole("button", { name: "Wyślij ponownie" }));
+
+      expect(await screen.findByText("Nie udało się wysłać linku")).toBeInTheDocument();
+      expect(screen.getByText("Nie udało się wysłać wiadomości. Spróbuj ponownie za chwilę.")).toBeInTheDocument();
+      expect(screen.queryByText("Wysłaliśmy nowy link. Sprawdź skrzynkę.")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Wyślij ponownie" })).toBeEnabled();
+    });
+
     it.each([
       ["already_verified", "Adres jest już potwierdzony."],
       ["mail_disabled", "Wysyłka poczty jest wyłączona."],

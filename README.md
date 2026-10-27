@@ -142,7 +142,7 @@ Uruchamiane z katalogu głównego:
 | `npm run db:migrate`                  | Wykonanie oczekujących migracji                             |
 | `npm run db:migration:create`         | Nowa migracja na podstawie zmian w encjach                  |
 | `npm run db:migration:list`           | Lista wykonanych migracji                                   |
-| `npm run db:seed`                     | Konta testowe mentee, mentor, operator i mentee z niepotwierdzonym adresem (hasło `test-haslo-nie-sekret`; odmowa przy `APP_ENV=production`) |
+| `npm run db:seed`                     | Konta testowe mentee, mentor, operator i mentee z niepotwierdzonym adresem (hasło `test-haslo-nie-sekret`; działa tylko przy `APP_ENV=local` lub `test`) |
 | `npm run operator:create`             | Konto operatora (interaktywnie, hasło bez echa)             |
 
 

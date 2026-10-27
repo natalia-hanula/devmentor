@@ -112,13 +112,13 @@ describe("runSeed", () => {
     expect(lines).toContain("  mentor.test@example.com (mentee, mentor) — utworzone");
   });
 
-  it("APP_ENV=production → odmowa przed jakimkolwiek zapisem, kod 1, pula zamknięta", async () => {
-    const { lines, backend, write } = setup("production");
+  it.each(["staging", "production"] as const)("APP_ENV=%s → odmowa przed jakimkolwiek zapisem, kod 1, pula zamknięta", async (appEnv) => {
+    const { lines, backend, write } = setup(appEnv);
 
     const code = await runSeed(write, backend);
 
     expect(code).toBe(1);
-    expect(lines).toEqual([MESSAGES.production]);
+    expect(lines).toEqual([MESSAGES.forbidden]);
     expect(backend.createOperator).not.toHaveBeenCalled();
     expect(backend.createMentee).not.toHaveBeenCalled();
     expect(backend.createMentor).not.toHaveBeenCalled();
@@ -130,7 +130,7 @@ describe("runSeed", () => {
     backend.createOperator.mockRejectedValue(new ForbiddenError("zablokowane"));
 
     expect(await runSeed(write, backend)).toBe(1);
-    expect(lines).toEqual([MESSAGES.intro, MESSAGES.production]);
+    expect(lines).toEqual([MESSAGES.intro, MESSAGES.forbidden]);
     expect(backend.createMentee).not.toHaveBeenCalled();
   });
 

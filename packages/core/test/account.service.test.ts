@@ -390,12 +390,12 @@ describe("AccountService.resendVerification", () => {
     await expect(service.resendVerification("inne-konto")).resolves.toBe("sent");
   });
 
-  it("błąd poczty → sukces i log bez adresata i tokenu", async () => {
+  it("błąd poczty → „mail_failed” i log bez adresata i tokenu", async () => {
     const { fake, service, mailGateway, logLines } = setup();
     fake.findOne.mockResolvedValue(storedUser());
     mailGateway.send.mockRejectedValue(new Error("SMTP niedostępny"));
 
-    await expect(service.resendVerification(ID)).resolves.toBe("sent");
+    await expect(service.resendVerification(ID)).resolves.toBe("mail_failed");
     const logs = logLines.join("");
     expect(logs).toContain("Nie udało się wysłać linku weryfikacyjnego");
     expect(logs).not.toContain("ola@example.com");

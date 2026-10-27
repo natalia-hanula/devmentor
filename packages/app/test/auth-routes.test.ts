@@ -330,7 +330,7 @@ describe("POST /api/auth/email-verification/resend", () => {
     expect(mocks().resendVerification).not.toHaveBeenCalled();
   });
 
-  it.each(["sent", "already_verified", "mail_disabled"] as const)(
+  it.each(["sent", "already_verified", "mail_disabled", "mail_failed"] as const)(
     "z sesją → 200 z data.status = %s z serwisu; konto z sesji, nie z żądania",
     async (status) => {
       getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: false });

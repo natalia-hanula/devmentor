@@ -13,10 +13,11 @@ const RESEND_PATH = "/api/auth/email-verification/resend";
 export const RESEND_SENT_TEXT = "Wysłaliśmy nowy link. Sprawdź skrzynkę.";
 export const RESEND_ALREADY_VERIFIED_TEXT = "Adres jest już potwierdzony.";
 export const RESEND_MAIL_DISABLED_TEXT = "Wysyłka poczty jest wyłączona.";
+export const RESEND_MAIL_FAILED_TEXT = "Nie udało się wysłać wiadomości. Spróbuj ponownie za chwilę.";
 
-type ResendStatus = "sent" | "already_verified" | "mail_disabled";
+type ResendStatus = "sent" | "already_verified" | "mail_disabled" | "mail_failed";
 
-const RESULT_TEXT: Record<ResendStatus, string> = {
+const RESULT_TEXT: Record<Exclude<ResendStatus, "mail_failed">, string> = {
   sent: RESEND_SENT_TEXT,
   already_verified: RESEND_ALREADY_VERIFIED_TEXT,
   mail_disabled: RESEND_MAIL_DISABLED_TEXT,
@@ -24,7 +25,7 @@ const RESULT_TEXT: Record<ResendStatus, string> = {
 
 type ResendState =
   | { status: "idle" | "sending" }
-  | { status: "done"; result: ResendStatus }
+  | { status: "done"; result: Exclude<ResendStatus, "mail_failed"> }
   | { status: "failed"; message: string };
 
 /**
@@ -41,7 +42,12 @@ export function ResendVerification() {
     if (redirectIfUnauthorized(result)) {
       return;
     }
-    setState(result.ok ? { status: "done", result: result.data.status } : { status: "failed", message: result.error.message });
+    if (!result.ok) {
+      setState({ status: "failed", message: result.error.message });
+      return;
+    }
+    const { status } = result.data;
+    setState(status === "mail_failed" ? { status: "failed", message: RESEND_MAIL_FAILED_TEXT } : { status: "done", result: status });
   }
 
   return (

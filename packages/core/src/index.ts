@@ -83,6 +83,7 @@ export {
   type UserTokenPurpose,
 } from "./services/auth/user-token.service";
 export {
+  isSeedAllowed,
   SEED_FORBIDDEN_MESSAGE,
   SeedService,
   type SeedServiceDependencies,

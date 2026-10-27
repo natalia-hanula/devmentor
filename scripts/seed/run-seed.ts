@@ -2,6 +2,7 @@ import {
   ConflictError,
   ForbiddenError,
   isDatabaseUnavailableError,
+  isSeedAllowed,
   ServiceUnavailableError,
   type AccountDto,
   type Env,
@@ -29,8 +30,8 @@ function describeAccount(account: TestAccount): string {
 }
 
 export const MESSAGES = {
-  production:
-    "Odmowa: npm run db:seed zakłada konta testowe ze znanym hasłem i nie działa przy APP_ENV=production (brak APP_ENV w .env też oznacza production).",
+  forbidden:
+    "Odmowa: npm run db:seed zakłada konta testowe ze znanym hasłem i działa tylko przy APP_ENV=local lub test (brak APP_ENV w .env oznacza production).",
   intro: "Konta testowe DevMentor:",
   created: (account: TestAccount) => `  ${describeAccount(account)} — utworzone`,
   skipped: (account: TestAccount) => `  ${describeAccount(account)} — już istnieje, pomijam`,
@@ -57,8 +58,8 @@ export async function runSeed(write: WriteLine, backend: SeedBackend): Promise<n
 }
 
 async function seed(write: WriteLine, backend: SeedBackend): Promise<number> {
-  if (backend.appEnv() === "production") {
-    write(MESSAGES.production);
+  if (!isSeedAllowed(backend.appEnv())) {
+    write(MESSAGES.forbidden);
     return 1;
   }
 
@@ -97,7 +98,7 @@ async function createdOrExisting(create: () => Promise<AccountDto>): Promise<boo
 
 function reportFailure(error: unknown, write: WriteLine): void {
   if (error instanceof ForbiddenError) {
-    write(MESSAGES.production);
+    write(MESSAGES.forbidden);
     return;
   }
   if (error instanceof ServiceUnavailableError || isDatabaseUnavailableError(error)) {

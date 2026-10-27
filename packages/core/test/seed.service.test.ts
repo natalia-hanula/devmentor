@@ -4,6 +4,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  isSeedAllowed,
   SEED_FORBIDDEN_MESSAGE,
   SeedService,
   ValidationError,
@@ -36,13 +37,13 @@ function storedOperator(roles: string[] = ["operator"]) {
   return { id: "operator-id", email: OPERATOR_EMAIL, roles: { getItems: () => roles.map((role) => ({ role })) } };
 }
 
-describe("SeedService — blokada produkcji (fail closed w core)", () => {
+describe("SeedService — dozwolone tylko local i test (fail closed w core)", () => {
   it.each([
     ["createOperator", (service: SeedService) => service.createOperator(INPUT)],
     ["createMentee", (service: SeedService) => service.createMentee(INPUT, false)],
     ["createMentor", (service: SeedService) => service.createMentor(INPUT, OPERATOR_EMAIL)],
-  ])("%s przy APP_ENV=production → ForbiddenError, bez odczytu, hashowania i zapisu", async (_name, call) => {
-    const { fake, service, passwordHasher, accountService } = setup("production");
+  ])("%s przy APP_ENV=staging → ForbiddenError, bez odczytu, hashowania i zapisu", async (_name, call) => {
+    const { fake, service, passwordHasher, accountService } = setup("staging");
 
     const error = await call(service).catch((caught: unknown) => caught);
 
@@ -55,7 +56,22 @@ describe("SeedService — blokada produkcji (fail closed w core)", () => {
     expect(fake.flush).not.toHaveBeenCalled();
   });
 
-  it.each(["local", "test", "staging"] as const)("APP_ENV=%s → działa", async (appEnv) => {
+  it("APP_ENV=production → ForbiddenError", async () => {
+    const { service } = setup("production");
+
+    await expect(service.createMentee(INPUT, true)).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it.each([
+    ["local", true],
+    ["test", true],
+    ["staging", false],
+    ["production", false],
+  ] as const)("isSeedAllowed(%s) → %s", (appEnv, allowed) => {
+    expect(isSeedAllowed(appEnv)).toBe(allowed);
+  });
+
+  it.each(["local", "test"] as const)("APP_ENV=%s → działa", async (appEnv) => {
     const { service } = setup(appEnv);
 
     await expect(service.createMentee(INPUT, true)).resolves.toMatchObject({ roles: ["mentee"] });
