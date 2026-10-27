@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { StrictMode, type ReactNode } from "react";
+import { Activity, StrictMode, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiCall = vi.fn();
@@ -242,6 +242,26 @@ describe("InviteView (s08)", () => {
 
     await screen.findByRole("button", { name: "Przyjmij zaproszenie" });
     expect(apiCall.mock.calls.filter(([path]) => path === "/api/auth/me")).toHaveLength(1);
+  });
+
+  it("powrót na stronę zachowaną w pamięci (Activity, np. po rejestracji): stary stan „gość” jest odświeżany, token z sessionStorage", async () => {
+    apiCall.mockResolvedValue(GUEST);
+    const view = (mode: "visible" | "hidden") => (
+      <Activity mode={mode}>
+        <InviteView />
+      </Activity>
+    );
+
+    const { rerender } = render(view("visible"));
+    await screen.findByText(/Zaloguj się lub załóż konto/);
+    rerender(view("hidden"));
+    apiCall.mockResolvedValue(MENTEE);
+    rerender(view("visible"));
+
+    expect(await screen.findByRole("button", { name: "Przyjmij zaproszenie" })).toBeInTheDocument();
+    expect(screen.queryByText(/Zaloguj się lub załóż konto/)).not.toBeInTheDocument();
+    expect(storedToken()).toBe(TOKEN);
+    expect(apiCall.mock.calls.filter(([path]) => path === "/api/auth/me")).toHaveLength(2);
   });
 
   it("sessionStorage niedostępny (tryb prywatny): token zostaje w pamięci i da się przyjąć zaproszenie", async () => {

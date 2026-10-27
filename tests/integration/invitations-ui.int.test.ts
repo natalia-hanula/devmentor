@@ -204,4 +204,65 @@ describe("/invite w przeglądarce (agent-browser)", () => {
     expect(await browser.run("get", "text", "[role=alert]")).toContain("Nie masz dostępu do tej strony");
     expect(Number(await browser.run("get", "count", "button:has-text('Przyjmij zaproszenie')"))).toBe(0);
   });
+
+  it("niezalogowana osoba: link → „Załóż konto” z kontekstem zaproszenia → rejestracja → powrót na /invite → przyjęcie → panel mentora", async () => {
+    const link = await newInviteLink();
+    const token = new URLSearchParams(new URL(link).hash.slice(1)).get("token")!;
+    const email = `${TEST_EMAIL_PREFIX}ui-rejestracja-z-linku-${randomUUID()}@example.com`;
+
+    await browser.run("open", link);
+    await browser.run("wait", "--text", "Masz zaproszenie do roli mentora w DevMentor");
+    await browser.run("find", "role", "link", "click", "--name", "Załóż konto");
+    await browser.run("wait", "--text", "Po zalogowaniu przyjmiesz zaproszenie do roli mentora.");
+    // Token jest tylko w sessionStorage: ani w adresie rejestracji, ani w `next`.
+    expect(await browser.run("get", "url")).toBe(`${baseUrl}/register?next=%2Finvite`);
+    expect(await browser.run("get", "url")).not.toContain(token);
+
+    await waitForHydration(browser, "form");
+    await browser.run("find", "label", "Wyświetlana nazwa", "fill", "Adam z zaproszenia");
+    await browser.run("find", "label", "E-mail", "fill", email);
+    await browser.run("find", "label", "Hasło", "fill", "integracyjne-haslo-123");
+    await browser.run("find", "role", "button", "click", "--name", "Załóż konto");
+    await browser.run("wait", "--text", "Przyjmij zaproszenie");
+    expect(await browser.run("get", "url")).toBe(`${baseUrl}/invite`);
+
+    await browser.run("find", "role", "button", "click", "--name", "Przyjmij zaproszenie");
+    await browser.run("wait", "--text", "Masz rolę mentora");
+    expect(await browser.run("get", "url")).toBe(`${baseUrl}/mentor`);
+    expect(await browser.run("get", "text", "header")).toContain("Panel mentora");
+
+    const user = await orm.em.fork().findOneOrFail(User, { email });
+    expect(await orm.em.fork().count(UserRole, { user: user.id, role: "mentor" })).toBe(1);
+    // Q15: zaproszenie przyjęte kontem z innym adresem niż zaproszony.
+    const accepted = await orm.em.fork().findOneOrFail(MentorInvitation, { acceptedBy: user.id });
+    expect(accepted.email).not.toBe(email);
+  });
+
+  it("istniejące konto: link → „Zaloguj się” → logowanie → powrót na /invite → przyjęcie; po wylogowaniu panel mentora wymaga logowania", async () => {
+    const link = await newInviteLink();
+    const email = `invite-ui-logowanie-${randomUUID()}@example.com`;
+    const user = await createAccount(orm.em.fork(), { email, roles: ["mentee"], password: "integracyjne-haslo-123" });
+
+    await browser.run("open", link);
+    await browser.run("wait", "--text", "Masz zaproszenie do roli mentora w DevMentor");
+    await browser.run("find", "role", "link", "click", "--name", "Zaloguj się");
+    await browser.run("wait", "--text", "Po zalogowaniu przyjmiesz zaproszenie do roli mentora.");
+    await waitForHydration(browser, "form");
+    await browser.run("find", "label", "E-mail", "fill", `${TEST_EMAIL_PREFIX}${email}`);
+    await browser.run("find", "label", "Hasło", "fill", "integracyjne-haslo-123");
+    await browser.run("find", "role", "button", "click", "--name", "Zaloguj się");
+    await browser.run("wait", "--text", "Przyjmij zaproszenie");
+    expect(await browser.run("get", "url")).toBe(`${baseUrl}/invite`);
+
+    await browser.run("find", "role", "button", "click", "--name", "Przyjmij zaproszenie");
+    await browser.run("wait", "--fn", "location.pathname === '/mentor'");
+    expect(await orm.em.fork().count(UserRole, { user: user.id, role: "mentor" })).toBe(1);
+
+    await waitForHydration(browser, "header button");
+    await browser.run("find", "role", "button", "click", "--name", "Wyloguj");
+    await browser.run("wait", "--text", "Wylogowano");
+    await browser.run("open", `${baseUrl}/mentor`);
+    await browser.run("wait", "--fn", "location.pathname === '/login'");
+    expect(new URL(await browser.run("get", "url")).searchParams.get("next")).toBe("/mentor");
+  });
 });

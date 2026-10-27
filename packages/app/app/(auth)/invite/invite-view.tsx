@@ -110,18 +110,28 @@ export function InviteView() {
   const router = useRouter();
   const redirectIfUnauthorized = useSessionExpiredRedirect();
   const token = useRef<string | null>(null);
-  // Jedno odczytanie fragmentu na wejście: w Strict Mode efekt uruchamia się dwa razy, a drugi przebieg
-  // nie zobaczyłby już fragmentu — korzysta z tej samej obietnicy.
-  const firstLoad = useRef<Promise<State> | null>(null);
+  // Jedno odczytanie fragmentu na wejście: w Strict Mode efekt uruchamia się dwa razy z rzędu, a drugi przebieg
+  // nie zobaczyłby już fragmentu — korzysta z tej samej, jeszcze nierozstrzygniętej obietnicy. Rozstrzygnięty
+  // wynik nie jest używany ponownie: Next (`cacheComponents`) trzyma odwiedzone strony w pamięci i po powrocie
+  // (np. z rejestracji) uruchamia efekt na nowo, a stary stan „gość” byłby nieprawdziwy.
+  const loading = useRef<{ promise: Promise<State>; settled: boolean } | null>(null);
   const [state, setState] = useState<State | null>(null);
 
   useEffect(() => {
     let active = true;
-    if (firstLoad.current === null) {
+    if (loading.current === null || loading.current.settled) {
+      const reloading = loading.current !== null;
       token.current = takeToken();
-      firstLoad.current = token.current === null ? Promise.resolve<State>({ kind: "no-token" }) : loadState();
+      const entry = { promise: token.current === null ? Promise.resolve<State>({ kind: "no-token" }) : loadState(), settled: false };
+      entry.promise.then(() => {
+        entry.settled = true;
+      });
+      loading.current = entry;
+      if (reloading) {
+        setState(null);
+      }
     }
-    firstLoad.current.then((loaded) => {
+    loading.current.promise.then((loaded) => {
       if (active) {
         setState(loaded);
       }

@@ -321,6 +321,18 @@ describe("zaproszenia mentorów: tworzenie, lista, cofanie przez API", () => {
       expect((await me(second.cookie)).roles).toEqual(["mentee"]);
     });
 
+    it("drugie zaproszenie na ten sam adres unieważnia link pierwszego: pierwszy token → 400, drugi → 200", async () => {
+      const { cookie } = await menteeCookie("nowy-link");
+      const email = uniqueEmail();
+      const first = await invitationFor(email);
+      const second = await invitationFor(email);
+
+      const stale = await accept(first.token, cookie);
+      expect(stale.status).toBe(400);
+      expect(((await stale.json()) as Envelope).error.message).toBe("Zaproszenie jest nieważne");
+      expect((await accept(second.token, cookie)).status).toBe(200);
+    });
+
     it("operator dostaje 403 i nie zużywa zaproszenia — link nadal działa dla mentee", async () => {
       const { token, id } = await invitationFor(uniqueEmail());
 
