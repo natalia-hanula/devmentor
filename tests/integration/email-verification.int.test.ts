@@ -1,6 +1,7 @@
+import { UserTokenService } from "@devmentor/core";
 import { initOrm, User, UserToken, type MikroORM } from "@devmentor/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, inject, it } from "vitest";
-import { createOperatorAndLogIn, deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
+import { accountServiceFor, createOperatorAndLogIn, deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
 import { createBrowser, waitForHydration, type Browser } from "./support/browser";
 import { uniqueClientIp } from "./support/client-ip";
 
@@ -124,6 +125,7 @@ describe("weryfikacja e-maila: link z outboxa, confirm, resend, /verify-email", 
 
     const resent = await post("/api/auth/email-verification/resend", undefined, { cookie });
     expect(resent.status).toBe(200);
+    expect(await resent.json()).toEqual({ ok: true, data: { status: "sent" } });
     const [second] = await verificationLinks(email);
     expect(tokenOf(second!)).not.toBe(tokenOf(first!));
 
@@ -137,13 +139,37 @@ describe("weryfikacja e-maila: link z outboxa, confirm, resend, /verify-email", 
     const [link] = await verificationLinks(email);
     expect((await confirm(tokenOf(link!))).status).toBe(200);
 
-    expect((await post("/api/auth/email-verification/resend", undefined, { cookie })).status).toBe(200);
+    const alreadyVerified = await post("/api/auth/email-verification/resend", undefined, { cookie });
+    expect(alreadyVerified.status).toBe(200);
+    expect(await alreadyVerified.json()).toEqual({ ok: true, data: { status: "already_verified" } });
     expect(await verificationLinks(email)).toHaveLength(1);
 
     expect((await post("/api/auth/email-verification/resend", undefined, { cookie })).status).toBe(200);
     expect((await post("/api/auth/email-verification/resend", undefined, { cookie })).status).toBe(200);
     const limited = await post("/api/auth/email-verification/resend", undefined, { cookie });
     expect(limited.status).toBe(429);
+  });
+
+  it("awaria po zużyciu tokenu cofa transakcję: adres niepotwierdzony, token nadal działa (ponowna próba tym samym linkiem)", async () => {
+    const email = uniqueEmail();
+    await register(email);
+    const [link] = await verificationLinks(email);
+    const em = orm.em.fork();
+    const failure = new Error("awaria po zużyciu tokenu");
+    const userTokenService = new UserTokenService({ em });
+    userTokenService.deleteAllForUser = async () => {
+      throw failure;
+    };
+    const service = accountServiceFor(em, baseUrl, { userTokenService });
+
+    await expect(service.verifyEmail(tokenOf(link!), "203.0.113.50")).rejects.toBe(failure);
+
+    const user = await orm.em.fork().findOneOrFail(User, { email });
+    expect(user.emailVerifiedAt).toBeNull();
+    expect(await orm.em.fork().count(UserToken, { user: { email } })).toBe(1);
+    const retried = await confirm(tokenOf(link!));
+    expect(retried.status).toBe(200);
+    expect((await orm.em.fork().findOneOrFail(User, { email })).emailVerifiedAt).toBeInstanceOf(Date);
   });
 
   it("token konta B przy zalogowanym A → sukces z adresem B, sesja A bez zmian", async () => {

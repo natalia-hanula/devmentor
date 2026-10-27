@@ -5,6 +5,7 @@ import {
   AppError,
   ConflictError,
   ForbiddenError,
+  PayloadTooLargeError,
   ServiceUnavailableError,
   ValidationError,
   type FieldErrors,
@@ -24,6 +25,12 @@ export type ApiResult<T> =
  */
 export const REQUEST_MARKER_HEADER = "x-devmentor-request";
 
+/**
+ * Górny limit treści JSON. Formularze API mają po kilka pól (hasło ≤ 72 bajty, e-mail, nazwa), więc 16 KiB
+ * z zapasem wystarcza, a publiczna trasa (logowanie) nie parsuje megabajtowych ciał od anonimowych klientów.
+ */
+export const JSON_BODY_MAX_BYTES = 16 * 1024;
+
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 export interface RouteContext {
@@ -32,12 +39,25 @@ export interface RouteContext {
 
 export type RouteHandler = (request: Request, context: RouteContext) => Promise<Response>;
 
+/**
+ * Znacznik rozpoznawania `DataWithCookies`. Każda warstwa Next (trasa, współdzielony chunk) może mieć własną
+ * kopię modułu, więc `instanceof` zawodzi; symbol z rejestru globalnego jest wspólny dla wszystkich kopii.
+ */
+const DATA_WITH_COOKIES_MARKER = Symbol.for("devmentor.data-with-cookies");
+
 /** Wynik handlera z ciasteczkami do ustawienia (`Set-Cookie`) — tworzy go `withCookies`. */
 export class DataWithCookies<T> {
+  readonly [DATA_WITH_COOKIES_MARKER] = true;
+
   constructor(
     readonly data: T,
     readonly cookies: readonly string[],
   ) {}
+}
+
+/** Rozpoznaje wynik `withCookies` po znaczniku, nie po klasie (zob. `DATA_WITH_COOKIES_MARKER`). */
+export function isDataWithCookies<T>(value: T | DataWithCookies<T>): value is DataWithCookies<T> {
+  return typeof value === "object" && value !== null && DATA_WITH_COOKIES_MARKER in value;
 }
 
 /** Handler zwraca `withCookies(data, [cookie, …])`, gdy odpowiedź ma ustawić ciasteczka (logowanie, wylogowanie). */
@@ -63,7 +83,7 @@ export function apiHandler<T>(
     try {
       assertRequestMarker(request);
       const result = await handler(request, context);
-      if (result instanceof DataWithCookies) {
+      if (isDataWithCookies(result)) {
         return json<T>({ ok: true, data: result.data }, successStatus, result.cookies);
       }
       return json<T>({ ok: true, data: result }, successStatus);
@@ -73,15 +93,45 @@ export function apiHandler<T>(
   };
 }
 
-/** Odczytuje body JSON i waliduje je schematem — do serwisu trafia tylko sparsowany, jawny kształt. */
-export async function parseJsonBody<S extends z.ZodType>(request: Request, schema: S): Promise<z.infer<S>> {
+/**
+ * Odczytuje body JSON (najwyżej `maxBytes`, inaczej 413 — bez wczytywania reszty) i waliduje je schematem —
+ * do serwisu trafia tylko sparsowany, jawny kształt.
+ */
+export async function parseJsonBody<S extends z.ZodType>(
+  request: Request,
+  schema: S,
+  maxBytes: number = JSON_BODY_MAX_BYTES,
+): Promise<z.infer<S>> {
+  const text = await readBodyText(request, maxBytes);
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(text);
   } catch {
     throw new ValidationError("Treść żądania nie jest poprawnym JSON-em");
   }
   return parseInput(schema, body);
+}
+
+/** Nagłówek `content-length` tylko skraca drogę; limit egzekwuje liczenie bajtów, bo nagłówka może nie być albo kłamać. */
+async function readBodyText(request: Request, maxBytes: number): Promise<string> {
+  if (Number(request.headers.get("content-length")) > maxBytes) {
+    throw new PayloadTooLargeError();
+  }
+  if (!request.body) {
+    return "";
+  }
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+    total += chunk.value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new PayloadTooLargeError();
+    }
+    chunks.push(chunk.value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 export function parseInput<S extends z.ZodType>(schema: S, input: unknown): z.infer<S> {

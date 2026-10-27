@@ -1,4 +1,4 @@
-import { UniqueConstraintViolationException, User, UserRole, UserToken } from "@devmentor/db";
+import { User, UserRole, UserToken } from "@devmentor/db";
 import { describe, expect, it, vi } from "vitest";
 import {
   ConflictError,
@@ -11,7 +11,7 @@ import {
   type Env,
   type PasswordHasher,
 } from "../src";
-import { createFakeEntityManager } from "./fake-entity-manager";
+import { createFakeEntityManager, uniqueViolation } from "./fake-entity-manager";
 
 const ID = "6f1c1f9e-3b8a-4c39-9a51-0c8e7c3a1d2b";
 const PASSWORD_HASH = "$2b$12$abcdefghijklmnopqrstuuMBnXfJ6sFhP9pW8bq3C6m3Y4l2oQx1e";
@@ -143,7 +143,7 @@ describe("SeedService.createMentee", () => {
 
   it("zajęty e-mail → ConflictError z constraintu (bez zapytania wcześniej)", async () => {
     const { fake, service } = setup();
-    fake.flush.mockRejectedValue(new UniqueConstraintViolationException(new Error("duplicate key users_email_lower_unique")));
+    fake.flush.mockRejectedValue(uniqueViolation("users_email_lower_unique"));
 
     await expect(service.createMentee(INPUT, true)).rejects.toBeInstanceOf(ConflictError);
     expect(fake.findOne).not.toHaveBeenCalled();
@@ -187,7 +187,7 @@ describe("SeedService.createMentor", () => {
   it("zajęty e-mail mentora → ConflictError (idempotentny seed)", async () => {
     const { fake, service } = setup();
     fake.findOne.mockResolvedValue(storedOperator());
-    fake.flush.mockRejectedValue(new UniqueConstraintViolationException(new Error("duplicate key")));
+    fake.flush.mockRejectedValue(uniqueViolation("users_email_unique"));
 
     await expect(service.createMentor(INPUT, OPERATOR_EMAIL)).rejects.toBeInstanceOf(ConflictError);
   });

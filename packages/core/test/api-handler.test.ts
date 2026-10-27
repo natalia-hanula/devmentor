@@ -10,6 +10,7 @@ import {
   withCookies,
   type RouteContext,
 } from "../src";
+import { isDataWithCookies, JSON_BODY_MAX_BYTES } from "../src/http/api-handler";
 
 const context: RouteContext = { params: Promise.resolve({}) };
 
@@ -147,6 +148,107 @@ describe("apiHandler", () => {
       error: { code: "VALIDATION_ERROR", message: "Nieprawidłowe dane", fieldErrors: { name: ["Wymagane"] } },
     });
     expect(malformed.status).toBe(400);
+  });
+
+  describe("limit rozmiaru body (parseJsonBody)", () => {
+    const schema = z.object({ text: z.string() });
+    const handlerWith = (maxBytes?: number) => apiHandler(async (req) => parseJsonBody(req, schema, maxBytes));
+    const jsonOfSize = (bytes: number) => JSON.stringify({ text: "a".repeat(bytes - '{"text":""}'.length) });
+
+    it("domyślny limit to 16 KiB: body równe limitowi przechodzi, o bajt większe → 413 PAYLOAD_TOO_LARGE", async () => {
+      const handler = handlerWith();
+
+      const atLimit = await handler(request("POST", { body: jsonOfSize(JSON_BODY_MAX_BYTES) }), context);
+      const overLimit = await handler(request("POST", { body: jsonOfSize(JSON_BODY_MAX_BYTES + 1) }), context);
+
+      expect(JSON_BODY_MAX_BYTES).toBe(16 * 1024);
+      expect(atLimit.status).toBe(200);
+      expect(overLimit.status).toBe(413);
+      expect(await overLimit.json()).toEqual({
+        ok: false,
+        error: { code: "PAYLOAD_TOO_LARGE", message: "Treść żądania jest za duża" },
+      });
+    });
+
+    it("limit liczy bajty UTF-8, nie znaki", async () => {
+      const handler = handlerWith(64);
+      const body = JSON.stringify({ text: "ą".repeat(30) });
+
+      expect(body.length).toBeLessThan(64);
+      expect((await handler(request("POST", { body }), context)).status).toBe(413);
+    });
+
+    it("deklarowany `content-length` ponad limit odrzuca bez czytania body", async () => {
+      const req = request("POST", { body: JSON.stringify({ text: "x" }) });
+      req.headers.set("content-length", String(JSON_BODY_MAX_BYTES + 1));
+
+      expect((await handlerWith()(req, context)).status).toBe(413);
+    });
+
+    it("body bez `content-length` (strumień w kawałkach) przerywa czytanie po przekroczeniu limitu", async () => {
+      let pulled = 0;
+      const stream = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          pulled += 1;
+          controller.enqueue(new TextEncoder().encode("x".repeat(40)));
+        },
+      });
+      const req = new Request("http://localhost/api/test", {
+        method: "POST",
+        headers: { "x-devmentor-request": "1" },
+        body: stream,
+        duplex: "half",
+      } as RequestInit);
+
+      expect((await handlerWith(100)(req, context)).status).toBe(413);
+      expect(pulled).toBeLessThan(10);
+    });
+
+    it("body złożone z kilku kawałków mieszczące się w limicie jest składane i parsowane", async () => {
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('{"text":'));
+          controller.enqueue(encoder.encode('"cześć"}'));
+          controller.close();
+        },
+      });
+      const req = new Request("http://localhost/api/test", {
+        method: "POST",
+        headers: { "x-devmentor-request": "1" },
+        body: stream,
+        duplex: "half",
+      } as RequestInit);
+
+      const response = await apiHandler(async (r) => parseJsonBody(r, schema))(req, context);
+
+      expect(await response.json()).toEqual({ ok: true, data: { text: "cześć" } });
+    });
+
+    it("brak body → 400 „nie jest poprawnym JSON-em”", async () => {
+      const response = await handlerWith()(request("POST"), context);
+
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { error: { message: string } }).error.message).toBe("Treść żądania nie jest poprawnym JSON-em");
+    });
+  });
+
+  describe("isDataWithCookies", () => {
+    it("rozpoznaje wynik withCookies, także skopiowany do zwykłego obiektu (inna kopia modułu)", () => {
+      const original = withCookies("x", ["a=1"]);
+
+      expect(isDataWithCookies(original)).toBe(true);
+      expect(isDataWithCookies(Object.assign({}, original))).toBe(true);
+    });
+
+    it.each<[string, unknown]>([
+      ["napis", "x"],
+      ["null", null],
+      ["liczba", 1],
+      ["obiekt z samymi polami data/cookies", { data: "x", cookies: ["a=1"] }],
+    ])("nie bierze za wynik withCookies: %s", (_name, value) => {
+      expect(isDataWithCookies(value)).toBe(false);
+    });
   });
 
   it("błąd walidacji na poziomie całego obiektu trafia pod klucz _form", async () => {

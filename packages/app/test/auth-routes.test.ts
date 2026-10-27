@@ -24,10 +24,17 @@ const ACCOUNT = {
 const SESSION = { id: ACCOUNT.id, sessionVersion: 1 };
 const PASSWORD = "Sekretne-Haslo-Testowe-123";
 
-type ServiceMethod = "register" | "login" | "me" | "resendVerification" | "verifyEmail";
+type ServiceMethod = "register" | "login" | "logout" | "me" | "resendVerification" | "verifyEmail";
 
 function freshService(): Pick<AccountService, ServiceMethod> {
-  const service = { register: vi.fn(), login: vi.fn(), me: vi.fn(), resendVerification: vi.fn(), verifyEmail: vi.fn() };
+  const service = {
+    register: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
+    me: vi.fn(),
+    resendVerification: vi.fn(),
+    verifyEmail: vi.fn(),
+  };
   return service as unknown as Pick<AccountService, ServiceMethod>;
 }
 
@@ -219,7 +226,7 @@ describe("POST /api/auth/login", () => {
       userTokenService: new UserTokenService({ em }),
       mailGateway: { send: vi.fn() },
       logger: createLogger({ level: "silent" }),
-      env: { APP_BASE_URL: "http://localhost:3000" },
+      env: { APP_BASE_URL: "http://localhost:3000", MAIL_ADAPTER: "outbox" },
     });
     const attempt = () => login.POST(post("/api/auth/login", VALID, { "x-forwarded-for": "203.0.113.20" }), context);
 
@@ -246,7 +253,7 @@ describe("POST /api/auth/logout", () => {
     expect(response.headers.getSetCookie()).toEqual([]);
   });
 
-  it("czyści ciasteczko sesji — także bez sesji (idempotentne)", async () => {
+  it("czyści ciasteczko sesji — także bez sesji (idempotentne), wtedy niczego nie unieważnia", async () => {
     for (let i = 0; i < 2; i += 1) {
       const response = await logout.POST(post("/api/auth/logout"), context);
 
@@ -256,7 +263,30 @@ describe("POST /api/auth/logout", () => {
         "devmentor_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure",
       ]);
     }
-    expect(getSession).not.toHaveBeenCalled();
+    expect(mocks().logout).not.toHaveBeenCalled();
+  });
+
+  it("z ważną sesją unieważnia tokeny konta z sesji (podbicie session_version) i czyści ciasteczko", async () => {
+    getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: true });
+    mocks().logout.mockResolvedValue(undefined);
+
+    const response = await logout.POST(post("/api/auth/logout", { userId: "inne-konto" }), context);
+
+    expect(response.status).toBe(200);
+    expect(mocks().logout).toHaveBeenCalledExactlyOnceWith(ACCOUNT.id);
+    expect(response.headers.getSetCookie()).toEqual([
+      "devmentor_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax; Secure",
+    ]);
+  });
+
+  it("błąd unieważnienia → błąd, ciasteczko nie jest czyszczone (token mógłby zostać ważny bez wiedzy użytkownika)", async () => {
+    getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: true });
+    mocks().logout.mockRejectedValue(new Error("awaria"));
+
+    const response = await logout.POST(post("/api/auth/logout"), context);
+
+    expect(response.status).toBe(500);
+    expect(response.headers.getSetCookie()).toEqual([]);
   });
 });
 
@@ -300,16 +330,19 @@ describe("POST /api/auth/email-verification/resend", () => {
     expect(mocks().resendVerification).not.toHaveBeenCalled();
   });
 
-  it("z sesją → 200 z data: null; konto z sesji, nie z żądania", async () => {
-    getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: false });
-    mocks().resendVerification.mockResolvedValue(undefined);
+  it.each(["sent", "already_verified", "mail_disabled"] as const)(
+    "z sesją → 200 z data.status = %s z serwisu; konto z sesji, nie z żądania",
+    async (status) => {
+      getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: false });
+      mocks().resendVerification.mockResolvedValue(status);
 
-    const response = await resend.POST(post("/api/auth/email-verification/resend", { userId: "inne-konto" }), context);
+      const response = await resend.POST(post("/api/auth/email-verification/resend", { userId: "inne-konto" }), context);
 
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, data: null });
-    expect(mocks().resendVerification).toHaveBeenCalledWith(ACCOUNT.id);
-  });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ ok: true, data: { status } });
+      expect(mocks().resendVerification).toHaveBeenCalledWith(ACCOUNT.id);
+    },
+  );
 
   it("prawdziwy AccountService: czwarta prośba w godzinie → 429", async () => {
     getSession.mockResolvedValue({ userId: ACCOUNT.id, roles: ["mentee"], emailVerified: true });
@@ -321,7 +354,7 @@ describe("POST /api/auth/email-verification/resend", () => {
       userTokenService: new UserTokenService({ em: em as unknown as RequestCradle["em"] }),
       mailGateway: { send: vi.fn() },
       logger: createLogger({ level: "silent" }),
-      env: { APP_BASE_URL: "http://localhost:3000" },
+      env: { APP_BASE_URL: "http://localhost:3000", MAIL_ADAPTER: "outbox" },
     });
 
     for (let i = 0; i < 3; i += 1) {
@@ -381,7 +414,11 @@ describe("POST /api/auth/email-verification/confirm", () => {
   });
 
   it("prawdziwy AccountService: 21. próba z jednego IP → 429", async () => {
-    const em = { createQueryBuilder: vi.fn(), execute: vi.fn(async () => []) };
+    const em = {
+      createQueryBuilder: vi.fn(),
+      execute: vi.fn(async () => []),
+      transactional: vi.fn(async (work: (tx: unknown) => unknown) => work(em)),
+    };
     const nativeQuery = { returning: vi.fn(() => nativeQuery) };
     const qb = { delete: vi.fn(() => qb), getNativeQuery: vi.fn(() => nativeQuery) };
     em.createQueryBuilder.mockReturnValue(qb);
@@ -392,7 +429,7 @@ describe("POST /api/auth/email-verification/confirm", () => {
       userTokenService: new UserTokenService({ em: em as unknown as RequestCradle["em"] }),
       mailGateway: { send: vi.fn() },
       logger: createLogger({ level: "silent" }),
-      env: { APP_BASE_URL: "http://localhost:3000" },
+      env: { APP_BASE_URL: "http://localhost:3000", MAIL_ADAPTER: "outbox" },
     });
     const attempt = () =>
       confirm.POST(post("/api/auth/email-verification/confirm", { token: TOKEN }, { "x-forwarded-for": "203.0.113.31" }), context);

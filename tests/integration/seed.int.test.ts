@@ -36,7 +36,7 @@ describe("npm run db:seed (runSeed + SeedService na prawdziwej bazie) → logowa
       userTokenService: new UserTokenService({ em }),
       mailGateway: new NoopMailAdapter({ logger }),
       logger,
-      env: { APP_BASE_URL: baseUrl },
+      env: { APP_BASE_URL: baseUrl, MAIL_ADAPTER: "outbox" },
     });
     return new SeedService({ em, passwordHasher, accountService, env: { APP_ENV: "test" } });
   }

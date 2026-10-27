@@ -12,6 +12,8 @@ export const USER_ROLES = ["mentee", "mentor", "operator"] as const;
 export const PASSWORD_MIN_LENGTH = 12;
 /** bcrypt ignoruje bajty po 72., więc długość hasła walidujemy w bajtach UTF-8, nie w znakach. */
 export const PASSWORD_MAX_BYTES = 72;
+/** Ograniczenia bazy, których naruszenie oznacza zajęty adres e-mail (`unique` na kolumnie i indeks `lower(email)`). */
+export const USER_EMAIL_UNIQUE_CONSTRAINTS: readonly string[] = ["users_email_unique", "users_email_lower_unique"];
 /** Hash bcrypt (`$2b$12$…`) ma zawsze 60 znaków. */
 export const PASSWORD_HASH_LENGTH = 60;
 /** SHA-256 tokenu jako hex. */

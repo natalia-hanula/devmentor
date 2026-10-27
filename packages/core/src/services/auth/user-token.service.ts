@@ -79,22 +79,23 @@ export class UserTokenService {
   /**
    * Zużywa ważny token danego celu i zwraca ID konta; `null` dla tokenu nieznanego, zużytego, wygasłego
    * albo o innym celu. Jedno `DELETE … RETURNING` — z dwóch równoczesnych zużyć udaje się dokładnie jedno.
+   * `em` pozwala wykonać zużycie w transakcji wołającego (domyślnie `EntityManager` serwisu).
    */
-  async consume(rawToken: string, purpose: UserTokenPurpose): Promise<string | null> {
+  async consume(rawToken: string, purpose: UserTokenPurpose, em: EntityManager = this.em): Promise<string | null> {
     // MikroORM 7 po cichu pomija `.returning()` w DELETE z QueryBuildera (dokleja RETURNING tylko do INSERT/UPDATE),
     // więc RETURNING dokładamy na natywnym builderze tego samego zapytania — nadal z parametrami, bez sklejania SQL.
-    const query = this.em
+    const query = em
       .createQueryBuilder(UserToken)
       .delete({ tokenHash: hashToken(rawToken), purpose, expiresAt: { $gt: new Date(this.now()) } })
       .getNativeQuery()
       .returning([USER_ID_COLUMN]);
-    const rows = await this.em.execute<{ [USER_ID_COLUMN]?: unknown }[]>(query);
+    const rows = await em.execute<{ [USER_ID_COLUMN]?: unknown }[]>(query);
     const userId = rows[0]?.[USER_ID_COLUMN];
     return typeof userId === "string" ? userId : null;
   }
 
-  /** Usuwa wszystkie tokeny konta (np. po potwierdzeniu e-maila). */
-  async deleteAllForUser(userId: string): Promise<void> {
-    await this.em.nativeDelete(UserToken, { user: userId });
+  /** Usuwa wszystkie tokeny konta (np. po potwierdzeniu e-maila); `em` jak w `consume`. */
+  async deleteAllForUser(userId: string, em: EntityManager = this.em): Promise<void> {
+    await em.nativeDelete(UserToken, { user: userId });
   }
 }

@@ -1,4 +1,4 @@
-import { UniqueConstraintViolationException, User, UserRole, UserToken, type EntityManager } from "@devmentor/db";
+import { User, UserRole, UserToken, type EntityManager } from "@devmentor/db";
 import { describe, expect, it, vi } from "vitest";
 import {
   AccountService,
@@ -15,7 +15,7 @@ import {
   ValidationError,
   type AccountServiceDependencies,
 } from "../src";
-import { createFakeEntityManager, createFakeQueryBuilder } from "./fake-entity-manager";
+import { createFakeEntityManager, createFakeQueryBuilder, uniqueViolation } from "./fake-entity-manager";
 
 const ID = "6f1c1f9e-3b8a-4c39-9a51-0c8e7c3a1d2b";
 const NOW = Date.parse("2026-10-26T12:00:00.000Z");
@@ -23,7 +23,7 @@ const APP_BASE_URL = "https://devmentor.example";
 const IP = "203.0.113.7";
 const PASSWORD_HASH = "$2b$12$abcdefghijklmnopqrstuuMBnXfJ6sFhP9pW8bq3C6m3Y4l2oQx1e";
 
-function setup({ verifies = true }: { verifies?: boolean } = {}) {
+function setup({ verifies = true, mailAdapter = "outbox" }: { verifies?: boolean; mailAdapter?: "outbox" | "noop" } = {}) {
   const { fake, em } = createFakeEntityManager();
   const created = new Date("2026-10-26T10:00:00.000Z");
   fake.create.mockImplementation((_entity: unknown, data: Record<string, unknown>) => ({
@@ -38,13 +38,13 @@ function setup({ verifies = true }: { verifies?: boolean } = {}) {
     verify: vi.fn(async () => verifies),
   };
   const rateLimiter = new RateLimiter(() => 0);
-  const deps = otherDependencies(em);
+  const deps = otherDependencies(em, mailAdapter);
   const service = new AccountService({ ...deps, em, passwordHasher: passwordHasher as unknown as PasswordHasher, rateLimiter });
   return { fake, service, passwordHasher, rateLimiter, ...deps };
 }
 
 /** Prawdziwy `UserTokenService` na atrapie EM (stały zegar), atrapa poczty i logger zapisujący linie. */
-function otherDependencies(em: EntityManager) {
+function otherDependencies(em: EntityManager, mailAdapter: "outbox" | "noop") {
   const logLines: string[] = [];
   const mailGateway = { send: vi.fn(async () => undefined) };
   return {
@@ -52,7 +52,7 @@ function otherDependencies(em: EntityManager) {
     mailGateway,
     userTokenService: new UserTokenService({ em }, () => NOW),
     logger: createLogger({ level: "trace", destination: { write: (line: string) => logLines.push(line) } }),
-    env: { APP_BASE_URL },
+    env: { APP_BASE_URL, MAIL_ADAPTER: mailAdapter },
   } satisfies Omit<AccountServiceDependencies, "em" | "passwordHasher" | "rateLimiter"> & { logLines: string[] };
 }
 
@@ -120,7 +120,7 @@ describe("AccountService.register", () => {
 
   it("naruszenie unikalności przy zapisie → 409 z błędem przy polu email (constraint, bez zapytania wcześniej)", async () => {
     const { fake, service } = setup();
-    fake.flush.mockRejectedValue(new UniqueConstraintViolationException(new Error("duplicate key users_email_lower_unique")));
+    fake.flush.mockRejectedValue(uniqueViolation("users_email_lower_unique"));
 
     const error = await service.register(REGISTER, IP).catch((caught: unknown) => caught);
 
@@ -128,6 +128,36 @@ describe("AccountService.register", () => {
     expect(error).toMatchObject({ message: "Ten e-mail ma już konto", fieldErrors: { email: ["Ten e-mail ma już konto"] } });
     expect(fake.findOne).not.toHaveBeenCalled();
     expect(fake.find).not.toHaveBeenCalled();
+  });
+
+  it.each(["user_roles_user_id_role_unique", "user_tokens_user_id_purpose_unique", "user_tokens_token_hash_unique"])(
+    "naruszenie innego ograniczenia (%s) to nie „zajęty e-mail” — błąd leci dalej bez zmian",
+    async (constraint) => {
+      const { fake, service } = setup();
+      const failure = uniqueViolation(constraint);
+      fake.flush.mockRejectedValue(failure);
+
+      const error = await service.register(REGISTER, IP).catch((caught: unknown) => caught);
+
+      expect(error).toBe(failure);
+      expect(error).not.toBeInstanceOf(ConflictError);
+    },
+  );
+
+  it("naruszenie unikalności bez nazwy ograniczenia (nietypowy błąd sterownika) → nie jest uznane za zajęty e-mail", async () => {
+    const { fake, service } = setup();
+    const failure = uniqueViolation("users_email_unique");
+    delete (failure as { constraint?: string }).constraint;
+    fake.flush.mockRejectedValue(failure);
+
+    await expect(service.register(REGISTER, IP)).rejects.toBe(failure);
+  });
+
+  it("naruszenie unikalności e-maila przez zwykły constraint (users_email_unique) → 409", async () => {
+    const { fake, service } = setup();
+    fake.flush.mockRejectedValue(uniqueViolation("users_email_unique"));
+
+    await expect(service.register(REGISTER, IP)).rejects.toBeInstanceOf(ConflictError);
   });
 
   it("inne błędy zapisu lecą dalej bez zmian", async () => {
@@ -186,7 +216,7 @@ describe("AccountService.register", () => {
 
   it("nieudany zapis (zajęty e-mail) → żadnego maila", async () => {
     const { fake, service, mailGateway } = setup();
-    fake.flush.mockRejectedValue(new UniqueConstraintViolationException(new Error("duplicate key")));
+    fake.flush.mockRejectedValue(uniqueViolation("users_email_unique"));
 
     await expect(service.register(REGISTER, IP)).rejects.toBeInstanceOf(ConflictError);
     expect(mailGateway.send).not.toHaveBeenCalled();
@@ -277,7 +307,7 @@ describe("AccountService.createOperator", () => {
 
   it("zajęty e-mail → 409 z constraintu (bez zapytania wcześniej)", async () => {
     const { fake, service } = setup();
-    fake.flush.mockRejectedValue(new UniqueConstraintViolationException(new Error("duplicate key users_email_lower_unique")));
+    fake.flush.mockRejectedValue(uniqueViolation("users_email_lower_unique"));
 
     const error = await service.createOperator(OPERATOR).catch((caught: unknown) => caught);
 
@@ -301,7 +331,7 @@ describe("AccountService.resendVerification", () => {
     const { fake, service, mailGateway } = setup();
     fake.findOne.mockResolvedValue(storedUser());
 
-    await service.resendVerification(ID);
+    await expect(service.resendVerification(ID)).resolves.toBe("sent");
 
     expect(fake.findOne).toHaveBeenCalledWith(User, { id: ID });
     expect(fake.upsert).toHaveBeenCalledWith(
@@ -315,13 +345,29 @@ describe("AccountService.resendVerification", () => {
     expect(hashToken(tokenFromMail(message.text))).toBe(upserted[1].tokenHash);
   });
 
-  it("adres już potwierdzony → nic nie wysyła i nie wydaje tokenu (odpowiedź jak przy wysyłce)", async () => {
+  it("adres już potwierdzony → „already_verified”, nic nie wysyła i nie wydaje tokenu", async () => {
     const { fake, service, mailGateway } = setup();
     fake.findOne.mockResolvedValue(storedUser({ emailVerifiedAt: new Date() }));
 
-    await expect(service.resendVerification(ID)).resolves.toBeUndefined();
+    await expect(service.resendVerification(ID)).resolves.toBe("already_verified");
     expect(fake.upsert).not.toHaveBeenCalled();
     expect(mailGateway.send).not.toHaveBeenCalled();
+  });
+
+  it("poczta wyłączona (MAIL_ADAPTER=noop) → „mail_disabled”, bez tokenu i wysyłki", async () => {
+    const { fake, service, mailGateway } = setup({ mailAdapter: "noop" });
+    fake.findOne.mockResolvedValue(storedUser());
+
+    await expect(service.resendVerification(ID)).resolves.toBe("mail_disabled");
+    expect(fake.upsert).not.toHaveBeenCalled();
+    expect(mailGateway.send).not.toHaveBeenCalled();
+  });
+
+  it("potwierdzony adres ma pierwszeństwo przed wyłączoną pocztą", async () => {
+    const { fake, service } = setup({ mailAdapter: "noop" });
+    fake.findOne.mockResolvedValue(storedUser({ emailVerifiedAt: new Date() }));
+
+    await expect(service.resendVerification(ID)).resolves.toBe("already_verified");
   });
 
   it("konto usunięte w trakcie sesji → 401", async () => {
@@ -341,7 +387,7 @@ describe("AccountService.resendVerification", () => {
 
     await expect(service.resendVerification(ID)).rejects.toBeInstanceOf(TooManyRequestsError);
     expect(fake.findOne).not.toHaveBeenCalled();
-    await expect(service.resendVerification("inne-konto")).resolves.toBeUndefined();
+    await expect(service.resendVerification("inne-konto")).resolves.toBe("sent");
   });
 
   it("błąd poczty → sukces i log bez adresata i tokenu", async () => {
@@ -349,7 +395,7 @@ describe("AccountService.resendVerification", () => {
     fake.findOne.mockResolvedValue(storedUser());
     mailGateway.send.mockRejectedValue(new Error("SMTP niedostępny"));
 
-    await expect(service.resendVerification(ID)).resolves.toBeUndefined();
+    await expect(service.resendVerification(ID)).resolves.toBe("sent");
     const logs = logLines.join("");
     expect(logs).toContain("Nie udało się wysłać linku weryfikacyjnego");
     expect(logs).not.toContain("ola@example.com");
@@ -377,9 +423,38 @@ describe("AccountService.verifyEmail", () => {
     expect(qb.delete).toHaveBeenCalledWith(expect.objectContaining({ tokenHash: hashToken(RAW), purpose: "email_verification" }));
     expect(fake.findOne).toHaveBeenCalledWith(User, { id: ID });
     expect(user.emailVerifiedAt).toBeInstanceOf(Date);
-    expect(fake.flush).toHaveBeenCalledOnce();
+    expect(fake.transactional).toHaveBeenCalledOnce();
     expect(fake.nativeDelete).toHaveBeenCalledWith(UserToken, { user: ID });
     expect(result).toEqual({ emailVerified: true, email: "ola@example.com" });
+  });
+
+  it("zużycie tokenu, odczyt konta i usunięcie tokenów idą przez EM transakcji, nie przez EM serwisu", async () => {
+    const { fake, service } = setup();
+    const tx = createFakeEntityManager();
+    const { qb } = createFakeQueryBuilder();
+    tx.fake.createQueryBuilder.mockReturnValue(qb);
+    tx.fake.execute.mockResolvedValue([{ user_id: ID }]);
+    tx.fake.findOne.mockResolvedValue(storedUser());
+    fake.transactional.mockImplementation(async (work: (em: unknown) => unknown) => work(tx.em));
+
+    await service.verifyEmail(RAW, IP);
+
+    expect(tx.fake.execute).toHaveBeenCalledOnce();
+    expect(tx.fake.findOne).toHaveBeenCalledWith(User, { id: ID });
+    expect(tx.fake.nativeDelete).toHaveBeenCalledWith(UserToken, { user: ID });
+    for (const outside of [fake.execute, fake.findOne, fake.nativeDelete, fake.createQueryBuilder, fake.flush]) {
+      expect(outside).not.toHaveBeenCalled();
+    }
+  });
+
+  it("awaria po zużyciu tokenu (usunięcie tokenów) przerywa transakcję — błąd leci dalej, żeby ją cofnąć", async () => {
+    const { fake, service } = setup();
+    withConsumed(fake, ID);
+    fake.findOne.mockResolvedValue(storedUser());
+    const failure = new Error("connect ECONNRESET");
+    fake.nativeDelete.mockRejectedValue(failure);
+
+    await expect(service.verifyEmail(RAW, IP)).rejects.toBe(failure);
   });
 
   it("adres już potwierdzony (np. przez GitHub) → data bez zmian, tokeny i tak usunięte", async () => {
@@ -391,7 +466,6 @@ describe("AccountService.verifyEmail", () => {
 
     await expect(service.verifyEmail(RAW, IP)).resolves.toEqual({ emailVerified: true, email: "ola@example.com" });
     expect(user.emailVerifiedAt).toBe(verifiedAt);
-    expect(fake.flush).not.toHaveBeenCalled();
     expect(fake.nativeDelete).toHaveBeenCalledWith(UserToken, { user: ID });
   });
 
@@ -422,6 +496,28 @@ describe("AccountService.verifyEmail", () => {
     await expect(service.verifyEmail(RAW, IP)).rejects.toBeInstanceOf(TooManyRequestsError);
     expect(fake.execute).not.toHaveBeenCalled();
     await expect(service.verifyEmail(RAW, "203.0.113.99")).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+describe("AccountService.logout", () => {
+  it("podbija session_version konta i zapisuje (unieważnia wydane tokeny)", async () => {
+    const { fake, service } = setup();
+    const user = storedUser({ sessionVersion: 3 });
+    fake.findOne.mockResolvedValue(user);
+
+    await service.logout(ID);
+
+    expect(fake.findOne).toHaveBeenCalledWith(User, { id: ID });
+    expect(user.sessionVersion).toBe(4);
+    expect(fake.flush).toHaveBeenCalledOnce();
+  });
+
+  it("konto usunięte w międzyczasie → nic do unieważnienia, bez błędu", async () => {
+    const { fake, service } = setup();
+    fake.findOne.mockResolvedValue(null);
+
+    await expect(service.logout(ID)).resolves.toBeUndefined();
+    expect(fake.flush).not.toHaveBeenCalled();
   });
 });
 
@@ -467,7 +563,7 @@ describe("AccountService.login", () => {
   it("konto bez hasła z prawdziwym PasswordHasher: porównanie z atrapą i 401", async () => {
     const { fake, em } = createFakeEntityManager();
     fake.findOne.mockResolvedValue(storedUser({ passwordHash: null }));
-    const service = new AccountService({ ...otherDependencies(em), em, passwordHasher: new PasswordHasher(), rateLimiter: new RateLimiter() });
+    const service = new AccountService({ ...otherDependencies(em, "outbox"), em, passwordHasher: new PasswordHasher(), rateLimiter: new RateLimiter() });
 
     await expect(service.login(LOGIN, IP)).rejects.toBeInstanceOf(UnauthorizedError);
   });

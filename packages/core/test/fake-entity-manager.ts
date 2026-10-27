@@ -1,4 +1,4 @@
-import type { EntityManager } from "@devmentor/db";
+import { UniqueConstraintViolationException, type EntityManager } from "@devmentor/db";
 import { vi } from "vitest";
 
 /** Minimalna atrapa EntityManager do testów jednostkowych serwisów (bez bazy). */
@@ -14,6 +14,8 @@ export function createFakeEntityManager() {
     })),
     remove: vi.fn(),
     flush: vi.fn(async () => undefined),
+    // Atrapa nie cofa zmian: testy sprawdzają, że praca idzie przez przekazany EM, a wyjątek wychodzi z callbacka.
+    transactional: vi.fn(async (callback: (em: unknown) => unknown) => callback(fake)),
     execute: vi.fn(),
     upsert: vi.fn(async () => undefined),
     nativeDelete: vi.fn(async () => 0),
@@ -33,4 +35,9 @@ export function createFakeQueryBuilder() {
     getNativeQuery: vi.fn(() => nativeQuery),
   };
   return { qb, nativeQuery };
+}
+
+/** Naruszenie unikalności jak z PostgreSQL: sterownik niesie nazwę ograniczenia w polu `constraint`, a MikroORM je kopiuje. */
+export function uniqueViolation(constraint: string): UniqueConstraintViolationException {
+  return new UniqueConstraintViolationException(Object.assign(new Error(`duplicate key ${constraint}`), { constraint }));
 }

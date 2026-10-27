@@ -2,6 +2,7 @@ import {
   UniqueConstraintViolationException,
   User,
   UserRole,
+  USER_EMAIL_UNIQUE_CONSTRAINTS,
   USER_ROLES,
   type EntityManager,
 } from "@devmentor/db";
@@ -14,6 +15,7 @@ import { normalizeEmail } from "../../validators/auth/email.schema";
 import type { LoginInput } from "../../validators/auth/login.schema";
 import { registerSchema, type RegisterInput } from "../../validators/auth/register.schema";
 import { INVALID_LINK_MESSAGE } from "../../validators/auth/token-confirm.schema";
+import { isMailDeliveryAvailable } from "../mail/mail-gateway";
 import type { MailGateway } from "../mail/mail.port";
 import type { RateLimiter } from "../rate-limit/rate-limiter.service";
 import { verificationMail } from "./auth-mail";
@@ -53,6 +55,12 @@ export interface EmailVerificationResult {
   email: string;
 }
 
+/**
+ * Wynik „Wyślij ponownie”: strona pokazuje inny komunikat dla każdego, żeby nie obiecywać maila, którego nie wysłano.
+ * Dotyczy tylko własnego konta zalogowanej osoby, więc nie ujawnia stanu cudzych adresów.
+ */
+export type VerificationResendStatus = "sent" | "already_verified" | "mail_disabled";
+
 export interface AccountServiceDependencies {
   em: EntityManager;
   passwordHasher: PasswordHasher;
@@ -60,7 +68,7 @@ export interface AccountServiceDependencies {
   userTokenService: UserTokenService;
   mailGateway: MailGateway;
   logger: Logger;
-  env: Pick<Env, "APP_BASE_URL">;
+  env: Pick<Env, "APP_BASE_URL" | "MAIL_ADAPTER">;
 }
 
 /** Dane konta operatora z CLI — surowe, serwis waliduje je tymi samymi regułami co rejestrację. */
@@ -80,6 +88,7 @@ export class AccountService {
   private readonly mailGateway: MailGateway;
   private readonly logger: Logger;
   private readonly appBaseUrl: string;
+  private readonly mailDeliveryAvailable: boolean;
 
   constructor({ em, passwordHasher, rateLimiter, userTokenService, mailGateway, logger, env }: AccountServiceDependencies) {
     this.em = em;
@@ -89,6 +98,7 @@ export class AccountService {
     this.mailGateway = mailGateway;
     this.logger = logger;
     this.appBaseUrl = env.APP_BASE_URL;
+    this.mailDeliveryAvailable = isMailDeliveryAvailable(env);
   }
 
   /**
@@ -136,9 +146,10 @@ export class AccountService {
 
   /**
    * Nowy link weryfikacyjny dla własnego konta. Limiter liczy każde żądanie. Potwierdzony adres → nic nie
-   * wysyła (odpowiedź jak przy wysyłce). Nowy token zastępuje poprzedni (upsert), więc stary link przestaje działać.
+   * wysyła (`already_verified`); wyłączona poczta (`MAIL_ADAPTER=noop`) → też nic, bez wydawania tokenu
+   * (`mail_disabled`). Nowy token zastępuje poprzedni (upsert), więc stary link przestaje działać.
    */
-  async resendVerification(userId: string): Promise<void> {
+  async resendVerification(userId: string): Promise<VerificationResendStatus> {
     consumeVerifyResendAttempt(this.rateLimiter, userId);
 
     const user = await this.em.findOne(User, { id: userId });
@@ -146,35 +157,42 @@ export class AccountService {
       throw new UnauthorizedError();
     }
     if (user.emailVerifiedAt !== null) {
-      return;
+      return "already_verified";
+    }
+    if (!this.mailDeliveryAvailable) {
+      return "mail_disabled";
     }
     const rawToken = await this.userTokenService.issue(user.id, "email_verification", EMAIL_VERIFICATION_TTL_MS);
     await this.sendVerificationMail(user, rawToken);
+    return "sent";
   }
 
   /**
    * Potwierdza adres konta, do którego należy token — niezależnie od sesji (L23). Zły, wygasły, zużyty albo
    * cudzego celu token → jeden komunikat (L14). Zużycie to atomowe `DELETE … RETURNING`, więc link działa
-   * raz; potem usuwamy wszystkie tokeny konta (także ewentualny reset hasła z etapu B).
+   * raz; potem usuwamy wszystkie tokeny konta (także ewentualny reset hasła z etapu B). Zużycie tokenu,
+   * data potwierdzenia i usunięcie tokenów to jedna transakcja: awaria w środku cofa też zużycie,
+   * więc ten sam link można otworzyć ponownie (przycisk „Spróbuj ponownie”).
    */
   async verifyEmail(rawToken: string, clientIp: string): Promise<EmailVerificationResult> {
     consumeTokenConfirmAttempt(this.rateLimiter, clientIp);
 
-    const userId = await this.userTokenService.consume(rawToken, "email_verification");
-    if (userId === null) {
-      throw new ValidationError(INVALID_LINK_MESSAGE);
-    }
-    // Konto usunięte między zużyciem tokenu a odczytem — ten sam komunikat.
-    const user = await this.em.findOne(User, { id: userId });
-    if (!user) {
-      throw new ValidationError(INVALID_LINK_MESSAGE);
-    }
-    if (user.emailVerifiedAt === null) {
-      user.emailVerifiedAt = new Date();
-      await this.em.flush();
-    }
-    await this.userTokenService.deleteAllForUser(user.id);
-    return { emailVerified: true, email: user.email };
+    return this.em.transactional(async (tx) => {
+      const userId = await this.userTokenService.consume(rawToken, "email_verification", tx);
+      if (userId === null) {
+        throw new ValidationError(INVALID_LINK_MESSAGE);
+      }
+      // Konto usunięte między zużyciem tokenu a odczytem — ten sam komunikat.
+      const user = await tx.findOne(User, { id: userId });
+      if (!user) {
+        throw new ValidationError(INVALID_LINK_MESSAGE);
+      }
+      if (user.emailVerifiedAt === null) {
+        user.emailVerifiedAt = new Date();
+      }
+      await this.userTokenService.deleteAllForUser(user.id, tx);
+      return { emailVerified: true, email: user.email };
+    });
   }
 
   /**
@@ -191,6 +209,20 @@ export class AccountService {
       throw new UnauthorizedError(INVALID_CREDENTIALS_MESSAGE);
     }
     return authenticated(user, rolesOf(user));
+  }
+
+  /**
+   * Wylogowanie: podbicie `session_version` unieważnia wszystkie wydane tokeny konta (także na innych
+   * urządzeniach) — samo usunięcie ciasteczka nie cofnęłoby skopiowanego tokenu. Konto usunięte w międzyczasie
+   * → nic do unieważnienia.
+   */
+  async logout(userId: string): Promise<void> {
+    const user = await this.em.findOne(User, { id: userId });
+    if (!user) {
+      return;
+    }
+    user.sessionVersion += 1;
+    await this.em.flush();
   }
 
   /** Własne konto zalogowanej osoby; konto usunięte w trakcie sesji → 401 (fail closed). */
@@ -229,18 +261,23 @@ function authenticated(user: User, roles: Role[]): AuthenticatedAccount {
 }
 
 /**
- * Zapis nowego konta; naruszenie unikalności e-maila (constraint, także `lower(email)`) → 409 przy polu `email`.
- * Wspólne z kontami testowymi `SeedService` (ta sama ścieżka co rejestracja).
+ * Zapis nowego konta; naruszenie unikalności e-maila (constraint `users_email_unique` albo indeks
+ * `lower(email)`) → 409 przy polu `email`. Naruszenie innego ograniczenia (role, tokeny) to błąd, nie „zajęty
+ * adres” — leci dalej i kończy się ogólnym 500. Wspólne z kontami testowymi `SeedService`.
  */
 export async function flushNewAccount(em: EntityManager): Promise<void> {
   try {
     await em.flush();
   } catch (error) {
-    if (error instanceof UniqueConstraintViolationException) {
+    if (error instanceof UniqueConstraintViolationException && isEmailConstraint(error)) {
       throw new ConflictError(EMAIL_TAKEN_MESSAGE, { email: [EMAIL_TAKEN_MESSAGE] });
     }
     throw error;
   }
+}
+
+function isEmailConstraint(error: UniqueConstraintViolationException): boolean {
+  return "constraint" in error && typeof error.constraint === "string" && USER_EMAIL_UNIQUE_CONSTRAINTS.includes(error.constraint);
 }
 
 export function toAccountDto(user: User, roles: Role[]): AccountDto {

@@ -134,10 +134,27 @@ describe("AccountView (s04)", () => {
 
       await userEvent.click(screen.getByRole("button", { name: "Wyślij ponownie" }));
       expect(screen.getByRole("button", { name: "Wysyłanie…" })).toBeDisabled();
-      resolveResend({ ok: true, data: null });
+      resolveResend({ ok: true, data: { status: "sent" } });
 
       expect(await screen.findByText("Wysłaliśmy nowy link. Sprawdź skrzynkę.")).toHaveAttribute("role", "status");
       expect(apiCall).toHaveBeenCalledWith("/api/auth/email-verification/resend", { method: "POST" });
+      expect(screen.getByRole("button", { name: "Wyślij ponownie" })).toBeEnabled();
+    });
+
+    it.each([
+      ["already_verified", "Adres jest już potwierdzony."],
+      ["mail_disabled", "Wysyłka poczty jest wyłączona."],
+    ])("wynik %s → komunikat „%s” zamiast obietnicy wysyłki", async (status, text) => {
+      apiCall.mockImplementation(async (path: string) =>
+        path === "/api/auth/me" ? { ok: true, data: ACCOUNT } : { ok: true, data: { status } },
+      );
+      render(<AccountView />);
+      await screen.findByText("ola@example.com");
+
+      await userEvent.click(screen.getByRole("button", { name: "Wyślij ponownie" }));
+
+      expect(await screen.findByText(text)).toHaveAttribute("role", "status");
+      expect(screen.queryByText("Wysłaliśmy nowy link. Sprawdź skrzynkę.")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Wyślij ponownie" })).toBeEnabled();
     });
 

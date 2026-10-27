@@ -91,10 +91,37 @@ describe("konta: rejestracja, logowanie, wylogowanie i me na next start i prawdz
     expect(user.roles.getItems().map((entry) => entry.role)).toEqual(["mentee"]);
     expect(user.emailVerifiedAt).toBeNull();
 
-    const loggedOut = await post("/api/auth/logout", {});
+    const loggedOut = await post("/api/auth/logout", {}, { cookie });
     expect(loggedOut.status).toBe(200);
     expect(loggedOut.headers.getSetCookie()).toEqual(["devmentor_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"]);
     expect((await getMe(cookieFrom(loggedOut))).status).toBe(401);
+  });
+
+  it("wylogowanie podbija session_version: skopiowany token przestaje działać (401), a nowe logowanie daje działający", async () => {
+    const email = uniqueEmail();
+    const cookie = cookieFrom(await register(email));
+    const before = await orm.em.fork().findOneOrFail(User, { email });
+    expect((await getMe(cookie)).status).toBe(200);
+
+    expect((await post("/api/auth/logout", {}, { cookie })).status).toBe(200);
+
+    const after = await orm.em.fork().findOneOrFail(User, { email });
+    expect(after.sessionVersion).toBe(before.sessionVersion + 1);
+    expect((await getMe(cookie)).status).toBe(401);
+    const relogged = await login(email, PASSWORD);
+    expect(relogged.status).toBe(200);
+    expect((await getMe(cookieFrom(relogged))).status).toBe(200);
+  });
+
+  it("wylogowanie z nieważnym ciasteczkiem nie zmienia session_version żadnego konta", async () => {
+    const email = uniqueEmail();
+    const cookie = cookieFrom(await register(email));
+    const before = await orm.em.fork().findOneOrFail(User, { email });
+
+    expect((await post("/api/auth/logout", {}, { cookie: "devmentor_session=to-nie-jest-jwt" })).status).toBe(200);
+
+    expect((await orm.em.fork().findOneOrFail(User, { email })).sessionVersion).toBe(before.sessionVersion);
+    expect((await getMe(cookie)).status).toBe(200);
   });
 
   it("wylogowanie bez sesji i bez nagłówka CSRF: 200 idempotentnie, a bez nagłówka 403", async () => {
@@ -221,5 +248,19 @@ describe("konta: rejestracja, logowanie, wylogowanie i me na next start i prawdz
 
     expect(response.status).toBe(400);
     expect(Object.keys((await envelope(response)).error.fieldErrors ?? {})).toEqual(["password"]);
+  });
+
+  it("logowanie: hasło dłuższe niż 72 bajty → 400 przy polu password (bez wołania bcrypt)", async () => {
+    const response = await login(uniqueEmail(), "a".repeat(73));
+
+    expect(response.status).toBe(400);
+    expect((await envelope(response)).error.fieldErrors).toEqual({ password: ["Hasło jest za długie"] });
+  });
+
+  it.each(["/api/auth/login", "/api/auth/register"])("%s: body większe niż 16 KiB → 413 PAYLOAD_TOO_LARGE", async (path) => {
+    const response = await post(path, { email: uniqueEmail(), password: "a".repeat(20 * 1024), displayName: "x" }, uniqueClientIp());
+
+    expect(response.status).toBe(413);
+    expect((await envelope(response)).error).toEqual({ code: "PAYLOAD_TOO_LARGE", message: "Treść żądania jest za duża" });
   });
 });

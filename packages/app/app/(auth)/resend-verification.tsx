@@ -9,13 +9,26 @@ import { Notice } from "./notice";
 
 const RESEND_PATH = "/api/auth/email-verification/resend";
 
-/** Propozycja tekstu potwierdzenia (L12) — do akceptacji. */
+/** Propozycje tekstów (L12) — do akceptacji. Jeden na wynik z serwera, żeby nie obiecywać maila, którego nie wysłano. */
 export const RESEND_SENT_TEXT = "Wysłaliśmy nowy link. Sprawdź skrzynkę.";
+export const RESEND_ALREADY_VERIFIED_TEXT = "Adres jest już potwierdzony.";
+export const RESEND_MAIL_DISABLED_TEXT = "Wysyłka poczty jest wyłączona.";
 
-type ResendState = { status: "idle" | "sending" | "sent" } | { status: "failed"; message: string };
+type ResendStatus = "sent" | "already_verified" | "mail_disabled";
+
+const RESULT_TEXT: Record<ResendStatus, string> = {
+  sent: RESEND_SENT_TEXT,
+  already_verified: RESEND_ALREADY_VERIFIED_TEXT,
+  mail_disabled: RESEND_MAIL_DISABLED_TEXT,
+};
+
+type ResendState =
+  | { status: "idle" | "sending" }
+  | { status: "done"; result: ResendStatus }
+  | { status: "failed"; message: string };
 
 /**
- * „Wyślij ponownie” (s04.4, s05.3): nowy link weryfikacyjny dla zalogowanego konta. Po sukcesie potwierdzenie,
+ * „Wyślij ponownie” (s04.4, s05.3): nowy link weryfikacyjny dla zalogowanego konta. Po sukcesie komunikat zależny od wyniku z serwera,
  * przy 429 i innych błędach komunikat z serwera; 401 → „Sesja wygasła” (decyzja 17). Na `/account` i `/verify-email`.
  */
 export function ResendVerification() {
@@ -24,11 +37,11 @@ export function ResendVerification() {
 
   async function resend() {
     setState({ status: "sending" });
-    const result = await apiCall<null>(RESEND_PATH, { method: "POST" });
+    const result = await apiCall<{ status: ResendStatus }>(RESEND_PATH, { method: "POST" });
     if (redirectIfUnauthorized(result)) {
       return;
     }
-    setState(result.ok ? { status: "sent" } : { status: "failed", message: result.error.message });
+    setState(result.ok ? { status: "done", result: result.data.status } : { status: "failed", message: result.error.message });
   }
 
   return (
@@ -36,7 +49,9 @@ export function ResendVerification() {
       <Button type="button" variant="outline" size="sm" onClick={resend} disabled={state.status === "sending"}>
         {state.status === "sending" ? "Wysyłanie…" : "Wyślij ponownie"}
       </Button>
-      {state.status === "sent" && <Notice tone="success">{RESEND_SENT_TEXT}</Notice>}
+      {state.status === "done" && (
+        <Notice tone={state.result === "sent" ? "success" : "info"}>{RESULT_TEXT[state.result]}</Notice>
+      )}
       {state.status === "failed" && <ErrorMessage title="Nie udało się wysłać linku" message={state.message} />}
     </div>
   );

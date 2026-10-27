@@ -2,8 +2,7 @@ import { isDatabaseUnavailableError } from "@devmentor/db";
 import { getLogger } from "../logger";
 import { AppError, ServiceUnavailableError } from "./errors";
 import { safeNextPath } from "./safe-next-path";
-import { DataWithCookies } from "./api-handler";
-import type { RouteContext, RouteHandler } from "./api-handler";
+import { isDataWithCookies, type DataWithCookies, type RouteContext, type RouteHandler } from "./api-handler";
 
 const UNEXPECTED_ERROR_CODE = "unexpected";
 /** `HEAD` to `GET` bez ciała (RFC 9110 §9.3.2) — odpowiedź przekierowania i tak go nie ma. */
@@ -28,7 +27,7 @@ export function redirectHandler(
     }
     try {
       const result = await handler(request, context);
-      return result instanceof DataWithCookies
+      return isDataWithCookies(result)
         ? redirectTo(safeNextPath(result.data), result.cookies)
         : redirectTo(safeNextPath(result));
     } catch (error) {

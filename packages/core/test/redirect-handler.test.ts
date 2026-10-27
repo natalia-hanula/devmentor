@@ -32,6 +32,16 @@ describe("redirectHandler", () => {
     expect(response.headers.getSetCookie()).toEqual(["a=1; Path=/", "b=2; Path=/"]);
   });
 
+  it("withCookies z innej kopii modułu (obiekt bez prototypu klasy, ze znacznikiem) też ustawia ciasteczka", async () => {
+    const foreign = Object.assign({}, withCookies("/account", ["a=1; Path=/"]));
+    expect(foreign).not.toBeInstanceOf(Object.getPrototypeOf(withCookies("/", [])).constructor);
+
+    const response = await redirectHandler(async () => foreign as never)(get(), context);
+
+    expect(response.headers.get("location")).toBe("/account");
+    expect(response.headers.getSetCookie()).toEqual(["a=1; Path=/"]);
+  });
+
   it.each(["//evil.pl", "https://evil.pl/x", "/\\evil.pl", "javascript:alert(1)"])(
     "niebezpieczny adres z handlera (%s) → Location: /",
     async (location) => {

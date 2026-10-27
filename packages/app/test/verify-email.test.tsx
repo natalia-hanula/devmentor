@@ -155,7 +155,7 @@ describe("VerifyEmailView (s05)", () => {
   });
 
   it("s05.3 zalogowany z niepotwierdzonym adresem: „Wyślij ponownie” → potwierdzenie wysyłki", async () => {
-    respond({ me: signedIn(), confirm: INVALID, resend: { ok: true, data: null } });
+    respond({ me: signedIn(), confirm: INVALID, resend: { ok: true, data: { status: "sent" } } });
 
     render(<VerifyEmailView />);
     await screen.findByRole("alert");

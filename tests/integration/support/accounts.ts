@@ -1,5 +1,6 @@
 import {
   AccountService,
+  type AccountServiceDependencies,
   createLogger,
   NoopMailAdapter,
   PasswordHasher,
@@ -58,8 +59,12 @@ export async function sessionCookieFor(user: User, secret = TEST_AUTH_JWT_SECRET
   return `${SESSION_COOKIE_NAME}=${token}`;
 }
 
-/** `AccountService` złożony jak w kontenerze, na podanym `EntityManager` (to, co robi `withScope` w CLI `operator:create`). */
-export function accountServiceFor(em: EntityManager, appBaseUrl: string): AccountService {
+/** `AccountService` złożony jak w kontenerze, na podanym `EntityManager` (to, co robi `withScope` w CLI `operator:create`); `overrides` podmienia wybrane zależności (np. wadliwy serwis tokenów). */
+export function accountServiceFor(
+  em: EntityManager,
+  appBaseUrl: string,
+  overrides: Partial<AccountServiceDependencies> = {},
+): AccountService {
   const logger = createLogger({ level: "silent" });
   return new AccountService({
     em,
@@ -68,7 +73,8 @@ export function accountServiceFor(em: EntityManager, appBaseUrl: string): Accoun
     userTokenService: new UserTokenService({ em }),
     mailGateway: new NoopMailAdapter({ logger }),
     logger,
-    env: { APP_BASE_URL: appBaseUrl },
+    env: { APP_BASE_URL: appBaseUrl, MAIL_ADAPTER: "outbox" },
+    ...overrides,
   });
 }
 

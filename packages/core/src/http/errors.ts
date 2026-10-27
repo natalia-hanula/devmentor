@@ -66,6 +66,16 @@ export class ConflictError extends AppError {
   }
 }
 
+/** Treść żądania większa niż dopuszcza trasa (zob. `parseJsonBody`). */
+export class PayloadTooLargeError extends AppError {
+  readonly status = 413;
+  readonly code = "PAYLOAD_TOO_LARGE";
+
+  constructor(message = "Treść żądania jest za duża") {
+    super(message);
+  }
+}
+
 /** Przekroczony limit prób (limiter). Komunikat jest ogólny — nie zdradza, który klucz się wyczerpał. */
 export class TooManyRequestsError extends AppError {
   readonly status = 429;

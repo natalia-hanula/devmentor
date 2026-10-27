@@ -1,8 +1,9 @@
 import { apiHandler, requireSession, withScope } from "@devmentor/core";
 
-// Tylko własne konto (identyfikator z sesji). 200 także przy potwierdzonym adresie — wtedy nic nie wysyła.
+// Tylko własne konto (identyfikator z sesji). 200 z `status` (`sent` / `already_verified` / `mail_disabled`) —
+// strona pokazuje komunikat zależny od wyniku.
 export const POST = apiHandler(async (request) => {
   const session = await requireSession(request);
-  await withScope(async ({ accountService }) => accountService.resendVerification(session.userId));
-  return null;
+  const status = await withScope(async ({ accountService }) => accountService.resendVerification(session.userId));
+  return { status };
 });

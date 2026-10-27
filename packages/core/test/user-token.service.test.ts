@@ -77,6 +77,24 @@ describe("UserTokenService", () => {
     expect(fake.execute).toHaveBeenCalledWith(nativeQuery);
   });
 
+  it("consume i deleteAllForUser z przekazanym EM działają w jego transakcji, nie na EM serwisu", async () => {
+    const own = createFakeEntityManager();
+    const tx = createFakeEntityManager();
+    const { qb } = createFakeQueryBuilder();
+    tx.fake.createQueryBuilder.mockReturnValue(qb);
+    tx.fake.execute.mockResolvedValue([{ user_id: USER_ID }]);
+    const service = new UserTokenService({ em: own.em }, clock);
+
+    await expect(service.consume("surowy-token", "email_verification", tx.em)).resolves.toBe(USER_ID);
+    await service.deleteAllForUser(USER_ID, tx.em);
+
+    expect(tx.fake.execute).toHaveBeenCalledOnce();
+    expect(tx.fake.nativeDelete).toHaveBeenCalledWith(UserToken, { user: USER_ID });
+    expect(own.fake.createQueryBuilder).not.toHaveBeenCalled();
+    expect(own.fake.execute).not.toHaveBeenCalled();
+    expect(own.fake.nativeDelete).not.toHaveBeenCalled();
+  });
+
   it("consume zwraca null, gdy żaden wiersz nie pasuje (zużyty, wygasły, obcy cel, nieznany)", async () => {
     const { fake, em } = createFakeEntityManager();
     fake.execute.mockResolvedValue([]);

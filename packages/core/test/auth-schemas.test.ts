@@ -107,9 +107,21 @@ describe("registerSchema", () => {
 });
 
 describe("loginSchema", () => {
-  it("normalizuje e-mail i przyjmuje dowolne niepuste hasło (bez reguł rejestracji)", () => {
+  it("normalizuje e-mail i przyjmuje niepuste hasło (bez minimalnej długości z rejestracji)", () => {
     expect(loginSchema.parse({ email: " Ola@Example.com ", password: "x" })).toEqual({ email: "ola@example.com", password: "x" });
-    expect(loginSchema.safeParse({ email: VALID.email, password: "a".repeat(200) }).success).toBe(true);
+    expect(loginSchema.safeParse({ email: VALID.email, password: "a".repeat(72) }).success).toBe(true);
+  });
+
+  it("hasło do 72 bajtów UTF-8 przechodzi, dłuższe (jak w rejestracji) → „Hasło jest za długie”", () => {
+    expect(loginSchema.safeParse({ email: VALID.email, password: "a".repeat(72) }).success).toBe(true);
+    expect(loginSchema.safeParse({ email: VALID.email, password: "ą".repeat(36) }).success).toBe(true);
+    expect(fieldMessages(loginSchema.safeParse({ email: VALID.email, password: "a".repeat(73) }))).toEqual({
+      password: ["Hasło jest za długie"],
+    });
+    expect(fieldMessages(loginSchema.safeParse({ email: VALID.email, password: "ą".repeat(37) }))).toEqual({
+      password: ["Hasło jest za długie"],
+    });
+    expect(loginSchema.safeParse({ email: VALID.email, password: "x".repeat(2_000_000) }).success).toBe(false);
   });
 
   it("puste lub brakujące hasło → „Podaj hasło”", () => {
