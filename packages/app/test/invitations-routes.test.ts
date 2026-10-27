@@ -13,7 +13,7 @@ const CREATED = {
 
 const cradle = {
   env: { TRUST_PROXY: true },
-  invitationService: { list: vi.fn(), create: vi.fn(), revoke: vi.fn(), accept: vi.fn() },
+  invitationService: { list: vi.fn(), create: vi.fn(), revoke: vi.fn(), accept: vi.fn(), removeMentorRole: vi.fn() },
 };
 
 const logLines = vi.hoisted((): string[] => []);
@@ -32,6 +32,7 @@ vi.mock("../../core/src/http/session", () => ({ getSession }));
 
 const invitations = await import("../app/api/auth/invitations/route");
 const accept = await import("../app/api/auth/invitations/accept/route");
+const mentorRoles = await import("../app/api/auth/mentor-roles/route");
 
 const context = { params: Promise.resolve({}) };
 const URL_BASE = "http://localhost/api/auth/invitations";
@@ -228,5 +229,54 @@ describe("POST /api/auth/invitations/accept", () => {
 
     expect(response.status).toBe(status);
     expect((await response.json()).ok).toBe(false);
+  });
+});
+
+describe("DELETE /api/auth/mentor-roles?userId=", () => {
+  const USER_ID = "11111111-2222-4333-8444-555555555555";
+
+  function removing(query: string, { marker = true }: { marker?: boolean } = {}) {
+    return mentorRoles.DELETE(
+      new Request(`http://localhost/api/auth/mentor-roles${query}`, {
+        method: "DELETE",
+        headers: marker ? { "x-devmentor-request": "1" } : {},
+      }),
+      context,
+    );
+  }
+
+  it("operator odbiera rolę: 200 z userId, serwis dostaje identyfikator z zapytania", async () => {
+    cradle.invitationService.removeMentorRole.mockResolvedValue(undefined);
+
+    const response = await removing(`?userId=${USER_ID}`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, data: { userId: USER_ID } });
+    expect(cradle.invitationService.removeMentorRole).toHaveBeenCalledExactlyOnceWith(USER_ID);
+  });
+
+  it("bez sesji 401, mentee i mentor 403, bez nagłówka CSRF 403 — serwis nie jest wołany", async () => {
+    getSession.mockResolvedValueOnce(null);
+    expect((await removing(`?userId=${USER_ID}`)).status).toBe(401);
+    for (const role of ["mentee", "mentor"]) {
+      getSession.mockResolvedValueOnce({ ...OPERATOR, roles: [role] });
+      expect((await removing(`?userId=${USER_ID}`)).status).toBe(403);
+    }
+    expect((await removing(`?userId=${USER_ID}`, { marker: false })).status).toBe(403);
+    expect(cradle.invitationService.removeMentorRole).not.toHaveBeenCalled();
+  });
+
+  it.each([[""], ["?userId=nie-uuid"], [`?id=${USER_ID}`]])("brak lub zły userId (%s) → 400 z błędem przy userId", async (query) => {
+    const response = await removing(query);
+
+    expect(response.status).toBe(400);
+    expect(Object.keys((await response.json()).error.fieldErrors)).toEqual(["userId"]);
+    expect(cradle.invitationService.removeMentorRole).not.toHaveBeenCalled();
+  });
+
+  it("konto bez roli → 404 z serwisu", async () => {
+    cradle.invitationService.removeMentorRole.mockRejectedValue(new NotFoundError("Konto nie ma roli mentora"));
+
+    expect((await removing(`?userId=${USER_ID}`)).status).toBe(404);
   });
 });

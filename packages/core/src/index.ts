@@ -18,7 +18,7 @@ export {
 export { redirectHandler } from "./http/redirect-handler";
 export { safeNextPath } from "./http/safe-next-path";
 export { clientIp, UNKNOWN_CLIENT_IP, type ClientIpOptions } from "./http/client-ip";
-export { makeCrudRoute, parseIdQuery, type AccessRule, type CrudService } from "./http/make-crud-route";
+export { makeCrudRoute, parseIdQuery, parseUuidParam, type AccessRule, type CrudService } from "./http/make-crud-route";
 export {
   assertOwnership,
   getSession,
@@ -64,6 +64,7 @@ export {
   InvitationService,
   invitationStatus,
   MENTOR_INVITATION_TTL_DAYS,
+  MENTOR_ROLE_NOT_FOUND_MESSAGE,
   MENTOR_INVITATION_TTL_MS,
   type AcceptedInvitationResult,
   type CreatedInvitationDto,

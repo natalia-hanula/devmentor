@@ -27,6 +27,7 @@ export const MENTOR_INVITATION_TTL_MS = MENTOR_INVITATION_TTL_DAYS * DAY_MS;
 export const INVITATION_RACE_MESSAGE = "Zaproszenie dla tego adresu właśnie powstało — odśwież listę";
 export const INVITATION_ALREADY_ACCEPTED_MESSAGE = "Zaproszenie zostało już przyjęte";
 const INVITATION_NOT_FOUND_MESSAGE = "Nie znaleziono zaproszenia";
+export const MENTOR_ROLE_NOT_FOUND_MESSAGE = "Konto nie ma roli mentora";
 /** Jeden komunikat dla każdego nieudanego przyjęcia (wygasłe, cofnięte, przyjęte, zmyślone) — nie zdradza, które to. */
 export const INVALID_INVITATION_MESSAGE = "Zaproszenie jest nieważne";
 
@@ -227,6 +228,19 @@ export class InvitationService {
 
     const granted = new Set<Role>([...roles, "mentor"]);
     return { account: toAccountDto(user, USER_ROLES.filter((role) => granted.has(role))), alreadyMentor };
+  }
+
+  /**
+   * Odebranie roli mentora (Q16) — jedyna droga cofnięcia przyjętego zaproszenia. Jedno `DELETE` roli konta;
+   * brak roli → 404. Role czytamy z bazy przy każdym żądaniu (`getSession`), więc dostęp do `/mentor` i tras mentora
+   * kończy się przy następnym żądaniu tego konta, bez podbijania `session_version`. Skutki dla przyszłych rezerwacji
+   * rozstrzyga E03 (G4) — tu ich jeszcze nie ma.
+   */
+  async removeMentorRole(userId: string): Promise<void> {
+    const removed = await this.em.nativeDelete(UserRole, { user: userId, role: "mentor" });
+    if (removed === 0) {
+      throw new NotFoundError(MENTOR_ROLE_NOT_FOUND_MESSAGE);
+    }
   }
 
   /** `true`, gdy wiadomość wyszła; błąd logujemy bez adresata, treści i tokenu. */

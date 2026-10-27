@@ -396,4 +396,75 @@ describe("zaproszenia mentorów: tworzenie, lista, cofanie przez API", () => {
       expect(log.includes(token), "token w logu next start").toBe(false);
     });
   });
+
+  describe("odebranie roli mentora (DELETE /api/auth/mentor-roles)", () => {
+    const removeRole = (userId: string, cookie?: string) =>
+      fetch(`${baseUrl}/api/auth/mentor-roles?userId=${userId}`, {
+        method: "DELETE",
+        headers: { "x-devmentor-request": "1", ...uniqueClientIp(), ...(cookie ? { cookie } : {}) },
+      });
+
+    async function mentorViaInvitation(): Promise<{ cookie: string; user: User; invitationId: string }> {
+      const user = await createAccount(orm.em.fork(), { email: `odbierany-${randomUUID()}@example.com`, roles: ["mentee"] });
+      const cookie = await sessionCookieFor(user);
+      const result = await created(await create(uniqueEmail()));
+      const accepted = await fetch(`${baseUrl}/api/auth/invitations/accept`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-devmentor-request": "1", cookie, ...uniqueClientIp() },
+        body: JSON.stringify({ token: tokenOf(result.link) }),
+      });
+      expect(accepted.status).toBe(200);
+      return { cookie, user, invitationId: result.invitation.id };
+    }
+
+    const openMentorPage = async (cookie: string) =>
+      (await fetch(`${baseUrl}/mentor`, { redirect: "manual", headers: { cookie } })).text();
+
+    it("po odebraniu roli /mentor daje „Brak dostępu” przy następnym żądaniu, a lista pokazuje „rola mentora odebrana” (L10)", async () => {
+      const { cookie, user, invitationId } = await mentorViaInvitation();
+      expect(await openMentorPage(cookie)).toContain("Panel mentora</h1>");
+
+      const removed = await removeRole(user.id, operatorCookie);
+
+      expect(removed.status).toBe(200);
+      expect(((await removed.json()) as Envelope<{ userId: string }>).data).toEqual({ userId: user.id });
+      const page = await openMentorPage(cookie);
+      expect(page).toContain("Ta strona wymaga roli mentora.");
+      expect(page).not.toContain("Panel mentora</h1>");
+      const meResponse = await fetch(`${baseUrl}/api/auth/me`, { headers: { cookie } });
+      expect(((await meResponse.json()) as Envelope<{ roles: string[] }>).data.roles).toEqual(["mentee"]);
+      const listed = (await list()).find((entry) => entry.id === invitationId) as InvitationBody & {
+        acceptedBy: { mentorRoleRemoved: boolean };
+      };
+      expect(listed.status).toBe("accepted");
+      expect(listed.acceptedBy.mentorRoleRemoved).toBe(true);
+    });
+
+    it("rola mentee zostaje; drugie odebranie → 404; mentee i mentor dostają 403, gość 401, zły userId 400", async () => {
+      const { cookie, user } = await mentorViaInvitation();
+
+      expect((await removeRole(user.id, cookie)).status).toBe(403);
+      expect((await removeRole(user.id)).status).toBe(401);
+      expect((await removeRole("nie-uuid", operatorCookie)).status).toBe(400);
+      expect((await removeRole(user.id, operatorCookie)).status).toBe(200);
+
+      expect(await orm.em.fork().count(UserRole, { user: user.id, role: "mentee" })).toBe(1);
+      expect(await orm.em.fork().count(UserRole, { user: user.id, role: "mentor" })).toBe(0);
+      const again = await removeRole(user.id, operatorCookie);
+      expect(again.status).toBe(404);
+      expect(((await again.json()) as Envelope).error.message).toBe("Konto nie ma roli mentora");
+    });
+
+    it("żądanie bez nagłówka CSRF → 403, rola zostaje", async () => {
+      const { user } = await mentorViaInvitation();
+
+      const response = await fetch(`${baseUrl}/api/auth/mentor-roles?userId=${user.id}`, {
+        method: "DELETE",
+        headers: { cookie: operatorCookie, ...uniqueClientIp() },
+      });
+
+      expect(response.status).toBe(403);
+      expect(await orm.em.fork().count(UserRole, { user: user.id, role: "mentor" })).toBe(1);
+    });
+  });
 });

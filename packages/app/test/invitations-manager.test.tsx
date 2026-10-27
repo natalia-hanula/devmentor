@@ -332,3 +332,85 @@ describe("InvitationsManager — tworzenie i jednorazowy panel z linkiem", () =>
     await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith(SESSION_EXPIRED_LOGIN));
   });
 });
+
+describe("InvitationsManager — odebranie roli mentora (Q16)", () => {
+  beforeEach(() => {
+    apiCall.mockReset();
+    router.replace.mockReset();
+  });
+
+  it("„Odbierz rolę mentora” tylko przy przyjętym zaproszeniu, któremu rola nie została jeszcze odebrana", async () => {
+    respond(() => ({ ok: true, data: [PENDING, ACCEPTED, ACCEPTED_REMOVED, REVOKED, EXPIRED, { ...ACCEPTED, id: "f", acceptedBy: undefined }] }));
+
+    render(<InvitationsManager />);
+    await screen.findByRole("cell", { name: "adam@example.com" });
+
+    expect(screen.getAllByRole("button", { name: "Odbierz rolę mentora" })).toHaveLength(1);
+    const row = screen.getByRole("cell", { name: "Ewa (ewa.inny@example.com)" }).closest("tr")!;
+    expect(within(row).getByRole("button", { name: "Odbierz rolę mentora" })).toBeInTheDocument();
+  });
+
+  it("wymaga potwierdzenia: pierwszy klik pyta, „Anuluj” wraca bez wywołania API", async () => {
+    respond(() => ({ ok: true, data: [ACCEPTED] }));
+
+    render(<InvitationsManager />);
+    await userEvent.click(await screen.findByRole("button", { name: "Odbierz rolę mentora" }));
+
+    expect(screen.getByText("Odebrać rolę mentora?")).toBeInTheDocument();
+    expect(apiCall).not.toHaveBeenCalledWith(expect.stringContaining("mentor-roles"), expect.anything());
+    await userEvent.click(screen.getByRole("button", { name: "Anuluj" }));
+    expect(screen.queryByText("Odebrać rolę mentora?")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Odbierz rolę mentora" })).toBeInTheDocument();
+    expect(apiCall).not.toHaveBeenCalledWith(expect.stringContaining("mentor-roles"), expect.anything());
+  });
+
+  it("„Tak, odbierz” → DELETE ?userId= konta, które przyjęło, i odświeżona lista z „rola mentora odebrana”", async () => {
+    let list: unknown[] = [ACCEPTED];
+    respond((_path, options) => {
+      if (options?.method === "DELETE") {
+        list = [{ ...ACCEPTED, acceptedBy: { ...ACCEPTED.acceptedBy, mentorRoleRemoved: true } }];
+        return { ok: true, data: { userId: "u1" } };
+      }
+      return { ok: true, data: list };
+    });
+
+    render(<InvitationsManager />);
+    await userEvent.click(await screen.findByRole("button", { name: "Odbierz rolę mentora" }));
+    await userEvent.click(screen.getByRole("button", { name: "Tak, odbierz" }));
+
+    expect(await screen.findByText("rola mentora odebrana")).toBeInTheDocument();
+    expect(apiCall).toHaveBeenCalledWith("/api/auth/mentor-roles?userId=u1", { method: "DELETE" });
+    expect(screen.getByText("Przyjęte")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Odbierz rolę mentora" })).not.toBeInTheDocument();
+  });
+
+  it("odmowa (np. rola odebrana w międzyczasie → 404) → komunikat z serwera i odświeżona lista", async () => {
+    let list: unknown[] = [ACCEPTED];
+    respond((_path, options) => {
+      if (options?.method === "DELETE") {
+        list = [{ ...ACCEPTED, acceptedBy: { ...ACCEPTED.acceptedBy, mentorRoleRemoved: true } }];
+        return { ok: false, error: { code: "NOT_FOUND", message: "Konto nie ma roli mentora" } };
+      }
+      return { ok: true, data: list };
+    });
+
+    render(<InvitationsManager />);
+    await userEvent.click(await screen.findByRole("button", { name: "Odbierz rolę mentora" }));
+    await userEvent.click(screen.getByRole("button", { name: "Tak, odbierz" }));
+
+    expect(await screen.findByText("Nie odebrano roli mentora")).toBeInTheDocument();
+    expect(screen.getByText("Konto nie ma roli mentora")).toBeInTheDocument();
+    expect(await screen.findByText("rola mentora odebrana")).toBeInTheDocument();
+  });
+
+  it("401 przy odbieraniu → przekierowanie zamiast komunikatu błędu", async () => {
+    respond((_path, options) => (options?.method === "DELETE" ? UNAUTHORIZED : { ok: true, data: [ACCEPTED] }));
+
+    render(<InvitationsManager />);
+    await userEvent.click(await screen.findByRole("button", { name: "Odbierz rolę mentora" }));
+    await userEvent.click(screen.getByRole("button", { name: "Tak, odbierz" }));
+
+    await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith(SESSION_EXPIRED_LOGIN));
+    expect(screen.queryByText("Nie odebrano roli mentora")).not.toBeInTheDocument();
+  });
+});

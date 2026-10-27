@@ -36,6 +36,7 @@ interface CreatedInvitation {
 }
 
 const INVITATIONS_PATH = "/api/auth/invitations";
+const MENTOR_ROLES_PATH = "/api/auth/mentor-roles";
 /** Kod `ConflictError` z `@devmentor/core` — wyścig przy tworzeniu zaproszenia (kopia, jak wyżej). */
 const CONFLICT_CODE = "CONFLICT";
 
@@ -85,9 +86,11 @@ const FORM_FIELDS: CrudFormField<InvitationCreateInput>[] = [
 /** Lista zaproszeń z tworzeniem (jednorazowy panel z linkiem) i cofaniem oczekujących. */
 export function InvitationsManager() {
   const [result, setResult] = useState<ApiResult<Invitation[]> | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<{ title: string; message: string } | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [created, setCreated] = useState<CreatedInvitation | null>(null);
+  // Odebranie roli jest nieodwracalne z poziomu tej strony — wymaga drugiego kliknięcia (potwierdzenie w wierszu).
+  const [confirmingRemovalId, setConfirmingRemovalId] = useState<string | null>(null);
   const redirectIfUnauthorized = useSessionExpiredRedirect();
 
   const show = useCallback(
@@ -133,7 +136,22 @@ export function InvitationsManager() {
       return;
     }
     if (!revocation.ok) {
-      setActionError(revocation.error.message);
+      setActionError({ title: "Nie cofnięto zaproszenia", message: revocation.error.message });
+    }
+    await reload();
+  }
+
+  async function handleRemoveRole(invitation: Invitation & { acceptedBy: NonNullable<Invitation["acceptedBy"]> }) {
+    setActionError(null);
+    setConfirmingRemovalId(null);
+    const removal = await apiCall(`${MENTOR_ROLES_PATH}?userId=${encodeURIComponent(invitation.acceptedBy.id)}`, {
+      method: "DELETE",
+    });
+    if (redirectIfUnauthorized(removal)) {
+      return;
+    }
+    if (!removal.ok) {
+      setActionError({ title: "Nie odebrano roli mentora", message: removal.error.message });
     }
     await reload();
   }
@@ -141,7 +159,7 @@ export function InvitationsManager() {
   return (
     <div className="flex flex-col gap-between-groups">
       {created && <CreatedInvitationPanel created={created} onClose={() => setCreated(null)} />}
-      {actionError && <ErrorMessage title="Nie cofnięto zaproszenia" message={actionError} />}
+      {actionError && <ErrorMessage title={actionError.title} message={actionError.message} />}
       {isFormOpen ? (
         <Card>
           <CardHeader>
@@ -178,13 +196,37 @@ export function InvitationsManager() {
         getRowId={(row) => row.id}
         emptyTitle="Brak zaproszeń"
         emptyDescription="Zaproś pierwszego mentora przyciskiem powyżej."
-        rowActions={(row) =>
-          row.status === "pending" && (
-            <Button variant="ghost" size="sm" onClick={() => handleRevoke(row)}>
-              Cofnij
-            </Button>
-          )
-        }
+        rowActions={(row) => {
+          if (row.status === "pending") {
+            return (
+              <Button variant="ghost" size="sm" onClick={() => handleRevoke(row)}>
+                Cofnij
+              </Button>
+            );
+          }
+          if (row.status !== "accepted" || !row.acceptedBy || row.acceptedBy.mentorRoleRemoved) {
+            return false;
+          }
+          const accepted = { ...row, acceptedBy: row.acceptedBy };
+          if (confirmingRemovalId !== row.id) {
+            return (
+              <Button variant="ghost" size="sm" onClick={() => setConfirmingRemovalId(row.id)}>
+                Odbierz rolę mentora
+              </Button>
+            );
+          }
+          return (
+            <span className="inline-flex items-center gap-in-group">
+              <span className="text-sm">Odebrać rolę mentora?</span>
+              <Button variant="outline" size="sm" onClick={() => handleRemoveRole(accepted)}>
+                Tak, odbierz
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmingRemovalId(null)}>
+                Anuluj
+              </Button>
+            </span>
+          );
+        }}
       />
     </div>
   );

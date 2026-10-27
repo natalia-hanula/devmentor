@@ -26,8 +26,6 @@ export interface CrudRouteConfig<K extends CrudServiceKey, C extends z.ZodType, 
   access?: { read?: AccessRule; write?: AccessRule };
 }
 
-const idQuerySchema = z.object({ id: z.uuid("Nieprawidłowy identyfikator") });
-
 /**
  * Trasy CRUD z konfiguracji: `GET` (lista), `POST` (tworzenie), `PUT ?id=` (zmiana), `DELETE ?id=`.
  * Plik `route.ts` zostaje konfiguracją: `export const { GET, POST, PUT, DELETE } = makeCrudRoute({ ... })`.
@@ -76,8 +74,13 @@ async function authorize(rule: AccessRule, request: Request): Promise<void> {
   await rule(request);
 }
 
-/** `?id=` jako UUID — wspólne dla tras `DELETE`/`PUT` (także tras przepływów, które nie są CRUD-em). */
-export function parseIdQuery(request: Request): z.infer<typeof idQuerySchema> {
-  const id = new URL(request.url).searchParams.get("id");
-  return parseInput(idQuerySchema, { id });
+/** Parametr zapytania jako UUID (400 z `fieldErrors` pod nazwą parametru) — także dla tras przepływów, które nie są CRUD-em. */
+export function parseUuidParam(request: Request, name: string): string {
+  const schema = z.object({ [name]: z.uuid("Nieprawidłowy identyfikator") });
+  return parseInput(schema, { [name]: new URL(request.url).searchParams.get(name) })[name] as string;
+}
+
+/** `?id=` jako UUID — wspólne dla tras `DELETE`/`PUT`. */
+export function parseIdQuery(request: Request): { id: string } {
+  return { id: parseUuidParam(request, "id") };
 }

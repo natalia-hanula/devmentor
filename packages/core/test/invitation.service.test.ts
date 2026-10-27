@@ -9,6 +9,7 @@ import {
   INVITATION_ALREADY_ACCEPTED_MESSAGE,
   INVITATION_MAIL_SUBJECT,
   INVITATION_RACE_MESSAGE,
+  MENTOR_ROLE_NOT_FOUND_MESSAGE,
   InvitationService,
   invitationStatus,
   MENTOR_INVITATION_TTL_MS,
@@ -452,5 +453,31 @@ describe("InvitationService.accept", () => {
     fake.upsert.mockRejectedValue(failure);
 
     await expect(service.accept(USER_ID, RAW, IP)).rejects.toBe(failure);
+  });
+});
+
+describe("InvitationService.removeMentorRole", () => {
+  const USER_ID = "11111111-2222-4333-8444-555555555555";
+
+  it("usuwa rolę mentora konta jednym DELETE (bez podbijania sesji)", async () => {
+    const { fake, service } = setup();
+    fake.nativeDelete.mockResolvedValue(1);
+
+    await expect(service.removeMentorRole(USER_ID)).resolves.toBeUndefined();
+
+    expect(fake.nativeDelete).toHaveBeenCalledExactlyOnceWith(UserRole, { user: USER_ID, role: "mentor" });
+    expect(fake.nativeUpdate).not.toHaveBeenCalled();
+    expect(fake.flush).not.toHaveBeenCalled();
+  });
+
+  it("konto bez roli mentora (albo nieznane) → 404", async () => {
+    const { fake, service } = setup();
+    fake.nativeDelete.mockResolvedValue(0);
+
+    const error = await service.removeMentorRole(USER_ID).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(NotFoundError);
+    expect(error).toMatchObject({ message: MENTOR_ROLE_NOT_FOUND_MESSAGE });
+    expect(MENTOR_ROLE_NOT_FOUND_MESSAGE).toBe("Konto nie ma roli mentora");
   });
 });

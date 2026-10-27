@@ -1,4 +1,4 @@
-import { initOrm, MentorInvitation, UserRole, type MikroORM } from "@devmentor/db";
+import { initOrm, MentorInvitation, User, UserRole, type MikroORM } from "@devmentor/db";
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, inject, it } from "vitest";
 import { createAccount, createOperatorAndLogIn, deleteTestAccounts, sessionCookieFor, TEST_EMAIL_PREFIX } from "./support/accounts";
@@ -49,6 +49,36 @@ describe("/admin/invitations w przeglądarce (agent-browser)", () => {
     // Token jest tylko w panelu — nie w tabeli i nie w adresie strony.
     expect(await browser.run("get", "text", "tbody")).not.toContain("token=");
     expect(await browser.run("get", "url")).toBe(`${baseUrl}/admin/invitations`);
+  });
+
+  it("„Odbierz rolę mentora”: potwierdzenie w wierszu, potem „rola mentora odebrana” i brak przycisku", async () => {
+    const mentee = await createAccount(orm.em.fork(), { email: "odbierz-ui@example.com", roles: ["mentee"] });
+    // Przyjęte zaproszenie zakładamy w bazie (samo przyjęcie przez API ma własne testy), żeby nie ruszać oczekującego z poprzedniego testu.
+    const em = orm.em.fork();
+    em.create(MentorInvitation, {
+      email: `${TEST_EMAIL_PREFIX}ui-przyjete-${Date.now()}@example.com`,
+      tokenHash: randomUUID().replaceAll("-", "").padEnd(64, "0"),
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      createdBy: null,
+      revokedAt: null,
+      acceptedAt: new Date(),
+      acceptedBy: em.getReference(User, mentee.id),
+    });
+    em.create(UserRole, { user: em.getReference(User, mentee.id), role: "mentor" });
+    await em.flush();
+
+    await browser.run("open", `${baseUrl}/admin/invitations`);
+    await browser.run("wait", "--text", "Przyjęte");
+    await waitForHydration(browser, "[data-slot=table] button");
+    await browser.run("find", "role", "button", "click", "--name", "Odbierz rolę mentora");
+    await browser.run("wait", "--text", "Odebrać rolę mentora?");
+    expect(await orm.em.fork().count(UserRole, { user: mentee.id, role: "mentor" })).toBe(1);
+
+    await browser.run("find", "role", "button", "click", "--name", "Tak, odbierz");
+    await browser.run("wait", "--text", "rola mentora odebrana");
+
+    expect(await orm.em.fork().count(UserRole, { user: mentee.id, role: "mentor" })).toBe(0);
+    expect(await browser.run("eval", "document.body.innerText.includes('Odbierz rolę mentora')")).toBe("false");
   });
 
   it("„Cofnij” zmienia status na „Cofnięte”, a przycisk znika", async () => {
