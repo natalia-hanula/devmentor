@@ -34,6 +34,8 @@ export interface SetupSystem {
   writeFile(path: string, content: string): void;
   /** Losowy sekret (base64url) do `.env`. */
   generateSecret(): string;
+  /** Ustawia uprawnienia pliku (np. `0o600` dla `.env` z sekretami). */
+  chmod(path: string, mode: number): void;
   /** Kopiuje plik; nigdy nie nadpisuje istniejącego celu. */
   copyFile(source: string, destination: string): void;
   symlink(target: string, path: string): void;

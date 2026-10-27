@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { constants, copyFileSync, lstatSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, constants, copyFileSync, lstatSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
 import type { DatabaseClient, PathKind, SetupSystem } from "./types.ts";
 
 /** 48 bajtów losowości: base64url daje 64 znaki, czyli dużo ponad minimum 32 bajtów sekretu HS256. */
@@ -27,6 +27,7 @@ export function createSystem(rootDir: string): SetupSystem {
     readLink: (path) => readlinkSync(path),
     readFile: (path) => readFileSync(path, "utf8"),
     writeFile: (path, content) => writeFileSync(path, content),
+    chmod: (path, mode) => chmodSync(path, mode),
     generateSecret: () => randomBytes(SECRET_BYTES).toString("base64url"),
     copyFile: (source, destination) => copyFileSync(source, destination, constants.COPYFILE_EXCL),
     symlink: (target, path) => symlinkSync(target, path),

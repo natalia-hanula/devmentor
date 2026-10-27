@@ -500,24 +500,26 @@ describe("AccountService.verifyEmail", () => {
 });
 
 describe("AccountService.logout", () => {
-  it("podbija session_version konta i zapisuje (unieważnia wydane tokeny)", async () => {
+  it("podbija session_version jednym atomowym UPDATE (przyrost liczy baza, bez odczytu konta)", async () => {
     const { fake, service } = setup();
-    const user = storedUser({ sessionVersion: 3 });
-    fake.findOne.mockResolvedValue(user);
 
     await service.logout(ID);
 
-    expect(fake.findOne).toHaveBeenCalledWith(User, { id: ID });
-    expect(user.sessionVersion).toBe(4);
-    expect(fake.flush).toHaveBeenCalledOnce();
+    expect(fake.nativeUpdate).toHaveBeenCalledOnce();
+    const [entity, where, data] = fake.nativeUpdate.mock.calls[0] as unknown as [unknown, unknown, Record<string, unknown>];
+    expect(entity).toBe(User);
+    expect(where).toEqual({ id: ID });
+    expect(data.sessionVersion).toMatchObject({ sql: "session_version + 1", params: [] });
+    expect(data.updatedAt).toBeInstanceOf(Date);
+    expect(fake.findOne).not.toHaveBeenCalled();
+    expect(fake.flush).not.toHaveBeenCalled();
   });
 
-  it("konto usunięte w międzyczasie → nic do unieważnienia, bez błędu", async () => {
+  it("konto usunięte w międzyczasie (0 wierszy) → nic do unieważnienia, bez błędu", async () => {
     const { fake, service } = setup();
-    fake.findOne.mockResolvedValue(null);
+    fake.nativeUpdate.mockResolvedValue(0);
 
     await expect(service.logout(ID)).resolves.toBeUndefined();
-    expect(fake.flush).not.toHaveBeenCalled();
   });
 });
 

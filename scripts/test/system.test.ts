@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const childProcess = vi.hoisted(() => ({ spawn: vi.fn() }));
 const fs = vi.hoisted(() => ({
+  chmodSync: vi.fn(),
   constants: { COPYFILE_EXCL: 1 },
   copyFileSync: vi.fn(),
   lstatSync: vi.fn(),
@@ -96,11 +97,13 @@ describe("createSystem", () => {
     system.copyFile("/a", "/b");
     system.symlink("../../.env", "/l");
     system.writeFile("/w", "B=2");
+    system.chmod("/w", 0o600);
 
     expect(fs.readFileSync).toHaveBeenCalledWith("/f", "utf8");
     expect(fs.copyFileSync).toHaveBeenCalledWith("/a", "/b", fs.constants.COPYFILE_EXCL);
     expect(fs.symlinkSync).toHaveBeenCalledWith("../../.env", "/l");
     expect(fs.writeFileSync).toHaveBeenCalledWith("/w", "B=2");
+    expect(fs.chmodSync).toHaveBeenCalledWith("/w", 0o600);
     expect(system.pathKind).toBe(pathKind);
     expect(system.connect).toBe(connect);
   });

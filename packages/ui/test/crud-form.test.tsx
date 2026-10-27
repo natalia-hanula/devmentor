@@ -154,6 +154,16 @@ describe("CrudForm", () => {
     expect(screen.getByRole("alert")).not.toHaveTextContent("Nie zapisano");
   });
 
+  it("pusta podpowiedź skrótu → bez pustego elementu obok przycisków", () => {
+    const { container } = render(
+      <CrudForm schema={schema} fields={fields} onSubmit={vi.fn(async () => ok)} shortcutHint="" />,
+    );
+
+    const actions = screen.getByRole("button", { name: "Zapisz" }).parentElement;
+    expect(actions?.querySelector("span")).toBeNull();
+    expect(container.textContent).not.toContain("Ctrl/⌘ + Enter");
+  });
+
   it("gdy onSubmit rzuci wyjątek, pokazuje ogólny komunikat i odblokowuje formularz do ponownego wysłania", async () => {
     let reject: (reason: Error) => void = () => undefined;
     const onSubmit = vi

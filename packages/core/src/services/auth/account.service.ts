@@ -1,4 +1,5 @@
 import {
+  raw,
   UniqueConstraintViolationException,
   User,
   UserRole,
@@ -28,6 +29,9 @@ import {
 import type { PasswordHasher } from "./password-hasher.service";
 import type { SessionSubject } from "./session-token.service";
 import { EMAIL_VERIFICATION_TTL_MS, type UserTokenService } from "./user-token.service";
+
+/** Stały fragment SQL (bez danych użytkownika): przyrost liczony przez bazę, nie w aplikacji. */
+const SESSION_VERSION_INCREMENT_SQL = "session_version + 1";
 
 export const EMAIL_TAKEN_MESSAGE = "Ten e-mail ma już konto";
 /** Jeden komunikat dla nieznanego e-maila, złego hasła i konta bez hasła — nie zdradza, który to przypadek. */
@@ -213,16 +217,17 @@ export class AccountService {
 
   /**
    * Wylogowanie: podbicie `session_version` unieważnia wszystkie wydane tokeny konta (także na innych
-   * urządzeniach) — samo usunięcie ciasteczka nie cofnęłoby skopiowanego tokenu. Konto usunięte w międzyczasie
-   * → nic do unieważnienia.
+   * urządzeniach) — samo usunięcie ciasteczka nie cofnęłoby skopiowanego tokenu. Jedno atomowe
+   * `UPDATE … SET session_version = session_version + 1`: dwa równoczesne wylogowania nie gubią przyrostu
+   * (odczyt i zapis w aplikacji mogłyby zapisać tę samą wartość). Konto usunięte w międzyczasie → 0 wierszy,
+   * nic do unieważnienia.
    */
   async logout(userId: string): Promise<void> {
-    const user = await this.em.findOne(User, { id: userId });
-    if (!user) {
-      return;
-    }
-    user.sessionVersion += 1;
-    await this.em.flush();
+    await this.em.nativeUpdate(
+      User,
+      { id: userId },
+      { sessionVersion: raw(SESSION_VERSION_INCREMENT_SQL), updatedAt: new Date() },
+    );
   }
 
   /** Własne konto zalogowanej osoby; konto usunięte w trakcie sesji → 401 (fail closed). */

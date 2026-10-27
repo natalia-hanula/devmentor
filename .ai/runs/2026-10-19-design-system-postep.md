@@ -1,5 +1,7 @@
 # POSTĘP — design system DevMentor (`packages/ui`)
 
+> Plik przeniesiony 2026-10-27 z `packages/ui/POSTEP.md` (zadanie 4.9 runu `2026-10-20-e01-etap-a.md`, decyzja 24): logi przebiegów AI trzymamy w `.ai/runs/` (`AGENTS.md`); treść bez zmian.
+
 Prompt: `lekcja-06/cwiczenie-3-gotowy-prompt.txt` (etapy 0–5, stop po każdym etapie). Specyfikacja: `.ai/specs/2026-10-19-design-system-storybook.md`. Materiały: `lekcja-06/referencje.md`, `lekcja-06/tokeny.md`, `.ai/specs/product-brief.md`, `.ai/specs/research/`, `.ai/specs/backlog.md`, `.ai/specs/2026-10-18-e01-konta-i-role.md`, `.ai/specs/2026-10-18-platform-primitives.md`. Gałąź: `lekcja-06-design-system` (zmiany etapu 1 niezacommitowane).
 
 ## Etapy

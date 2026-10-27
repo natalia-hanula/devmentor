@@ -287,8 +287,10 @@ describe("zaproszenia mentorów: tworzenie, lista, cofanie przez API", () => {
       expect(JSON.stringify(body)).not.toContain("passwordHash");
       expect((await me(cookie)).roles).toEqual(["mentee", "mentor"]);
       const role = await orm.em.fork().findOneOrFail(UserRole, { user: user.id, role: "mentor" });
-      expect(role.grantedBy).not.toBeNull();
       const stored = await orm.em.fork().findOneOrFail(MentorInvitation, { id });
+      // `granted_by` z `UPDATE … RETURNING created_by_id` — autor zaproszenia.
+      expect(stored.createdBy).not.toBeNull();
+      expect(role.grantedBy?.id).toBe(stored.createdBy?.id);
       expect(stored.acceptedAt).toBeInstanceOf(Date);
       expect(stored.acceptedBy?.id).toBe(user.id);
       const listed = (await list()).find((entry) => entry.id === id) as InvitationBody & { acceptedBy: { id: string; mentorRoleRemoved: boolean } };

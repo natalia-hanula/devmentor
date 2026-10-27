@@ -1,6 +1,6 @@
 # Design system DevMentor ze Storybookiem w `packages/ui`
 
-- **Status:** zaakceptowana 2026-10-19 przez Natalię (etap 0 ćwiczenia 3, lekcja 06). Postęp etapów: `packages/ui/POSTEP.md`.
+- **Status:** zaakceptowana 2026-10-19 przez Natalię (etap 0 ćwiczenia 3, lekcja 06). Postęp etapów: `.ai/runs/2026-10-19-design-system-postep.md` (do 2026-10-27 `packages/ui/POSTEP.md`).
 - **Wsad:** `lekcja-06/cwiczenie-3-gotowy-prompt.txt`, `lekcja-06/referencje.md`, `lekcja-06/tokeny.md`, `.ai/specs/product-brief.md`, `.ai/specs/backlog.md`, `.ai/specs/2026-10-18-e01-konta-i-role.md`, `.ai/specs/2026-10-18-platform-primitives.md`.
 
 ## Cel
@@ -43,7 +43,7 @@ Developer albo agent buduje nowy ekran DevMentora z dokumentacji w Storybooku be
 - [ ] `npm run lint`, `npm run typecheck`, `npm test` (100%) i `npm run build` przechodzą.
 - [ ] Każdy komponent ma stronę z 13 sekcjami i macierz stanów; każdy wzorzec ma stany danych, formularz także stany odpowiedzi API.
 - [ ] Każdy kluczowy ekran E01 i platform primitives ma story i mapę stanów.
-- [ ] Test agentem przygotowany w `POSTEP.md` (wykonywany w nowej sesji).
+- [ ] Test agentem przygotowany w logu postępu (`.ai/runs/2026-10-19-design-system-postep.md`) (wykonywany w nowej sesji).
 
 ## Otwarte pytania
 

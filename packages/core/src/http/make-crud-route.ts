@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { withScope } from "../container/container";
 import type { RequestCradle } from "../container/cradle";
-import { apiHandler, parseInput, parseJsonBody, type RouteHandler } from "./api-handler";
+import { apiHandler, parseJsonBody, type RouteHandler } from "./api-handler";
 import { requireSession } from "./auth";
+import { ValidationError } from "./errors";
 
 export interface CrudService<TDto, TCreate, TUpdate> {
   list(): Promise<TDto[]>;
@@ -74,10 +75,15 @@ async function authorize(rule: AccessRule, request: Request): Promise<void> {
   await rule(request);
 }
 
+const uuidParamSchema = z.uuid("Nieprawidłowy identyfikator");
+
 /** Parametr zapytania jako UUID (400 z `fieldErrors` pod nazwą parametru) — także dla tras przepływów, które nie są CRUD-em. */
 export function parseUuidParam(request: Request, name: string): string {
-  const schema = z.object({ [name]: z.uuid("Nieprawidłowy identyfikator") });
-  return parseInput(schema, { [name]: new URL(request.url).searchParams.get(name) })[name] as string;
+  const result = uuidParamSchema.safeParse(new URL(request.url).searchParams.get(name));
+  if (!result.success) {
+    throw new ValidationError(undefined, { [name]: result.error.issues.map((issue) => issue.message) });
+  }
+  return result.data;
 }
 
 /** `?id=` jako UUID — wspólne dla tras `DELETE`/`PUT`. */

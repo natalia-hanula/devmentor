@@ -5,6 +5,7 @@ export { entities, MentorInvitation, Technology, User, UserRole, UserToken } fro
 export * from "./constants";
 // `core` korzysta z ORM wyłącznie przez te re-eksporty — tylko `db` importuje `@mikro-orm/*`.
 export {
+  raw,
   UniqueConstraintViolationException,
   type EntityManager,
   type MikroORM,

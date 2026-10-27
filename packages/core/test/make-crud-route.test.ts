@@ -106,3 +106,32 @@ describe("makeCrudRoute", () => {
     expect(technologyService.update).toHaveBeenCalledWith(ID, { name: "Golang" });
   });
 });
+
+describe("parseUuidParam", () => {
+  it("zwraca poprawny UUID z parametru zapytania o podanej nazwie", async () => {
+    const { parseUuidParam } = await import("../src");
+
+    expect(parseUuidParam(request("GET", `/api/x?invitationId=${ID}`), "invitationId")).toBe(ID);
+  });
+
+  it.each([
+    ["brak parametru", "/api/x"],
+    ["wartość nie jest UUID", "/api/x?invitationId=nie-uuid"],
+  ])("%s → ValidationError z fieldErrors pod nazwą parametru", async (_case, path) => {
+    const { parseUuidParam, ValidationError } = await import("../src");
+
+    const error = (() => {
+      try {
+        return parseUuidParam(request("GET", path), "invitationId");
+      } catch (caught: unknown) {
+        return caught;
+      }
+    })();
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error).toMatchObject({
+      message: "Nieprawidłowe dane",
+      fieldErrors: { invitationId: ["Nieprawidłowy identyfikator"] },
+    });
+  });
+});

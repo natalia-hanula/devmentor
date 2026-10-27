@@ -28,13 +28,18 @@ export function createFakeEntityManager() {
 }
 
 /**
- * Minimalna atrapa QueryBuildera (DELETE przez natywny builder): zapisuje wywołania łańcucha.
- * Sprawdza kształt zapytania, nie jego semantykę — tę sprawdzają testy integracyjne na prawdziwej bazie.
+ * Minimalna atrapa QueryBuildera (DELETE przez natywny builder, `UPDATE … RETURNING`): zapisuje wywołania łańcucha,
+ * `execute` zwraca wiersze z `rows`. Sprawdza kształt zapytania, nie jego semantykę — tę sprawdzają testy
+ * integracyjne na prawdziwej bazie.
  */
-export function createFakeQueryBuilder() {
+export function createFakeQueryBuilder(rows: unknown[] = []) {
   const nativeQuery = { returning: vi.fn(() => nativeQuery) };
   const qb = {
     delete: vi.fn(() => qb),
+    update: vi.fn(() => qb),
+    where: vi.fn(() => qb),
+    returning: vi.fn(() => qb),
+    execute: vi.fn(async () => rows),
     getNativeQuery: vi.fn(() => nativeQuery),
   };
   return { qb, nativeQuery };

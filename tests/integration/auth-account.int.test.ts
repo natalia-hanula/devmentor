@@ -1,6 +1,6 @@
 import { initOrm, User, type MikroORM } from "@devmentor/db";
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from "vitest";
-import { createAccount, deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
+import { accountServiceFor, createAccount, deleteTestAccounts, TEST_EMAIL_PREFIX } from "./support/accounts";
 import { uniqueClientIp } from "./support/client-ip";
 
 const PASSWORD = "integracyjne-haslo-123";
@@ -14,6 +14,9 @@ interface Envelope {
 async function envelope(response: Response): Promise<Envelope> {
   return (await response.json()) as Envelope;
 }
+
+/** Liczba równoczesnych wylogowań w teście atomowego przyrostu `session_version` (mieści się w domyślnej puli połączeń). */
+const CONCURRENT_LOGOUTS = 5;
 
 const INVALID_CREDENTIALS = { code: "UNAUTHORIZED", message: "Nieprawidłowy e-mail lub hasło" };
 
@@ -111,6 +114,42 @@ describe("konta: rejestracja, logowanie, wylogowanie i me na next start i prawdz
     const relogged = await login(email, PASSWORD);
     expect(relogged.status).toBe(200);
     expect((await getMe(cookieFrom(relogged))).status).toBe(200);
+  });
+
+  it("dwa równoczesne wylogowania z dwóch sesji tego samego konta: oba 200, oba stare tokeny 401, przyrost bez strat", async () => {
+    const email = uniqueEmail();
+    const first = cookieFrom(await register(email));
+    const second = cookieFrom(await login(email, PASSWORD));
+    const before = await orm.em.fork().findOneOrFail(User, { email });
+    expect((await getMe(first)).status).toBe(200);
+    expect((await getMe(second)).status).toBe(200);
+
+    const responses = await Promise.all([
+      post("/api/auth/logout", {}, { cookie: first }),
+      post("/api/auth/logout", {}, { cookie: second }),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect((await getMe(first)).status).toBe(401);
+    expect((await getMe(second)).status).toBe(401);
+    // Przez HTTP drugie żądanie może już zobaczyć unieważnioną sesję (wtedy nic nie podbija) — stąd +1 albo +2.
+    const after = await orm.em.fork().findOneOrFail(User, { email });
+    expect([before.sessionVersion + 1, before.sessionVersion + 2]).toContain(after.sessionVersion);
+  });
+
+  it("AccountService.logout równocześnie na osobnych EntityManagerach: każde wylogowanie podbija session_version (atomowy UPDATE)", async () => {
+    const email = uniqueEmail();
+    const user = await createAccount(orm.em.fork(), { email, roles: ["mentee"] });
+    const before = await orm.em.fork().findOneOrFail(User, { id: user.id });
+    // Rozgrzanie puli: bez otwartych połączeń kolejne wylogowania czekałyby na nowe połączenie i szły po sobie,
+    // a wyścig (odczyt-zapis w aplikacji zapisuje tę samą wartość) by się nie pojawił.
+    await Promise.all(Array.from({ length: CONCURRENT_LOGOUTS }, () => orm.em.fork().count(User, { id: user.id })));
+    const services = Array.from({ length: CONCURRENT_LOGOUTS }, () => accountServiceFor(orm.em.fork(), baseUrl));
+
+    await Promise.all(services.map((service) => service.logout(user.id)));
+
+    const after = await orm.em.fork().findOneOrFail(User, { id: user.id });
+    expect(after.sessionVersion).toBe(before.sessionVersion + CONCURRENT_LOGOUTS);
   });
 
   it("wylogowanie z nieważnym ciasteczkiem nie zmienia session_version żadnego konta", async () => {

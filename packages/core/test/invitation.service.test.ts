@@ -20,7 +20,7 @@ import {
   ValidationError,
   type InvitationServiceDependencies,
 } from "../src";
-import { createFakeEntityManager, uniqueViolation } from "./fake-entity-manager";
+import { createFakeEntityManager, createFakeQueryBuilder, uniqueViolation } from "./fake-entity-manager";
 
 const OPERATOR_ID = "0b0e5a8e-6a43-4c1a-9f0e-6f2f9b1c7d11";
 const INVITATION_ID = "6f1c1f9e-3b8a-4c39-9a51-0c8e7c3a1d2b";
@@ -337,30 +337,43 @@ describe("InvitationService.accept", () => {
     };
   }
 
+  /** Wynik `UPDATE … RETURNING created_by_id`: zajęty wiersz z autorem albo brak wiersza (zaproszenie nieważne). */
+  function claimRows(rows: unknown[]) {
+    const { qb } = createFakeQueryBuilder(rows);
+    return qb;
+  }
+
   function setupAccept(roles: string[] = ["mentee"]) {
     const ctx = setup();
     ctx.fake.findOne.mockResolvedValue(account(roles));
-    ctx.fake.nativeUpdate.mockResolvedValue(1);
-    ctx.fake.findOneOrFail.mockResolvedValue({ createdBy: { id: OPERATOR_ID } });
-    return ctx;
+    const qb = claimRows([{ created_by_id: OPERATOR_ID }]);
+    ctx.fake.createQueryBuilder.mockReturnValue(qb);
+    return { ...ctx, qb };
   }
 
-  it("zajmuje zaproszenie jednym UPDATE (po hashu, nieprzyjęte, niecofnięte, niewygasłe) i nadaje rolę mentora", async () => {
-    const { fake, service } = setupAccept();
+  it("zajmuje zaproszenie jednym UPDATE … RETURNING (po hashu, nieprzyjęte, niecofnięte, niewygasłe) i nadaje rolę mentora", async () => {
+    const { fake, qb, service } = setupAccept();
 
     const result = await service.accept(USER_ID, RAW, IP);
 
     expect(fake.findOne).toHaveBeenCalledWith(User, { id: USER_ID }, { populate: ["roles"] });
     expect(fake.transactional).toHaveBeenCalledOnce();
-    expect(fake.nativeUpdate).toHaveBeenCalledWith(
-      MentorInvitation,
-      { tokenHash: hashToken(RAW), acceptedAt: null, revokedAt: null, expiresAt: { $gt: new Date(NOW) } },
-      { acceptedAt: new Date(NOW), acceptedBy: USER_ID, updatedAt: new Date(NOW) },
-    );
-    expect(fake.findOneOrFail).toHaveBeenCalledWith(MentorInvitation, { tokenHash: hashToken(RAW) });
+    expect(fake.createQueryBuilder).toHaveBeenCalledExactlyOnceWith(MentorInvitation);
+    expect(qb.update).toHaveBeenCalledWith({ acceptedAt: new Date(NOW), acceptedBy: USER_ID, updatedAt: new Date(NOW) });
+    expect(qb.where).toHaveBeenCalledWith({
+      tokenHash: hashToken(RAW),
+      acceptedAt: null,
+      revokedAt: null,
+      expiresAt: { $gt: new Date(NOW) },
+    });
+    expect(qb.returning).toHaveBeenCalledWith(["createdBy"]);
+    // Surowe wiersze (bez mapowania na encję) — kolumna `created_by_id`.
+    expect(qb.execute).toHaveBeenCalledWith("all", false);
+    expect(fake.nativeUpdate).not.toHaveBeenCalled();
+    expect(fake.findOneOrFail).not.toHaveBeenCalled();
     expect(fake.upsert).toHaveBeenCalledWith(
       UserRole,
-      { user: USER_ID, role: "mentor", grantedBy: { id: OPERATOR_ID } },
+      { user: USER_ID, role: "mentor", grantedBy: OPERATOR_ID },
       { onConflictFields: ["user", "role"], onConflictAction: "ignore" },
     );
     expect(result).toEqual({
@@ -378,7 +391,7 @@ describe("InvitationService.accept", () => {
 
   it("autor zaproszenia usunięty → granted_by: null", async () => {
     const { fake, service } = setupAccept();
-    fake.findOneOrFail.mockResolvedValue({ createdBy: null });
+    fake.createQueryBuilder.mockReturnValue(claimRows([{ created_by_id: null }]));
 
     await service.accept(USER_ID, RAW, IP);
 
@@ -392,7 +405,8 @@ describe("InvitationService.accept", () => {
 
     expect(result.alreadyMentor).toBe(true);
     expect(result.account.roles).toEqual(["mentee", "mentor"]);
-    expect(fake.nativeUpdate).toHaveBeenCalledOnce();
+    expect(fake.createQueryBuilder).toHaveBeenCalledOnce();
+    expect(fake.upsert).toHaveBeenCalledOnce();
   });
 
   it("konto bez hasła i z niepotwierdzonym adresem: DTO bez hasha, role w stałej kolejności", async () => {
@@ -407,7 +421,7 @@ describe("InvitationService.accept", () => {
 
   it("zaproszenie nieważne (wygasłe, cofnięte, przyjęte, zmyślone — baza zwraca 0 wierszy) → 400 „Zaproszenie jest nieważne”, bez roli", async () => {
     const { fake, service } = setupAccept();
-    fake.nativeUpdate.mockResolvedValue(0);
+    fake.createQueryBuilder.mockReturnValue(claimRows([]));
 
     const error = await service.accept(USER_ID, RAW, IP).catch((caught: unknown) => caught);
 
@@ -422,7 +436,7 @@ describe("InvitationService.accept", () => {
 
     await expect(service.accept(USER_ID, RAW, IP)).rejects.toBeInstanceOf(ForbiddenError);
     expect(fake.transactional).not.toHaveBeenCalled();
-    expect(fake.nativeUpdate).not.toHaveBeenCalled();
+    expect(fake.createQueryBuilder).not.toHaveBeenCalled();
   });
 
   it("konto usunięte w trakcie sesji → 401", async () => {
@@ -435,7 +449,7 @@ describe("InvitationService.accept", () => {
 
   it("token-confirm:ip — 21. próba z jednego IP w 15 minut → 429 bez zapytania; inny IP przechodzi", async () => {
     const { fake, service } = setupAccept();
-    fake.nativeUpdate.mockResolvedValue(0);
+    fake.createQueryBuilder.mockReturnValue(claimRows([]));
     for (let i = 0; i < 20; i += 1) {
       await expect(service.accept(USER_ID, RAW, IP)).rejects.toBeInstanceOf(ValidationError);
     }
@@ -443,7 +457,7 @@ describe("InvitationService.accept", () => {
 
     await expect(service.accept(USER_ID, RAW, IP)).rejects.toBeInstanceOf(TooManyRequestsError);
     expect(fake.findOne).not.toHaveBeenCalled();
-    fake.nativeUpdate.mockResolvedValue(1);
+    fake.createQueryBuilder.mockReturnValue(claimRows([{ created_by_id: OPERATOR_ID }]));
     await expect(service.accept(USER_ID, RAW, "203.0.113.99")).resolves.toMatchObject({ alreadyMentor: false });
   });
 

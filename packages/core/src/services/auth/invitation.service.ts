@@ -20,6 +20,8 @@ import { consumeTokenConfirmAttempt } from "./auth-rate-limits";
 import { generateRawToken, hashToken } from "./user-token.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** Kolumna autora zaproszenia w `RETURNING` (wynik bez mapowania na encję operuje na kolumnach). */
+const CREATED_BY_COLUMN = "created_by_id";
 /** Ważność zaproszenia mentora: 14 dni (spec E01, Q11). */
 export const MENTOR_INVITATION_TTL_DAYS = 14;
 export const MENTOR_INVITATION_TTL_MS = MENTOR_INVITATION_TTL_DAYS * DAY_MS;
@@ -189,9 +191,9 @@ export class InvitationService {
   /**
    * Przyjęcie zaproszenia przez zalogowane konto (nie operatora — Q17). Limiter liczy każdą próbę (`token-confirm:ip`).
    * Rola operatora jest sprawdzana przed zużyciem tokenu: operator nie spala cudzego linku. W jednej transakcji:
-   * (1) jeden `UPDATE` zajmuje zaproszenie (nieprzyjęte, niecofnięte, niewygasłe) — z dwóch równoczesnych prób
-   * z jednym tokenem wygrywa dokładnie jedna; brak wiersza → „Zaproszenie jest nieważne”; (2) `INSERT` roli mentora
-   * z `ON CONFLICT DO NOTHING`. Konto, które już jest mentorem, też zużywa zaproszenie (`alreadyMentor`).
+   * (1) jeden `UPDATE … RETURNING` zajmuje zaproszenie (nieprzyjęte, niecofnięte, niewygasłe) i zwraca jego autora —
+   * z dwóch równoczesnych prób z jednym tokenem wygrywa dokładnie jedna; brak wiersza → „Zaproszenie jest nieważne”;
+   * (2) `INSERT` roli mentora z `ON CONFLICT DO NOTHING`. Konto, które już jest mentorem, też zużywa zaproszenie (`alreadyMentor`).
    */
   async accept(userId: string, rawToken: string, clientIp: string): Promise<AcceptedInvitationResult> {
     consumeTokenConfirmAttempt(this.rateLimiter, clientIp);
@@ -209,19 +211,22 @@ export class InvitationService {
     const now = new Date(this.now());
     const tokenHash = hashToken(rawToken);
     await this.em.transactional(async (tx) => {
-      const claimed = await tx.nativeUpdate(
-        MentorInvitation,
-        { tokenHash, acceptedAt: null, revokedAt: null, expiresAt: { $gt: now } },
-        { acceptedAt: now, acceptedBy: userId, updatedAt: now },
-      );
-      if (claimed === 0) {
+      // `UPDATE … RETURNING created_by_id`: zajęcie zaproszenia i odczyt autora (operatora) do `granted_by` w jednym
+      // poleceniu. Wyniki bez mapowania na encje — wiersz ma tylko kolumnę autora.
+      const rows = await tx
+        .createQueryBuilder(MentorInvitation)
+        .update({ acceptedAt: now, acceptedBy: userId, updatedAt: now })
+        .where({ tokenHash, acceptedAt: null, revokedAt: null, expiresAt: { $gt: now } })
+        .returning(["createdBy"])
+        .execute<{ [CREATED_BY_COLUMN]?: unknown }[]>("all", false);
+      const claimed = rows[0];
+      if (!claimed) {
         throw new ValidationError(INVALID_INVITATION_MESSAGE);
       }
-      // Zaproszenie zajęte wyżej przez to konto — odczyt autora (operatora) do `granted_by`.
-      const invitation = await tx.findOneOrFail(MentorInvitation, { tokenHash });
+      const createdBy = claimed[CREATED_BY_COLUMN];
       await tx.upsert(
         UserRole,
-        { user: userId, role: "mentor", grantedBy: invitation.createdBy ?? null },
+        { user: userId, role: "mentor", grantedBy: typeof createdBy === "string" ? createdBy : null },
         { onConflictFields: ["user", "role"], onConflictAction: "ignore" },
       );
     });

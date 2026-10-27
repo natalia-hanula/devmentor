@@ -10,6 +10,7 @@ export interface FakeSystem extends SetupSystem {
   files: Map<string, string>;
   run: ReturnType<typeof vi.fn<SetupSystem["run"]>>;
   writeFile: ReturnType<typeof vi.fn<SetupSystem["writeFile"]>>;
+  chmod: ReturnType<typeof vi.fn<SetupSystem["chmod"]>>;
   copyFile: ReturnType<typeof vi.fn<SetupSystem["copyFile"]>>;
   symlink: ReturnType<typeof vi.fn<SetupSystem["symlink"]>>;
   connect: ReturnType<typeof vi.fn<SetupSystem["connect"]>>;
@@ -44,6 +45,7 @@ export function fakeSystem(overrides: Partial<Pick<SetupSystem, "platform" | "no
       files.set(path, content);
     }),
     generateSecret: () => "wygenerowany-sekret",
+    chmod: vi.fn<SetupSystem["chmod"]>(),
     copyFile: vi.fn<SetupSystem["copyFile"]>(),
     symlink: vi.fn<SetupSystem["symlink"]>(),
     connect: vi.fn<SetupSystem["connect"]>(),

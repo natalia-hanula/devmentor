@@ -6,6 +6,8 @@ export const ENV_EXAMPLE = ".env.example";
 /** Next.js czyta `.env` tylko z katalogu aplikacji, więc wskazuje on na główny plik. */
 export const APP_ENV = join("packages", "app", ".env");
 export const APP_ENV_TARGET = join("..", "..", ".env");
+/** `.env` trzyma sekrety (`AUTH_JWT_SECRET`, hasło bazy) — odczyt i zapis tylko dla właściciela pliku. */
+export const ENV_FILE_MODE = 0o600;
 
 export const envFileStep: SetupStep = {
   name: "Plik .env",
@@ -15,6 +17,7 @@ export const envFileStep: SetupStep = {
       return { status: "skipped", message: ".env istnieje — nie nadpisuję" };
     }
     system.copyFile(join(system.rootDir, ENV_EXAMPLE), envPath);
+    system.chmod(envPath, ENV_FILE_MODE);
     return { status: "done", message: `utworzono .env z ${ENV_EXAMPLE}` };
   },
 };
@@ -47,6 +50,8 @@ export const sessionEnvStep: SetupStep = {
       return { status: "skipped", message: "AUTH_JWT_SECRET i APP_ENV są już w .env" };
     }
     system.writeFile(envPath, content);
+    // Istniejący plik mógł powstać z szerszymi uprawnieniami (np. ręczne `cp`), a teraz ma sekret.
+    system.chmod(envPath, ENV_FILE_MODE);
     return { status: "done", message: `dopisano do .env: ${added.join(", ")}` };
   },
 };

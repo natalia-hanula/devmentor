@@ -1,18 +1,28 @@
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { APP_ENV, APP_ENV_TARGET, appEnvLinkStep, envFileStep, sessionEnvStep } from "../../setup/steps/env-file.ts";
+import {
+  APP_ENV,
+  APP_ENV_TARGET,
+  appEnvLinkStep,
+  ENV_FILE_MODE,
+  envFileStep,
+  sessionEnvStep,
+} from "../../setup/steps/env-file.ts";
 import { contextFor, fakeSystem, ROOT } from "../fake-system.ts";
 
 const ENV = join(ROOT, ".env");
 const LINK = join(ROOT, APP_ENV);
 
 describe("envFileStep", () => {
-  it("kopiuje .env.example, gdy .env nie istnieje", async () => {
+  it("kopiuje .env.example, gdy .env nie istnieje, i ogranicza uprawnienia do właściciela (0600)", async () => {
     const system = fakeSystem();
 
     const result = await envFileStep.run(contextFor(system));
 
     expect(system.copyFile).toHaveBeenCalledWith(join(ROOT, ".env.example"), ENV);
+    expect(ENV_FILE_MODE).toBe(0o600);
+    expect(system.chmod).toHaveBeenCalledExactlyOnceWith(ENV, ENV_FILE_MODE);
+    expect(system.chmod.mock.invocationCallOrder[0]).toBeGreaterThan(system.copyFile.mock.invocationCallOrder[0] ?? 0);
     expect(result.status).toBe("done");
   });
 
@@ -23,6 +33,7 @@ describe("envFileStep", () => {
     const result = await envFileStep.run(contextFor(system));
 
     expect(system.copyFile).not.toHaveBeenCalled();
+    expect(system.chmod).not.toHaveBeenCalled();
     expect(result.status).toBe("skipped");
   });
 });
@@ -43,6 +54,8 @@ describe("sessionEnvStep", () => {
       "DATABASE_URL=postgresql://u:p@localhost/db\nLOG_LEVEL=debug\nAUTH_JWT_SECRET=wygenerowany-sekret\nAPP_ENV=local\n",
     );
     expect(result).toEqual({ status: "done", message: "dopisano do .env: AUTH_JWT_SECRET, APP_ENV" });
+    expect(system.chmod).toHaveBeenCalledExactlyOnceWith(ENV, ENV_FILE_MODE);
+    expect(system.chmod.mock.invocationCallOrder[0]).toBeGreaterThan(system.writeFile.mock.invocationCallOrder[0] ?? 0);
   });
 
   it("dodaje znak nowej linii, gdy plik nie kończy się nim, i obsługuje pusty plik", async () => {
@@ -80,6 +93,7 @@ describe("sessionEnvStep", () => {
     const result = await sessionEnvStep.run(contextFor(system));
 
     expect(system.writeFile).not.toHaveBeenCalled();
+    expect(system.chmod).not.toHaveBeenCalled();
     expect(system.files.get(ENV)).toBe(content);
     expect(result).toEqual({ status: "skipped", message: "AUTH_JWT_SECRET i APP_ENV są już w .env" });
   });

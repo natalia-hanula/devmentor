@@ -47,7 +47,7 @@ npm run setup
 npm run dev
 ```
 
-Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje, tylko dopisuje brakujące `AUTH_JWT_SECRET` (losowy, 48 bajtów) i `APP_ENV=local`. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Konta operatora nie zakłada — na końcu przypomina o `npm run operator:create` (krok 5). Konta testowe zakłada osobno `npm run db:seed` (krok 6). Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
+Instalator wykonuje kroki 1–4 z części „Ręcznie”: `npm install`, `.env` z `.env.example`, symlink `packages/app/.env`, brakujące bazy `devmentor` i `devmentor_integration`, migracje. Każdy krok najpierw sprawdza, czy jest już zrobiony, więc ponowne uruchomienie jest bezpieczne. Istniejącego `.env` nigdy nie nadpisuje, tylko dopisuje brakujące `AUTH_JWT_SECRET` (losowy, 48 bajtów) i `APP_ENV=local`. Utworzonemu lub uzupełnionemu `.env` ustawia uprawnienia `0600` (odczyt i zapis tylko dla właściciela), bo plik trzyma sekrety. Nie instaluje i nie uruchamia PostgreSQL: gdy baza pod `DATABASE_URL` nie odpowiada, wypisuje, co zrobić, i kończy się błędem. Konta operatora nie zakłada — na końcu przypomina o `npm run operator:create` (krok 5). Konta testowe zakłada osobno `npm run db:seed` (krok 6). Działa na macOS i Linuksie. Na Windows wykonaj kroki ręcznie.
 
 > Na Node 22 instalator wypisuje ostrzeżenie `ExperimentalWarning` o type stripping. To jest oczekiwane.
 

@@ -194,7 +194,7 @@ export function CrudForm<TValues extends Record<string, unknown>>({
             Anuluj
           </Button>
         )}
-        <span className="ml-auto text-xs text-muted-foreground">{shortcutHint}</span>
+        {shortcutHint && <span className="ml-auto text-xs text-muted-foreground">{shortcutHint}</span>}
       </div>
     </form>
   );
