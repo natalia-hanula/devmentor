@@ -76,3 +76,66 @@ describe("bramki stron panelu operatora na prawdziwej aplikacji", () => {
     expect(technologies).toContain("Słownik technologii, którymi");
   });
 });
+
+describe("bramka strony /mentor na prawdziwej aplikacji", () => {
+  const baseUrl = inject("baseUrl");
+  let orm: MikroORM;
+
+  beforeAll(async () => {
+    orm = await initOrm(inject("databaseUrl"));
+  });
+
+  afterEach(async () => {
+    await deleteTestAccounts(orm.em.fork());
+  });
+
+  afterAll(async () => {
+    await orm.close(true);
+  });
+
+  const open = (path: string, cookie?: string) =>
+    fetch(`${baseUrl}${path}`, { redirect: "manual", headers: cookie ? { cookie } : {} });
+
+  it("gość (bez ciasteczka) → przekierowanie na /login?next=/mentor", async () => {
+    const response = await open("/mentor");
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("/login?next=%2Fmentor");
+  });
+
+  it("mentee widzi „Brak dostępu” z treścią L09 (rola mentora), bez treści panelu", async () => {
+    const mentee = await createAccount(orm.em.fork(), { email: "mentor-strona-mentee@example.com", roles: ["mentee"] });
+
+    const body = await (await open("/mentor", await sessionCookieFor(mentee))).text();
+
+    expect(body).toContain("Nie masz dostępu do tej strony");
+    expect(body).toContain("Ta strona wymaga roli mentora.");
+    expect(body).toContain("Wróć do swojej strony startowej");
+    expect(body).toContain("Zaloguj się innym kontem");
+    expect(body).not.toContain("Panel mentora</h1>");
+  });
+
+  it("operator też widzi „Brak dostępu” (Q17: operator nie jest mentorem)", async () => {
+    const operator = await createAccount(orm.em.fork(), { email: "mentor-strona-operator@example.com", roles: ["operator"] });
+
+    const body = await (await open("/mentor", await sessionCookieFor(operator))).text();
+
+    expect(body).toContain("Ta strona wymaga roli mentora.");
+    expect(body).not.toContain("Panel mentora</h1>");
+  });
+
+  it("mentor dostaje panel", async () => {
+    const mentor = await createAccount(orm.em.fork(), { email: "mentor-strona-mentor@example.com", roles: ["mentee", "mentor"] });
+
+    const body = await (await open("/mentor", await sessionCookieFor(mentor))).text();
+
+    expect(body).toContain("Panel mentora</h1>");
+    expect(body).not.toContain("Nie masz dostępu");
+  });
+
+  it("ciasteczko bez ważnej sesji → przekierowanie na /login z „Sesja wygasła”", async () => {
+    const body = await (await open("/mentor", "devmentor_session=to-nie-jest-jwt")).text();
+
+    expect(body).toContain("NEXT_REDIRECT;replace;/login?next=%2Fmentor&notice=session_expired");
+  });
+});
