@@ -18,7 +18,7 @@ export {
 export { redirectHandler } from "./http/redirect-handler";
 export { safeNextPath } from "./http/safe-next-path";
 export { clientIp, UNKNOWN_CLIENT_IP, type ClientIpOptions } from "./http/client-ip";
-export { makeCrudRoute, type AccessRule, type CrudService } from "./http/make-crud-route";
+export { makeCrudRoute, parseIdQuery, type AccessRule, type CrudService } from "./http/make-crud-route";
 export {
   assertOwnership,
   getSession,
@@ -40,7 +40,16 @@ export {
   type EmailVerificationResult,
   type OperatorInput,
 } from "./services/auth/account.service";
-export { VERIFICATION_MAIL_SUBJECT, VERIFY_EMAIL_PATH, verificationLink, verificationMail } from "./services/auth/auth-mail";
+export {
+  INVITATION_MAIL_SUBJECT,
+  INVITE_PATH,
+  invitationLink,
+  invitationMail,
+  VERIFICATION_MAIL_SUBJECT,
+  VERIFY_EMAIL_PATH,
+  verificationLink,
+  verificationMail,
+} from "./services/auth/auth-mail";
 export {
   AUTH_RATE_LIMITS,
   consumeLoginAttempt,
@@ -48,6 +57,19 @@ export {
   consumeTokenConfirmAttempt,
   consumeVerifyResendAttempt,
 } from "./services/auth/auth-rate-limits";
+export {
+  INVITATION_ALREADY_ACCEPTED_MESSAGE,
+  INVITATION_RACE_MESSAGE,
+  InvitationService,
+  invitationStatus,
+  MENTOR_INVITATION_TTL_DAYS,
+  MENTOR_INVITATION_TTL_MS,
+  type CreatedInvitationDto,
+  type InvitationAcceptedByDto,
+  type InvitationDto,
+  type InvitationServiceDependencies,
+  type InvitationStatus,
+} from "./services/auth/invitation.service";
 export { BCRYPT_COST, DUMMY_PASSWORD_HASH, PasswordHasher } from "./services/auth/password-hasher.service";
 export { SessionTokenService } from "./services/auth/session-token.service";
 export {

@@ -76,7 +76,8 @@ async function authorize(rule: AccessRule, request: Request): Promise<void> {
   await rule(request);
 }
 
-function parseIdQuery(request: Request): z.infer<typeof idQuerySchema> {
+/** `?id=` jako UUID — wspólne dla tras `DELETE`/`PUT` (także tras przepływów, które nie są CRUD-em). */
+export function parseIdQuery(request: Request): z.infer<typeof idQuerySchema> {
   const id = new URL(request.url).searchParams.get("id");
   return parseInput(idQuerySchema, { id });
 }

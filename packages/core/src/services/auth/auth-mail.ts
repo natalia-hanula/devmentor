@@ -34,3 +34,41 @@ export function verificationMail({ to, appBaseUrl, rawToken }: { to: string; app
     ].join("\n"),
   };
 }
+
+/** Ścieżka strony zaproszenia — token dokleja `invitationLink` we fragmencie (`#token=`). */
+export const INVITE_PATH = "/invite";
+export const INVITATION_MAIL_SUBJECT = "Zaproszenie do roli mentora w DevMentor";
+
+/** Link zaproszenia z tokenem we fragmencie URL (z tych samych powodów co `verificationLink`). */
+export function invitationLink(appBaseUrl: string, rawToken: string): string {
+  const url = new URL(INVITE_PATH, appBaseUrl);
+  url.hash = new URLSearchParams({ token: rawToken }).toString();
+  return url.toString();
+}
+
+/** Wiadomość z linkiem zaproszenia (tekst, neutralna płciowo — L18). */
+export function invitationMail({
+  to,
+  appBaseUrl,
+  rawToken,
+  validDays,
+}: {
+  to: string;
+  appBaseUrl: string;
+  rawToken: string;
+  validDays: number;
+}): MailMessage {
+  return {
+    to,
+    subject: INVITATION_MAIL_SUBJECT,
+    text: [
+      "Masz zaproszenie do roli mentora w DevMentor. Zaloguj się lub załóż konto, aby je przyjąć:",
+      "",
+      invitationLink(appBaseUrl, rawToken),
+      "",
+      `Link jest ważny ${validDays} dni i działa jeden raz.`,
+      "",
+      "Jeśli to zaproszenie nie jest dla Ciebie, zignoruj tę wiadomość.",
+    ].join("\n"),
+  };
+}

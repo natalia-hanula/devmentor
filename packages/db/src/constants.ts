@@ -20,3 +20,5 @@ export const PASSWORD_HASH_LENGTH = 60;
 export const TOKEN_HASH_LENGTH = 64;
 /** `password_reset` wchodzi w etapie B, ale enum (CHECK w bazie) powstaje od razu z obiema wartościami. */
 export const USER_TOKEN_PURPOSES = ["email_verification", "password_reset"] as const;
+/** Częściowy indeks UNIQUE: najwyżej jedno nieprzyjęte i niecofnięte zaproszenie mentora na adres. */
+export const MENTOR_INVITATION_ACTIVE_EMAIL_CONSTRAINT = "mentor_invitations_email_active_unique";

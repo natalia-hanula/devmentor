@@ -19,6 +19,8 @@ export function createFakeEntityManager() {
     execute: vi.fn(),
     upsert: vi.fn(async () => undefined),
     nativeDelete: vi.fn(async () => 0),
+    nativeUpdate: vi.fn(async () => 0),
+    getReference: vi.fn((_entity: unknown, id: string) => ({ id })),
     createQueryBuilder: vi.fn(() => createFakeQueryBuilder().qb),
   };
   return { fake, em: fake as unknown as EntityManager };

@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { VERIFICATION_MAIL_SUBJECT, VERIFY_EMAIL_PATH, verificationLink, verificationMail } from "../src";
+import {
+  INVITATION_MAIL_SUBJECT,
+  INVITE_PATH,
+  invitationLink,
+  invitationMail,
+  VERIFICATION_MAIL_SUBJECT,
+  VERIFY_EMAIL_PATH,
+  verificationLink,
+  verificationMail,
+} from "../src";
 
 const TOKEN = "AbC_def-123";
 
@@ -35,6 +44,36 @@ describe("verificationMail", () => {
         "Link jest ważny 24 h i działa jeden raz. Nowy link wyślesz ze strony konta.",
         "",
         "Jeśli nie zakładasz konta w DevMentor, zignoruj tę wiadomość.",
+      ].join("\n"),
+    );
+    expect(message.text).not.toContain("?token");
+  });
+});
+
+describe("invitationLink / invitationMail", () => {
+  it("link zaproszenia: token tylko we fragmencie URL na ścieżce /invite", () => {
+    const link = new URL(invitationLink("https://devmentor.example/", TOKEN));
+
+    expect(link.pathname).toBe(INVITE_PATH);
+    expect(link.search).toBe("");
+    expect(link.hash).toBe(`#token=${TOKEN}`);
+  });
+
+  it("temat, adresat i treść z linkiem oraz ważnością w dniach — po polsku, neutralnie (L18)", () => {
+    const message = invitationMail({ to: "adam@example.com", appBaseUrl: "https://devmentor.example", rawToken: TOKEN, validDays: 14 });
+
+    expect(message.to).toBe("adam@example.com");
+    expect(message.subject).toBe(INVITATION_MAIL_SUBJECT);
+    expect(INVITATION_MAIL_SUBJECT).toBe("Zaproszenie do roli mentora w DevMentor");
+    expect(message.text).toBe(
+      [
+        "Masz zaproszenie do roli mentora w DevMentor. Zaloguj się lub załóż konto, aby je przyjąć:",
+        "",
+        `https://devmentor.example/invite#token=${TOKEN}`,
+        "",
+        "Link jest ważny 14 dni i działa jeden raz.",
+        "",
+        "Jeśli to zaproszenie nie jest dla Ciebie, zignoruj tę wiadomość.",
       ].join("\n"),
     );
     expect(message.text).not.toContain("?token");

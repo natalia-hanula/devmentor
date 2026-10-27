@@ -4,6 +4,7 @@ import { parseEnv } from "../config/env";
 import { ServiceUnavailableError } from "../http/errors";
 import { getLogger } from "../logger";
 import { AccountService } from "../services/auth/account.service";
+import { InvitationService } from "../services/auth/invitation.service";
 import { PasswordHasher } from "../services/auth/password-hasher.service";
 import { SessionTokenService } from "../services/auth/session-token.service";
 import { UserTokenService } from "../services/auth/user-token.service";
@@ -81,6 +82,7 @@ function registerRequestDependencies(scope: AwilixContainer<RequestCradle>, orm:
     technologyService: asClass(TechnologyService).scoped(),
     userTokenService: asClass(UserTokenService).scoped(),
     accountService: asClass(AccountService).scoped(),
+    invitationService: asClass(InvitationService).scoped(),
     seedService: asClass(SeedService).scoped(),
   });
 }

@@ -1,6 +1,7 @@
 import { DISPLAY_NAME_MAX_LENGTH, EMAIL_MAX_LENGTH } from "@devmentor/db/constants";
 import { describe, expect, it } from "vitest";
 import { emailSchema, normalizeEmail } from "../src/validators/auth/email.schema";
+import { invitationCreateSchema } from "../src/validators/auth/invitation-create.schema";
 import { loginSchema } from "../src/validators/auth/login.schema";
 import { registerSchema } from "../src/validators/auth/register.schema";
 import { INVALID_LINK_MESSAGE, TOKEN_MAX_LENGTH, tokenConfirmSchema } from "../src/validators/auth/token-confirm.schema";
@@ -149,5 +150,15 @@ describe("tokenConfirmSchema", () => {
     expect(result.success).toBe(false);
     expect(result.error?.issues.map((issue) => issue.message)).toEqual([INVALID_LINK_MESSAGE]);
     expect(INVALID_LINK_MESSAGE).toBe("Link jest nieważny albo wygasł");
+  });
+});
+
+describe("invitationCreateSchema", () => {
+  it("normalizuje e-mail (trim + małe litery) i zwraca tylko pole email", () => {
+    expect(invitationCreateSchema.parse({ email: "  Adam.Nowy@Example.COM ", extra: "x" })).toEqual({ email: "adam.nowy@example.com" });
+  });
+
+  it.each([[{}], [{ email: "" }], [{ email: "nie-adres" }]])("odrzuca %j z błędem przy polu email", (input) => {
+    expect(Object.keys(fieldMessages(invitationCreateSchema.safeParse(input)))).toEqual(["email"]);
   });
 });
