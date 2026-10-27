@@ -3,14 +3,20 @@ import {
   MentorInvitation,
   UniqueConstraintViolationException,
   User,
+  USER_ROLES,
+  UserRole,
   type EntityManager,
 } from "@devmentor/db";
 import type { Env } from "../../config/env";
-import { ConflictError, NotFoundError } from "../../http/errors";
+import type { Role } from "../../http/auth";
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from "../../http/errors";
 import type { Logger } from "../../logger";
 import type { InvitationCreateInput } from "../../validators/auth/invitation-create.schema";
 import type { MailGateway } from "../mail/mail.port";
+import type { RateLimiter } from "../rate-limit/rate-limiter.service";
+import { toAccountDto, type AccountDto } from "./account.service";
 import { invitationLink, invitationMail } from "./auth-mail";
+import { consumeTokenConfirmAttempt } from "./auth-rate-limits";
 import { generateRawToken, hashToken } from "./user-token.service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,6 +27,8 @@ export const MENTOR_INVITATION_TTL_MS = MENTOR_INVITATION_TTL_DAYS * DAY_MS;
 export const INVITATION_RACE_MESSAGE = "Zaproszenie dla tego adresu właśnie powstało — odśwież listę";
 export const INVITATION_ALREADY_ACCEPTED_MESSAGE = "Zaproszenie zostało już przyjęte";
 const INVITATION_NOT_FOUND_MESSAGE = "Nie znaleziono zaproszenia";
+/** Jeden komunikat dla każdego nieudanego przyjęcia (wygasłe, cofnięte, przyjęte, zmyślone) — nie zdradza, które to. */
+export const INVALID_INVITATION_MESSAGE = "Zaproszenie jest nieważne";
 
 /** Status liczony, nie przechowywany; pierwszeństwo: `accepted` > `revoked` > `expired` > `pending`. */
 export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
@@ -51,8 +59,15 @@ export interface CreatedInvitationDto {
   mailFailed: boolean;
 }
 
+/** Wynik przyjęcia: konto z nową rolą; `alreadyMentor` — konto miało rolę, a zaproszenie i tak zostało zużyte. */
+export interface AcceptedInvitationResult {
+  account: AccountDto;
+  alreadyMentor: boolean;
+}
+
 export interface InvitationServiceDependencies {
   em: EntityManager;
+  rateLimiter: RateLimiter;
   mailGateway: MailGateway;
   logger: Logger;
   env: Pick<Env, "APP_BASE_URL">;
@@ -77,13 +92,15 @@ export function invitationStatus(
  */
 export class InvitationService {
   private readonly em: EntityManager;
+  private readonly rateLimiter: RateLimiter;
   private readonly mailGateway: MailGateway;
   private readonly logger: Logger;
   private readonly appBaseUrl: string;
   private readonly now: () => number;
 
-  constructor({ em, mailGateway, logger, env }: InvitationServiceDependencies, now: () => number = Date.now) {
+  constructor({ em, rateLimiter, mailGateway, logger, env }: InvitationServiceDependencies, now: () => number = Date.now) {
     this.em = em;
+    this.rateLimiter = rateLimiter;
     this.mailGateway = mailGateway;
     this.logger = logger;
     this.appBaseUrl = env.APP_BASE_URL;
@@ -166,6 +183,50 @@ export class InvitationService {
     if (existing.acceptedAt !== null) {
       throw new ConflictError(INVITATION_ALREADY_ACCEPTED_MESSAGE);
     }
+  }
+
+  /**
+   * Przyjęcie zaproszenia przez zalogowane konto (nie operatora — Q17). Limiter liczy każdą próbę (`token-confirm:ip`).
+   * Rola operatora jest sprawdzana przed zużyciem tokenu: operator nie spala cudzego linku. W jednej transakcji:
+   * (1) jeden `UPDATE` zajmuje zaproszenie (nieprzyjęte, niecofnięte, niewygasłe) — z dwóch równoczesnych prób
+   * z jednym tokenem wygrywa dokładnie jedna; brak wiersza → „Zaproszenie jest nieważne”; (2) `INSERT` roli mentora
+   * z `ON CONFLICT DO NOTHING`. Konto, które już jest mentorem, też zużywa zaproszenie (`alreadyMentor`).
+   */
+  async accept(userId: string, rawToken: string, clientIp: string): Promise<AcceptedInvitationResult> {
+    consumeTokenConfirmAttempt(this.rateLimiter, clientIp);
+
+    const user = await this.em.findOne(User, { id: userId }, { populate: ["roles"] });
+    if (!user) {
+      throw new UnauthorizedError();
+    }
+    const roles = user.roles.getItems().map((entry): Role => entry.role);
+    if (roles.includes("operator")) {
+      throw new ForbiddenError();
+    }
+    const alreadyMentor = roles.includes("mentor");
+
+    const now = new Date(this.now());
+    const tokenHash = hashToken(rawToken);
+    await this.em.transactional(async (tx) => {
+      const claimed = await tx.nativeUpdate(
+        MentorInvitation,
+        { tokenHash, acceptedAt: null, revokedAt: null, expiresAt: { $gt: now } },
+        { acceptedAt: now, acceptedBy: userId, updatedAt: now },
+      );
+      if (claimed === 0) {
+        throw new ValidationError(INVALID_INVITATION_MESSAGE);
+      }
+      // Zaproszenie zajęte wyżej przez to konto — odczyt autora (operatora) do `granted_by`.
+      const invitation = await tx.findOneOrFail(MentorInvitation, { tokenHash });
+      await tx.upsert(
+        UserRole,
+        { user: userId, role: "mentor", grantedBy: invitation.createdBy ?? null },
+        { onConflictFields: ["user", "role"], onConflictAction: "ignore" },
+      );
+    });
+
+    const granted = new Set<Role>([...roles, "mentor"]);
+    return { account: toAccountDto(user, USER_ROLES.filter((role) => granted.has(role))), alreadyMentor };
   }
 
   /** `true`, gdy wiadomość wyszła; błąd logujemy bez adresata, treści i tokenu. */

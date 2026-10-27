@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
-import { initOrm, MentorInvitation, type MikroORM } from "@devmentor/db";
+import { initOrm, MentorInvitation, User, UserRole, type MikroORM } from "@devmentor/db";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, inject, it } from "vitest";
 import {
   createAccount,
@@ -246,5 +246,154 @@ describe("zaproszenia mentorów: tworzenie, lista, cofanie przez API", () => {
     expect(log.includes(token), "token w logu next start").toBe(false);
     expect(log.includes(stored.tokenHash), "hash tokenu w logu next start").toBe(false);
     expect(log.includes(email), "e-mail w logu next start").toBe(false);
+  });
+
+  describe("przyjęcie zaproszenia (POST /api/auth/invitations/accept)", () => {
+    const accept = (token: string, cookie?: string) =>
+      fetch(`${baseUrl}/api/auth/invitations/accept`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-devmentor-request": "1",
+          ...uniqueClientIp(),
+          ...(cookie ? { cookie } : {}),
+        },
+        body: JSON.stringify({ token }),
+      });
+
+    const me = async (cookie: string) =>
+      ((await (await fetch(`${baseUrl}/api/auth/me`, { headers: { cookie } })).json()) as Envelope<{ roles: string[] }>).data;
+
+    async function menteeCookie(name: string): Promise<{ cookie: string; user: User }> {
+      const user = await createAccount(orm.em.fork(), { email: `${name}-${randomUUID()}@example.com`, roles: ["mentee"] });
+      return { cookie: await sessionCookieFor(user), user };
+    }
+
+    async function invitationFor(email: string): Promise<{ token: string; id: string }> {
+      const result = await created(await create(email));
+      return { token: tokenOf(result.link), id: result.invitation.id };
+    }
+
+    it("mentee przyjmuje zaproszenie: 200, rola mentor (obok mentee), konto w odpowiedzi bez hasha, granted_by to operator", async () => {
+      const { cookie, user } = await menteeCookie("przyjmuje");
+      const { token, id } = await invitationFor(uniqueEmail());
+
+      const response = await accept(token, cookie);
+
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Envelope<{ account: { id: string; roles: string[] }; alreadyMentor: boolean }>;
+      expect(body.data.alreadyMentor).toBe(false);
+      expect(body.data.account).toMatchObject({ id: user.id, roles: ["mentee", "mentor"] });
+      expect(JSON.stringify(body)).not.toContain("passwordHash");
+      expect((await me(cookie)).roles).toEqual(["mentee", "mentor"]);
+      const role = await orm.em.fork().findOneOrFail(UserRole, { user: user.id, role: "mentor" });
+      expect(role.grantedBy).not.toBeNull();
+      const stored = await orm.em.fork().findOneOrFail(MentorInvitation, { id });
+      expect(stored.acceptedAt).toBeInstanceOf(Date);
+      expect(stored.acceptedBy?.id).toBe(user.id);
+      const listed = (await list()).find((entry) => entry.id === id) as InvitationBody & { acceptedBy: { id: string; mentorRoleRemoved: boolean } };
+      expect(listed.status).toBe("accepted");
+      expect(listed.acceptedBy).toMatchObject({ id: user.id, mentorRoleRemoved: false });
+    });
+
+    it("zaproszenie można przyjąć kontem z innym adresem niż zaproszony (Q15)", async () => {
+      const { cookie } = await menteeCookie("inny-adres");
+      const { token } = await invitationFor(uniqueEmail());
+
+      expect((await accept(token, cookie)).status).toBe(200);
+    });
+
+    it("ten sam link drugi raz, zły token, wygasłe i cofnięte → ten sam 400 „Zaproszenie jest nieważne”, bez roli", async () => {
+      const first = await menteeCookie("pierwszy");
+      const second = await menteeCookie("drugi");
+      const used = await invitationFor(uniqueEmail());
+      expect((await accept(used.token, first.cookie)).status).toBe(200);
+      const expired = await invitationFor(uniqueEmail());
+      await orm.em.fork().nativeUpdate(MentorInvitation, { id: expired.id }, { expiresAt: new Date(Date.now() - 1000) });
+      const revoked = await invitationFor(uniqueEmail());
+      await call("DELETE", { path: `?id=${revoked.id}`, cookie: operatorCookie });
+
+      for (const token of [used.token, "zmyslony-token", expired.token, revoked.token]) {
+        const response = await accept(token, second.cookie);
+        expect(response.status).toBe(400);
+        expect(((await response.json()) as Envelope).error).toEqual({ code: "VALIDATION_ERROR", message: "Zaproszenie jest nieważne" });
+      }
+      expect((await me(second.cookie)).roles).toEqual(["mentee"]);
+    });
+
+    it("operator dostaje 403 i nie zużywa zaproszenia — link nadal działa dla mentee", async () => {
+      const { token, id } = await invitationFor(uniqueEmail());
+
+      expect((await accept(token, operatorCookie)).status).toBe(403);
+
+      expect((await orm.em.fork().findOneOrFail(MentorInvitation, { id })).acceptedAt).toBeNull();
+      const { cookie } = await menteeCookie("po-operatorze");
+      expect((await accept(token, cookie)).status).toBe(200);
+    });
+
+    it("konto, które już jest mentorem: 200 alreadyMentor, zaproszenie zużyte (link martwy), rola bez zmian", async () => {
+      const mentor = await createAccount(orm.em.fork(), { email: `mentor-${randomUUID()}@example.com`, roles: ["mentee", "mentor"] });
+      const cookie = await sessionCookieFor(mentor);
+      const { token, id } = await invitationFor(uniqueEmail());
+
+      const response = await accept(token, cookie);
+
+      expect(response.status).toBe(200);
+      expect(((await response.json()) as Envelope<{ alreadyMentor: boolean }>).data.alreadyMentor).toBe(true);
+      expect((await orm.em.fork().findOneOrFail(MentorInvitation, { id })).acceptedAt).toBeInstanceOf(Date);
+      expect(await orm.em.fork().count(UserRole, { user: mentor.id, role: "mentor" })).toBe(1);
+      expect((await accept(token, cookie)).status).toBe(400);
+    });
+
+    it("bez sesji 401, bez CSRF 403, bez tokenu w body 400", async () => {
+      const { token } = await invitationFor(uniqueEmail());
+      const { cookie } = await menteeCookie("walidacja");
+
+      expect((await accept(token)).status).toBe(401);
+      const withoutCsrf = await fetch(`${baseUrl}/api/auth/invitations/accept`, {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie, ...uniqueClientIp() },
+        body: JSON.stringify({ token }),
+      });
+      expect(withoutCsrf.status).toBe(403);
+      expect((await accept("", cookie)).status).toBe(400);
+    });
+
+    it("dwa konta przyjmują ten sam link równocześnie: dokładnie jedno zostaje mentorem (200), drugie dostaje 400", async () => {
+      const a = await menteeCookie("wyscig-a");
+      const b = await menteeCookie("wyscig-b");
+      const { token, id } = await invitationFor(uniqueEmail());
+
+      const responses = await Promise.all([accept(token, a.cookie), accept(token, b.cookie)]);
+
+      expect(responses.map((response) => response.status).sort()).toEqual([200, 400]);
+      const mentors = await orm.em.fork().count(UserRole, { role: "mentor", user: { id: { $in: [a.user.id, b.user.id] } } });
+      expect(mentors).toBe(1);
+      const stored = await orm.em.fork().findOneOrFail(MentorInvitation, { id });
+      expect([a.user.id, b.user.id]).toContain(stored.acceptedBy?.id);
+      expect(await orm.em.fork().count(UserRole, { role: "mentor", user: stored.acceptedBy!.id })).toBe(1);
+    });
+
+    it("token zaproszenia z przyjęcia nie trafia do logów procesu next start", async () => {
+      const { cookie } = await menteeCookie("logi");
+      const { token } = await invitationFor(uniqueEmail());
+      await accept(token, cookie);
+      await accept(token, cookie);
+      const sentinel = uniqueEmail();
+      const marker = await created(await create(sentinel));
+      const outbox = await fetch(`${baseUrl}/api/mail/outbox`, { headers: { cookie: operatorCookie } });
+      const message = ((await outbox.json()) as Envelope<{ id: string; to: string }[]>).data.find((entry) => entry.to === sentinel)!;
+      expect(marker.mailFailed).toBe(false);
+
+      const deadline = Date.now() + LOG_WAIT_TIMEOUT_MS;
+      let log = await readFile(logPath, "utf8");
+      while (!log.includes(message.id) && Date.now() < deadline) {
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, LOG_POLL_INTERVAL_MS));
+        log = await readFile(logPath, "utf8");
+      }
+
+      expect(log).toContain(message.id);
+      expect(log.includes(token), "token w logu next start").toBe(false);
+    });
   });
 });

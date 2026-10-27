@@ -6,6 +6,7 @@ export function createFakeEntityManager() {
   const fake = {
     find: vi.fn(),
     findOne: vi.fn(),
+    findOneOrFail: vi.fn(),
     create: vi.fn((_entity: unknown, data: Record<string, unknown>) => ({
       id: "6f1c1f9e-3b8a-4c39-9a51-0c8e7c3a1d2b",
       createdAt: new Date("2026-10-18T10:00:00.000Z"),

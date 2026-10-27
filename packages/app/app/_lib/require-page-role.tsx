@@ -1,15 +1,11 @@
 import { getSessionFromCookieValue, SESSION_COOKIE_NAME, type Role } from "@devmentor/core";
-import { ErrorMessage } from "@devmentor/ui/backend/feedback/error-message";
 import { LoadingMessage } from "@devmentor/ui/backend/feedback/loading-message";
-import { Button } from "@devmentor/ui/components/ui/button";
 import { cookies } from "next/headers";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense, type ReactElement, type ReactNode } from "react";
+import { AccessDenied } from "./access-denied";
 import { loginPath } from "./login-path";
-import { LogoutButton } from "./logout-button";
-import { roleStartPath } from "./role-start-path";
 
 /** Rola w dopełniaczu — do zdania „Ta strona wymaga roli …” (L09). */
 const ROLE_LABELS: Record<Role, string> = {
@@ -36,24 +32,9 @@ export async function requirePageRole(role: Role, path: string): Promise<ReactEl
     redirect(loginPath({ next: path, notice: sessionCookie ? "session_expired" : undefined }));
   }
   if (!session.roles.includes(role)) {
-    return <AccessDenied role={role} roles={session.roles} />;
+    return <AccessDenied message={`Ta strona wymaga roli ${ROLE_LABELS[role]}.`} roles={session.roles} />;
   }
   return null;
-}
-
-/** Widok „Brak dostępu” (s13, L09) — tylko dla zalogowanej osoby; luka DS11: akcje pod `ErrorMessage`. */
-function AccessDenied({ role, roles }: { role: Role; roles: readonly Role[] }) {
-  return (
-    <div className="flex flex-col gap-between-groups">
-      <ErrorMessage title="Nie masz dostępu do tej strony" message={`Ta strona wymaga roli ${ROLE_LABELS[role]}.`} />
-      <div className="flex flex-wrap items-center gap-between-groups">
-        <Button asChild>
-          <Link href={roleStartPath(roles)}>Wróć do swojej strony startowej</Link>
-        </Button>
-        <LogoutButton variant="link">Zaloguj się innym kontem</LogoutButton>
-      </div>
-    </div>
-  );
 }
 
 interface PageRoleGateProps {

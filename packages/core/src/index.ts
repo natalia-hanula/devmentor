@@ -58,12 +58,14 @@ export {
   consumeVerifyResendAttempt,
 } from "./services/auth/auth-rate-limits";
 export {
+  INVALID_INVITATION_MESSAGE,
   INVITATION_ALREADY_ACCEPTED_MESSAGE,
   INVITATION_RACE_MESSAGE,
   InvitationService,
   invitationStatus,
   MENTOR_INVITATION_TTL_DAYS,
   MENTOR_INVITATION_TTL_MS,
+  type AcceptedInvitationResult,
   type CreatedInvitationDto,
   type InvitationAcceptedByDto,
   type InvitationDto,

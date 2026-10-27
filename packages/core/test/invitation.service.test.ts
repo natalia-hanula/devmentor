@@ -1,9 +1,11 @@
-import { MentorInvitation, User } from "@devmentor/db";
+import { MentorInvitation, User, UserRole } from "@devmentor/db";
 import { describe, expect, it, vi } from "vitest";
 import {
   ConflictError,
   createLogger,
+  ForbiddenError,
   hashToken,
+  INVALID_INVITATION_MESSAGE,
   INVITATION_ALREADY_ACCEPTED_MESSAGE,
   INVITATION_MAIL_SUBJECT,
   INVITATION_RACE_MESSAGE,
@@ -11,6 +13,10 @@ import {
   invitationStatus,
   MENTOR_INVITATION_TTL_MS,
   NotFoundError,
+  RateLimiter,
+  TooManyRequestsError,
+  UnauthorizedError,
+  ValidationError,
   type InvitationServiceDependencies,
 } from "../src";
 import { createFakeEntityManager, uniqueViolation } from "./fake-entity-manager";
@@ -27,6 +33,7 @@ function setup() {
   const mailGateway = { send: vi.fn(async () => undefined) };
   const deps = {
     em,
+    rateLimiter: new RateLimiter(() => 0),
     mailGateway,
     logger: createLogger({ level: "trace", destination: { write: (line: string) => logLines.push(line) } }),
     env: { APP_BASE_URL },
@@ -191,6 +198,7 @@ describe("InvitationService.create", () => {
     const { fake, em } = createFakeEntityManager();
     const service = new InvitationService({
       em,
+      rateLimiter: new RateLimiter(),
       mailGateway: { send: vi.fn(async () => undefined) },
       logger: createLogger({ level: "silent" }),
       env: { APP_BASE_URL },
@@ -308,5 +316,141 @@ describe("InvitationService.revoke", () => {
 
     await expect(service.revoke(INVITATION_ID)).resolves.toBeUndefined();
     expect(fake.nativeUpdate).toHaveBeenCalledOnce();
+  });
+});
+
+describe("InvitationService.accept", () => {
+  const USER_ID = "11111111-2222-4333-8444-555555555555";
+  const IP = "203.0.113.7";
+  const RAW = "surowy-token-zaproszenia";
+
+  function account(roles: string[], overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      id: USER_ID,
+      email: "ewa@example.com",
+      displayName: "Ewa",
+      emailVerifiedAt: new Date("2026-10-01T00:00:00.000Z"),
+      passwordHash: "x".repeat(60),
+      roles: { getItems: () => roles.map((role) => ({ role })) },
+      ...overrides,
+    };
+  }
+
+  function setupAccept(roles: string[] = ["mentee"]) {
+    const ctx = setup();
+    ctx.fake.findOne.mockResolvedValue(account(roles));
+    ctx.fake.nativeUpdate.mockResolvedValue(1);
+    ctx.fake.findOneOrFail.mockResolvedValue({ createdBy: { id: OPERATOR_ID } });
+    return ctx;
+  }
+
+  it("zajmuje zaproszenie jednym UPDATE (po hashu, nieprzyjęte, niecofnięte, niewygasłe) i nadaje rolę mentora", async () => {
+    const { fake, service } = setupAccept();
+
+    const result = await service.accept(USER_ID, RAW, IP);
+
+    expect(fake.findOne).toHaveBeenCalledWith(User, { id: USER_ID }, { populate: ["roles"] });
+    expect(fake.transactional).toHaveBeenCalledOnce();
+    expect(fake.nativeUpdate).toHaveBeenCalledWith(
+      MentorInvitation,
+      { tokenHash: hashToken(RAW), acceptedAt: null, revokedAt: null, expiresAt: { $gt: new Date(NOW) } },
+      { acceptedAt: new Date(NOW), acceptedBy: USER_ID, updatedAt: new Date(NOW) },
+    );
+    expect(fake.findOneOrFail).toHaveBeenCalledWith(MentorInvitation, { tokenHash: hashToken(RAW) });
+    expect(fake.upsert).toHaveBeenCalledWith(
+      UserRole,
+      { user: USER_ID, role: "mentor", grantedBy: { id: OPERATOR_ID } },
+      { onConflictFields: ["user", "role"], onConflictAction: "ignore" },
+    );
+    expect(result).toEqual({
+      account: {
+        id: USER_ID,
+        email: "ewa@example.com",
+        displayName: "Ewa",
+        roles: ["mentee", "mentor"],
+        emailVerified: true,
+        hasPassword: true,
+      },
+      alreadyMentor: false,
+    });
+  });
+
+  it("autor zaproszenia usunięty → granted_by: null", async () => {
+    const { fake, service } = setupAccept();
+    fake.findOneOrFail.mockResolvedValue({ createdBy: null });
+
+    await service.accept(USER_ID, RAW, IP);
+
+    expect(fake.upsert).toHaveBeenCalledWith(UserRole, expect.objectContaining({ grantedBy: null }), expect.anything());
+  });
+
+  it("konto, które już jest mentorem: zaproszenie zużyte, rola bez zmian, alreadyMentor: true", async () => {
+    const { fake, service } = setupAccept(["mentee", "mentor"]);
+
+    const result = await service.accept(USER_ID, RAW, IP);
+
+    expect(result.alreadyMentor).toBe(true);
+    expect(result.account.roles).toEqual(["mentee", "mentor"]);
+    expect(fake.nativeUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("konto bez hasła i z niepotwierdzonym adresem: DTO bez hasha, role w stałej kolejności", async () => {
+    const { fake, service } = setupAccept(["mentor", "mentee"]);
+    fake.findOne.mockResolvedValue(account(["mentor", "mentee"], { emailVerifiedAt: null, passwordHash: null }));
+
+    const { account: dto } = await service.accept(USER_ID, RAW, IP);
+
+    expect(dto).toMatchObject({ roles: ["mentee", "mentor"], emailVerified: false, hasPassword: false });
+    expect(JSON.stringify(dto)).not.toContain("x".repeat(60));
+  });
+
+  it("zaproszenie nieważne (wygasłe, cofnięte, przyjęte, zmyślone — baza zwraca 0 wierszy) → 400 „Zaproszenie jest nieważne”, bez roli", async () => {
+    const { fake, service } = setupAccept();
+    fake.nativeUpdate.mockResolvedValue(0);
+
+    const error = await service.accept(USER_ID, RAW, IP).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect(error).toMatchObject({ message: INVALID_INVITATION_MESSAGE });
+    expect(INVALID_INVITATION_MESSAGE).toBe("Zaproszenie jest nieważne");
+    expect(fake.upsert).not.toHaveBeenCalled();
+  });
+
+  it("konto operatora → 403 przed zużyciem tokenu (operator nie spala cudzego linku)", async () => {
+    const { fake, service } = setupAccept(["operator"]);
+
+    await expect(service.accept(USER_ID, RAW, IP)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(fake.transactional).not.toHaveBeenCalled();
+    expect(fake.nativeUpdate).not.toHaveBeenCalled();
+  });
+
+  it("konto usunięte w trakcie sesji → 401", async () => {
+    const { fake, service } = setupAccept();
+    fake.findOne.mockResolvedValue(null);
+
+    await expect(service.accept(USER_ID, RAW, IP)).rejects.toBeInstanceOf(UnauthorizedError);
+    expect(fake.transactional).not.toHaveBeenCalled();
+  });
+
+  it("token-confirm:ip — 21. próba z jednego IP w 15 minut → 429 bez zapytania; inny IP przechodzi", async () => {
+    const { fake, service } = setupAccept();
+    fake.nativeUpdate.mockResolvedValue(0);
+    for (let i = 0; i < 20; i += 1) {
+      await expect(service.accept(USER_ID, RAW, IP)).rejects.toBeInstanceOf(ValidationError);
+    }
+    fake.findOne.mockClear();
+
+    await expect(service.accept(USER_ID, RAW, IP)).rejects.toBeInstanceOf(TooManyRequestsError);
+    expect(fake.findOne).not.toHaveBeenCalled();
+    fake.nativeUpdate.mockResolvedValue(1);
+    await expect(service.accept(USER_ID, RAW, "203.0.113.99")).resolves.toMatchObject({ alreadyMentor: false });
+  });
+
+  it("błąd bazy w transakcji leci dalej (transakcja cofnięta)", async () => {
+    const { fake, service } = setupAccept();
+    const failure = new Error("connect ECONNRESET");
+    fake.upsert.mockRejectedValue(failure);
+
+    await expect(service.accept(USER_ID, RAW, IP)).rejects.toBe(failure);
   });
 });

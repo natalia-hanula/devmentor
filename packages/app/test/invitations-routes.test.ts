@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError, NotFoundError } from "@devmentor/core";
+import { ConflictError, ForbiddenError, NotFoundError, TooManyRequestsError, ValidationError } from "@devmentor/core";
 
 const OPERATOR = { userId: "0b0e5a8e-6a43-4c1a-9f0e-6f2f9b1c7d11", roles: ["operator"], emailVerified: true };
 const INVITATION_ID = "6f1c1f9e-3b8a-4c39-9a51-0c8e7c3a1d2b";
@@ -12,7 +12,8 @@ const CREATED = {
 };
 
 const cradle = {
-  invitationService: { list: vi.fn(), create: vi.fn(), revoke: vi.fn() },
+  env: { TRUST_PROXY: true },
+  invitationService: { list: vi.fn(), create: vi.fn(), revoke: vi.fn(), accept: vi.fn() },
 };
 
 const logLines = vi.hoisted((): string[] => []);
@@ -30,6 +31,7 @@ const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
 vi.mock("../../core/src/http/session", () => ({ getSession }));
 
 const invitations = await import("../app/api/auth/invitations/route");
+const accept = await import("../app/api/auth/invitations/accept/route");
 
 const context = { params: Promise.resolve({}) };
 const URL_BASE = "http://localhost/api/auth/invitations";
@@ -153,5 +155,78 @@ describe("DELETE /api/auth/invitations?id=", () => {
 
     expect((await call("DELETE", { path: `?id=${INVITATION_ID}` })).status).toBe(404);
     expect((await call("DELETE", { path: `?id=${INVITATION_ID}` })).status).toBe(409);
+  });
+});
+
+describe("POST /api/auth/invitations/accept", () => {
+  const MENTEE = { userId: "11111111-2222-4333-8444-555555555555", roles: ["mentee"], emailVerified: false };
+  const RESULT = { account: { id: MENTEE.userId, roles: ["mentee", "mentor"] }, alreadyMentor: false };
+
+  function accepting(body: unknown, { marker = true, headers = {} }: { marker?: boolean; headers?: Record<string, string> } = {}) {
+    return accept.POST(
+      new Request(`${URL_BASE}/accept`, {
+        method: "POST",
+        headers: { ...(marker && { "x-devmentor-request": "1" }), "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      }),
+      context,
+    );
+  }
+
+  it("bez nagłówka CSRF → 403, serwis nie jest wołany", async () => {
+    getSession.mockResolvedValue(MENTEE);
+
+    expect((await accepting({ token: TOKEN }, { marker: false })).status).toBe(403);
+    expect(cradle.invitationService.accept).not.toHaveBeenCalled();
+  });
+
+  it("bez sesji → 401, serwis nie jest wołany", async () => {
+    getSession.mockResolvedValue(null);
+
+    expect((await accepting({ token: TOKEN })).status).toBe(401);
+    expect(cradle.invitationService.accept).not.toHaveBeenCalled();
+  });
+
+  it.each([[{}], [{ token: "" }], [{ token: "a".repeat(257) }], [{ token: 123 }]])("niepoprawne body %j → 400, serwis nie jest wołany", async (body) => {
+    getSession.mockResolvedValue(MENTEE);
+
+    const response = await accepting(body);
+
+    expect(response.status).toBe(400);
+    expect(cradle.invitationService.accept).not.toHaveBeenCalled();
+  });
+
+  it("200 z wynikiem serwisu; do serwisu trafia konto z sesji (nie z body), token i IP z zaufanego proxy", async () => {
+    getSession.mockResolvedValue(MENTEE);
+    cradle.invitationService.accept.mockResolvedValue(RESULT);
+
+    const response = await accepting({ token: TOKEN, userId: "inne-konto" }, { headers: { "x-forwarded-for": "203.0.113.40" } });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, data: RESULT });
+    expect(cradle.invitationService.accept).toHaveBeenCalledExactlyOnceWith(MENTEE.userId, TOKEN, "203.0.113.40");
+  });
+
+  it("token nie trafia do logów", async () => {
+    getSession.mockResolvedValue(MENTEE);
+    cradle.invitationService.accept.mockResolvedValue(RESULT);
+
+    await accepting({ token: TOKEN });
+
+    expect(logLines.join("")).not.toContain(TOKEN);
+  });
+
+  it.each([
+    ["nieważne zaproszenie", new ValidationError("Zaproszenie jest nieważne"), 400],
+    ["operator", new ForbiddenError(), 403],
+    ["limiter", new TooManyRequestsError(), 429],
+  ])("błąd serwisu (%s) → %i w kopercie", async (_name, failure, status) => {
+    getSession.mockResolvedValue(MENTEE);
+    cradle.invitationService.accept.mockRejectedValue(failure);
+
+    const response = await accepting({ token: TOKEN });
+
+    expect(response.status).toBe(status);
+    expect((await response.json()).ok).toBe(false);
   });
 });
