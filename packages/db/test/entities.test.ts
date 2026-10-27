@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { entities, Technology, User, UserRole, UserToken } from "../src";
+import { entities, MentorInvitation, Technology, User, UserRole, UserToken } from "../src";
+import { MentorInvitationSchema } from "../src/entities/auth/mentor-invitation.entity";
 import { UserTokenSchema } from "../src/entities/auth/user-token.entity";
 import { pinEntityName } from "../src/entities/base.entity";
 import { TechnologySchema } from "../src/entities/mentors/technology.entity";
@@ -22,11 +23,12 @@ describe("pinEntityName", () => {
   });
 
   it("klasy encji mają nazwy z defineEntity, niezależnie od minifikacji", () => {
-    expect([Technology.name, User.name, UserRole.name, UserToken.name]).toEqual([
+    expect([Technology.name, User.name, UserRole.name, UserToken.name, MentorInvitation.name]).toEqual([
       "Technology",
       "User",
       "UserRole",
       "UserToken",
+      "MentorInvitation",
     ]);
   });
 });
@@ -42,6 +44,12 @@ describe("encje", () => {
     expect(entities).toContain(UserTokenSchema);
     expect(UserTokenSchema.meta.tableName).toBe("user_tokens");
     expect(UserTokenSchema.meta.class).toBe(UserToken);
+  });
+
+  it("rejestruje MentorInvitation w liście encji, w tabeli mentor_invitations", () => {
+    expect(entities).toContain(MentorInvitationSchema);
+    expect(MentorInvitationSchema.meta.tableName).toBe("mentor_invitations");
+    expect(MentorInvitationSchema.meta.class).toBe(MentorInvitation);
   });
 
   it("baseProperties generują UUID i znaczniki czasu przy tworzeniu oraz odświeżają updatedAt", () => {

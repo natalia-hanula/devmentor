@@ -1,5 +1,6 @@
 import {
   initOrm,
+  MentorInvitation,
   UniqueConstraintViolationException,
   User,
   UserRole,
@@ -206,7 +207,100 @@ describe("hasła i tokeny kont (auth-credentials) na prawdziwym PostgreSQL", () 
   });
 });
 
-describe("migracje auth (users-and-roles, users-email-lower-unique, credentials): w górę i w dół", () => {
+describe("zaproszenia mentorów (auth-mentor-invitations) na prawdziwym PostgreSQL", () => {
+  let orm: MikroORM;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const hash = (char: string) => char.repeat(64);
+
+  const invite = async (
+    email: string,
+    tokenHash: string,
+    overrides: Partial<Pick<MentorInvitation, "revokedAt" | "acceptedAt">> = {},
+    createdBy?: User,
+  ): Promise<MentorInvitation> => {
+    const em = orm.em.fork();
+    const invitation = em.create(MentorInvitation, {
+      email: `it-${email}`,
+      tokenHash,
+      expiresAt: new Date(Date.now() + 14 * DAY_MS),
+      createdBy: createdBy ? em.getReference(User, createdBy.id) : null,
+      ...overrides,
+    });
+    await em.flush();
+    return invitation;
+  };
+
+  beforeAll(async () => {
+    orm = await initOrm(inject("databaseUrl"));
+  });
+
+  afterEach(async () => {
+    await deleteTestAccounts(orm.em.fork());
+  });
+
+  afterAll(async () => {
+    await orm.close(true);
+  });
+
+  it("zapisuje zaproszenie; token_hash nie trafia do serializacji encji", async () => {
+    await invite("nowy@example.com", hash("a"));
+
+    const stored = await orm.em.fork().findOneOrFail(MentorInvitation, { email: "it-nowy@example.com" });
+    expect(stored.tokenHash).toBe(hash("a"));
+    expect(stored.revokedAt).toBeNull();
+    expect(stored.acceptedAt).toBeNull();
+    expect(stored.createdBy).toBeNull();
+    expect(JSON.stringify(stored)).not.toContain(hash("a"));
+  });
+
+  it("częściowy UNIQUE: drugie aktywne zaproszenie na ten adres jest odrzucane przez bazę", async () => {
+    await invite("aktywne@example.com", hash("b"));
+
+    await expect(invite("aktywne@example.com", hash("c"))).rejects.toBeInstanceOf(UniqueConstraintViolationException);
+  });
+
+  it("częściowy UNIQUE: dwa równoczesne zaproszenia na adres dają jeden sukces", async () => {
+    const results = await Promise.allSettled([
+      invite("wyscig@example.com", hash("d")),
+      invite("wyscig@example.com", hash("e")),
+    ]);
+
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+  });
+
+  it("po cofnięciu albo przyjęciu zaproszenia adres może dostać nowe (indeks dotyczy tylko aktywnych)", async () => {
+    await invite("cofniete@example.com", hash("f"), { revokedAt: new Date() });
+    await invite("przyjete@example.com", hash("0"), { acceptedAt: new Date() });
+
+    await invite("cofniete@example.com", hash("1"));
+    await invite("przyjete@example.com", hash("2"));
+    await expect(invite("cofniete@example.com", hash("3"))).rejects.toBeInstanceOf(UniqueConstraintViolationException);
+    expect(await orm.em.fork().count(MentorInvitation, { email: "it-cofniete@example.com" })).toBe(2);
+  });
+
+  it("UNIQUE na token_hash: ten sam hash nie może należeć do dwóch zaproszeń", async () => {
+    await invite("pierwszy@example.com", hash("4"));
+
+    await expect(invite("drugi@example.com", hash("4"))).rejects.toBeInstanceOf(UniqueConstraintViolationException);
+  });
+
+  it("usunięcie operatora i przyjmującego zeruje created_by / accepted_by (SET NULL), zaproszenie zostaje", async () => {
+    const operator = await createAccount(orm.em.fork(), { email: "zapraszajacy@example.com", roles: ["operator"] });
+    const mentor = await createAccount(orm.em.fork(), { email: "przyjmujacy@example.com", roles: ["mentee"] });
+    const created = await invite("fk@example.com", hash("5"), {}, operator);
+    await orm.em.fork().nativeUpdate(MentorInvitation, { id: created.id }, { acceptedBy: mentor.id, acceptedAt: new Date() });
+
+    await orm.em.fork().nativeDelete(User, { id: operator.id });
+    await orm.em.fork().nativeDelete(User, { id: mentor.id });
+
+    const stored = await orm.em.fork().findOneOrFail(MentorInvitation, { id: created.id });
+    expect(stored.createdBy).toBeNull();
+    expect(stored.acceptedBy).toBeNull();
+    expect(stored.acceptedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("migracje auth (users-and-roles, users-email-lower-unique, credentials, mentor-invitations): w górę i w dół", () => {
   // Osobna baza — cofanie migracji nie może ruszać bazy współdzielonej przez inne testy.
   const DATABASE = `it_migration_${Date.now()}`;
   let maintenance: Awaited<ReturnType<typeof connect>>;
@@ -265,7 +359,7 @@ describe("migracje auth (users-and-roles, users-email-lower-unique, credentials)
     await maintenance.end();
   });
 
-  it("migracje tworzą users, user_roles, indeks lower(email) i user_tokens; cofanie usuwa po kolei tylko je", async () => {
+  it("migracje tworzą users, user_roles, indeks lower(email), user_tokens i mentor_invitations; cofanie usuwa po kolei tylko je", async () => {
     await migrate(databaseUrl);
     expect([await tableExists("users"), await tableExists("user_roles"), await tableExists("technologies")]).toEqual([
       true,
@@ -273,6 +367,12 @@ describe("migracje auth (users-and-roles, users-email-lower-unique, credentials)
       true,
     ]);
     expect(await indexExists("users_email_lower_unique")).toBe(true);
+    expect([await tableExists("user_tokens"), await columnExists("users", "password_hash")]).toEqual([true, true]);
+    expect(await tableExists("mentor_invitations")).toBe(true);
+    expect(await indexExists("mentor_invitations_email_active_unique")).toBe(true);
+
+    await rollback(databaseUrl);
+    expect(await tableExists("mentor_invitations")).toBe(false);
     expect([await tableExists("user_tokens"), await columnExists("users", "password_hash")]).toEqual([true, true]);
 
     await rollback(databaseUrl);
@@ -295,5 +395,6 @@ describe("migracje auth (users-and-roles, users-email-lower-unique, credentials)
     expect([await tableExists("users"), await tableExists("user_roles")]).toEqual([true, true]);
     expect(await indexExists("users_email_lower_unique")).toBe(true);
     expect([await tableExists("user_tokens"), await columnExists("users", "password_hash")]).toEqual([true, true]);
+    expect(await tableExists("mentor_invitations")).toBe(true);
   });
 });

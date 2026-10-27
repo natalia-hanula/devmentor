@@ -9,7 +9,7 @@ import {
   SessionTokenService,
   UserTokenService,
 } from "@devmentor/core";
-import { User, UserRole, type EntityManager } from "@devmentor/db";
+import { MentorInvitation, User, UserRole, type EntityManager } from "@devmentor/db";
 import { uniqueClientIp } from "./client-ip";
 import { TEST_APP_ENV, TEST_AUTH_JWT_SECRET } from "./test-env";
 
@@ -47,6 +47,8 @@ export async function createAccount(em: EntityManager, input: AccountInput): Pro
 }
 
 export async function deleteTestAccounts(em: EntityManager): Promise<void> {
+  // Zaproszenia nie mają FK CASCADE do adresata (to tylko adres), więc sprzątamy je po adresie testowym.
+  await em.nativeDelete(MentorInvitation, { email: { $like: `${TEST_EMAIL_PREFIX}%` } });
   await em.nativeDelete(User, { email: { $like: `${TEST_EMAIL_PREFIX}%` } });
 }
 
