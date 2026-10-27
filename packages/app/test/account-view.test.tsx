@@ -7,7 +7,7 @@ const router = vi.hoisted(() => ({ replace: vi.fn() }));
 vi.mock("@devmentor/ui/backend/api/api-call", () => ({ apiCall }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/account" }));
 
-const { AccountView } = await import("../app/(auth)/account/account-view");
+const { AccountView } = await import("../app/(mentee)/account/account-view");
 
 const ACCOUNT = { id: "u1", email: "ola@example.com", displayName: "Ola", roles: ["mentee"], emailVerified: false, hasPassword: true };
 

@@ -33,7 +33,7 @@ describe("/admin/invitations w przeglądarce (agent-browser)", () => {
     await browser.run("open", `${baseUrl}/admin/invitations`);
     await browser.run("wait", "--text", "Brak zaproszeń");
     expect(await browser.run("get", "text", "h1")).toBe("Zaproszenia");
-    expect(Number(await browser.run("get", "count", "nav a[href='/admin/invitations']"))).toBe(1);
+    expect(Number(await browser.run("get", "count", "nav[aria-label='Panel operatora'] a[href='/admin/invitations']"))).toBe(1);
     await waitForHydration(browser, "main button");
 
     await browser.run("find", "role", "button", "click", "--name", "Zaproś mentora");

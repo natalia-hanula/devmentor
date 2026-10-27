@@ -1,23 +1,19 @@
 import { getLogger, isMailOutboxEnabled, parseEnv, type Env } from "@devmentor/core";
-import Link from "next/link";
 import { connection } from "next/server";
+import { NavLink } from "../_lib/nav-link";
 
 /**
  * Pozycja „Skrzynka” — tylko gdy działa skrzynka deweloperska (`MAIL_ADAPTER=outbox`).
  * `connection()` przenosi odczyt env na czas żądania: build idzie bez `.env`, a layout
  * renderuje to pod `<Suspense>` jako jedyną dynamiczną część nawigacji (`cacheComponents`).
  */
-export async function OutboxNavLink({ className }: { className: string }) {
+export async function OutboxNavLink() {
   await connection();
   const env = readEnv();
   if (env === null || !isMailOutboxEnabled(env)) {
     return null;
   }
-  return (
-    <Link href="/admin/outbox" className={className}>
-      Skrzynka
-    </Link>
-  );
+  return <NavLink href="/admin/outbox">Skrzynka</NavLink>;
 }
 
 /**

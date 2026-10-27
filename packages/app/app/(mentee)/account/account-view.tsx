@@ -8,7 +8,7 @@ import { Badge } from "@devmentor/ui/components/ui/badge";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { LogoutButton } from "../../_lib/logout-button";
 import { useSessionExpiredRedirect } from "../../_lib/use-session-expired-redirect";
-import { VerificationBanner } from "../verification-banner";
+import { VerificationBanner } from "../../(auth)/verification-banner";
 
 /** Pola `AccountDto` z `@devmentor/core`, które pokazuje strona (kopia — kod przeglądarki nie importuje `core`). */
 export interface Account {

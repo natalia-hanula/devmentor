@@ -16,12 +16,11 @@ vi.mock("../app/_lib/require-page-role", () => ({
 
 const { MentorHome } = await import("../app/(mentor)/mentor/mentor-home");
 const mentorPage = await import("../app/(mentor)/mentor/page");
-const { default: MentorLayout } = await import("../app/(mentor)/layout");
 
 const WELCOME = "Masz rolę mentora. Profil, cena i terminy pojawią się tu w kolejnym etapie.";
 const BANNER = "Potwierdź adres e-mail — bez tego nie opublikujesz profilu";
 
-describe("MentorPage / MentorLayout", () => {
+describe("MentorPage", () => {
   it("strona: nagłówek, treść za bramką roli mentora na ścieżce /mentor, metadata", async () => {
     apiCall.mockResolvedValue({ ok: true, data: { emailVerified: true } });
 
@@ -32,12 +31,6 @@ describe("MentorPage / MentorLayout", () => {
     expect(screen.getByTestId("gate")).toHaveAttribute("data-path", "/mentor");
     expect(mentorPage.metadata.title).toBe("Panel mentora — DevMentor");
     expect(await screen.findByText(WELCOME)).toBeInTheDocument();
-  });
-
-  it("layout renderuje treść w <main>", () => {
-    render(MentorLayout({ children: <p>treść</p>, params: Promise.resolve({}) } as LayoutProps<"/">));
-
-    expect(screen.getByRole("main")).toHaveTextContent("treść");
   });
 });
 

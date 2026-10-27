@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { AuthCard } from "../auth-card";
+import { AuthCard } from "../../(auth)/auth-card";
 import { AccountView } from "./account-view";
 
 export const metadata: Metadata = {

@@ -13,11 +13,11 @@ vi.mock("../app/(auth)/login/login-form", () => ({
 vi.mock("../app/(auth)/register/register-form", () => ({
   RegisterForm: ({ next }: { next?: string }) => <div data-testid="register-form" data-next={next ?? ""} />,
 }));
-vi.mock("../app/(auth)/account/account-view", () => ({ AccountView: () => <div>widok konta</div> }));
+vi.mock("../app/(mentee)/account/account-view", () => ({ AccountView: () => <div>widok konta</div> }));
 
 const loginPage = await import("../app/(auth)/login/page");
 const registerPage = await import("../app/(auth)/register/page");
-const accountPage = await import("../app/(auth)/account/page");
+const accountPage = await import("../app/(mentee)/account/page");
 const { default: AuthLayout } = await import("../app/(auth)/layout");
 const { LoginContent } = await import("../app/(auth)/login/login-content");
 const { RegisterContent } = await import("../app/(auth)/register/register-content");

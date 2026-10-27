@@ -6,6 +6,7 @@ const parseEnv = vi.hoisted(() => vi.fn());
 const logger = vi.hoisted(() => ({ error: vi.fn() }));
 
 vi.mock("next/server", () => ({ connection }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/admin/outbox" }));
 vi.mock("@devmentor/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@devmentor/core")>()),
   parseEnv,
@@ -25,16 +26,16 @@ describe("OutboxNavLink", () => {
       return { MAIL_ADAPTER: "outbox" };
     });
 
-    render(await OutboxNavLink({ className: "nav" }));
+    render(await OutboxNavLink());
 
     expect(screen.getByRole("link", { name: "Skrzynka" })).toHaveAttribute("href", "/admin/outbox");
-    expect(screen.getByRole("link", { name: "Skrzynka" })).toHaveClass("nav");
+    expect(screen.getByRole("link", { name: "Skrzynka" })).toHaveAttribute("aria-current", "page");
   });
 
   it("przy noop nie pokazuje pozycji", async () => {
     parseEnv.mockReturnValue({ MAIL_ADAPTER: "noop" });
 
-    expect(await OutboxNavLink({ className: "nav" })).toBeNull();
+    expect(await OutboxNavLink()).toBeNull();
   });
 
   it("gdy parseEnv rzuci, nie przerywa renderowania — pozycji brak, błąd trafia do logu", async () => {
@@ -43,7 +44,7 @@ describe("OutboxNavLink", () => {
       throw configError;
     });
 
-    await expect(OutboxNavLink({ className: "nav" })).resolves.toBeNull();
+    await expect(OutboxNavLink()).resolves.toBeNull();
     expect(logger.error).toHaveBeenCalledOnce();
     expect(logger.error).toHaveBeenCalledWith({ err: configError }, expect.stringContaining("Skrzynka"));
   });
