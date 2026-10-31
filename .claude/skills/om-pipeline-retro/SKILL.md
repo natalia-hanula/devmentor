@@ -1,5 +1,6 @@
 ---
 name: om-pipeline-retro
+disable-model-invocation: true
 description: Classify finished pipeline runs from the configured tracker — clean single pass, hard recovery, loop checkpoints, or cause not recorded — and rank what the second passes cost in wall-clock hours. Read-only; hands the top cause to om-prepare-issue. Use for "pipeline retro", "why is our pipeline slow", "what is costing us rework".
 ---
 

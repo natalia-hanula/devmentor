@@ -270,20 +270,17 @@ describe("apiHandler", () => {
 
 describe("apiHandler przy niedostępnej bazie", () => {
   it("zamienia błąd połączenia z bazą na 503 SERVICE_UNAVAILABLE", async () => {
-    const { initOrm, Technology } = await import("@devmentor/db");
-    const orm = await initOrm("postgresql://devmentor:devmentor@127.0.0.1:1/devmentor");
-    const handler = apiHandler(async () => orm.em.fork().find(Technology, {}));
+    // Atrapa błędu sieciowego, jaki Node zgłasza przy odrzuconym połączeniu — test nie łączy się z siecią.
+    const handler = apiHandler(async () => {
+      throw Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED" });
+    });
 
-    try {
-      const response = await handler(request("GET"), context);
+    const response = await handler(request("GET"), context);
 
-      expect(response.status).toBe(503);
-      expect(await response.json()).toEqual({
-        ok: false,
-        error: { code: "SERVICE_UNAVAILABLE", message: "Baza danych jest niedostępna" },
-      });
-    } finally {
-      await orm.close(true);
-    }
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: { code: "SERVICE_UNAVAILABLE", message: "Baza danych jest niedostępna" },
+    });
   });
 });

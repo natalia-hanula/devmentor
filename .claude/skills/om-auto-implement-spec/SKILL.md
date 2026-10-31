@@ -1,5 +1,6 @@
 ---
 name: om-auto-implement-spec
+disable-model-invocation: true
 description: Implement an existing spec and ship a verified, reviewed, ready PR. Resolves the spec by path, name, issue, or spec-PR number (clean stop with candidates when not found). A spec PR stays design-only — implementation ships on its own PR referencing it. Delegates to om-auto-create-pr (om-auto-continue-pr for an existing implementation PR), then runs the review loop and UI verification with screenshots. Use for "implement the spec X", "build spec from issue 123".
 ---
 

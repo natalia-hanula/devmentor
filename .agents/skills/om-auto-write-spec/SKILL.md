@@ -1,5 +1,6 @@
 ---
 name: om-auto-write-spec
+disable-model-invocation: true
 description: Autonomously turn a brief or FR issue into a spec landed on a ready PR — runs om-spec-writing --autonomous (defaults posted for override), attaches UI mockups and current-app screenshots as PR evidence when a browser provider exists, applies full SDLC labels, and emits PR/spec markers for chaining into om-auto-implement-spec. Use for "write a spec for X and open a PR", "spec this issue".
 ---
 

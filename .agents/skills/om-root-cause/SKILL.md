@@ -1,5 +1,6 @@
 ---
 name: om-root-cause
+disable-model-invocation: true
 description: Read-only root-cause analysis for a tracker issue. Identifies the bug's location and the minimal change surface so the next agent can implement the fix without re-exploring the repo. Outputs a short summary, the files that need to change, and the proposed approach.
 ---
 

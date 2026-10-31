@@ -19,6 +19,8 @@ export default defineConfig({
         "scripts/operator/**/*.ts",
         "scripts/seed.ts",
         "scripts/seed/**/*.ts",
+        "scripts/check-agents.ts",
+        "scripts/check-agents/**/*.ts",
       ],
       exclude: ["**/*.d.ts", "**/*.config.{ts,mts}", "packages/db/migrations/**"],
       thresholds: { 100: true, perFile: true },

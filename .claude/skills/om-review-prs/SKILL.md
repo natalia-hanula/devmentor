@@ -1,5 +1,6 @@
 ---
 name: om-review-prs
+disable-model-invocation: true
 description: Review all currently unreviewed open pull requests, newest first, using the om-auto-review-pr skill and respecting in-progress claim locks.
 ---
 

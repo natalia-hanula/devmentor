@@ -178,7 +178,7 @@ Wszystkie artefakty pracy AI (specyfikacje, logi przebiegów, wnioski, dokumenty
 
 ### Specyfikacje (SDD)
 
-- Nowa funkcjonalność lub większa zmiana zaczyna się od specyfikacji w `.ai/specs/`. Kod piszesz dopiero po jej akceptacji przez człowieka.
+- Nowa funkcjonalność lub większa zmiana zaczyna się od specyfikacji w `.ai/specs/`. Kod piszesz dopiero po jej akceptacji przez człowieka. Wyjątek: narzędzia deweloperskie (np. `npm run check:agents`) nie wymagają specyfikacji.
 - Specyfikacja zawiera co najmniej: cel, zakres (co wchodzi, a co nie), wymagania, kryteria akceptacji i otwarte pytania.
 - Jeśli podczas implementacji okaże się, że trzeba odejść od specyfikacji, najpierw ją zaktualizuj i zgłoś zmianę człowiekowi.
 - Po pełnym wdrożeniu przenieś plik do `.ai/specs/implemented/` za pomocą `git mv`. Specyfikację porzuconą lub zastąpioną przenieś do `.ai/specs/archive/` i dopisz na górze pliku powód (oraz odnośnik do specyfikacji, która ją zastąpiła).

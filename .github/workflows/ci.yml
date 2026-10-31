@@ -30,6 +30,18 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
 
+  agents:
+    name: Ścieżki z AGENTS.md istnieją
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # Bez `npm ci` — skrypt używa tylko wbudowanych modułów Node.
+      - run: npm run check:agents
+
   unit:
     name: Testy jednostkowe (pokrycie 100%)
     runs-on: ubuntu-24.04

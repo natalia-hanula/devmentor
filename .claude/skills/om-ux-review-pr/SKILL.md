@@ -1,5 +1,6 @@
 ---
 name: om-ux-review-pr
+disable-model-invocation: true
 description: Evidence-first design review of a PR's UI. Walks the changed screens in a real browser, performs the user's tasks, and posts findings ranked by user impact, each with evidence, a pattern, a trade-off and an acceptance criterion.
 ---
 

@@ -118,21 +118,15 @@ describe("redirectHandler", () => {
   });
 
   it("niedostępna baza → /login?error=SERVICE_UNAVAILABLE i log błędu", async () => {
-    const { initOrm, Technology } = await import("@devmentor/db");
-    const orm = await initOrm("postgresql://devmentor:devmentor@127.0.0.1:1/devmentor");
+    // Atrapa błędu sieciowego, jaki Node zgłasza przy odrzuconym połączeniu — test nie łączy się z siecią.
     const handler = redirectHandler(async () => {
-      await orm.em.fork().find(Technology, {});
-      return "/x";
+      throw Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED" });
     });
 
-    try {
-      const response = await handler(get(), context);
+    const response = await handler(get(), context);
 
-      expect(response.headers.get("location")).toBe("/login?error=SERVICE_UNAVAILABLE");
-      expect(logger.error).toHaveBeenCalledOnce();
-    } finally {
-      await orm.close(true);
-    }
+    expect(response.headers.get("location")).toBe("/login?error=SERVICE_UNAVAILABLE");
+    expect(logger.error).toHaveBeenCalledOnce();
   });
 
   it("nieoczekiwany błąd → /login?error=unexpected, log bez ujawniania wiadomości w adresie", async () => {

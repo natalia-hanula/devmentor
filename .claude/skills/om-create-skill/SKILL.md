@@ -1,5 +1,6 @@
 ---
 name: om-create-skill
+disable-model-invocation: true
 description: Author a new OM skill from a brief, or split an oversized SKILL.md into layered references/ files — conservatively, behind the lint + completeness gate. Knows the layering philosophy, lint invariants, tracker abstraction, and the cross-skill contract, so output matches house conventions. Use for "create a skill for…", "new om-skill", "split this skill into references".
 ---
 

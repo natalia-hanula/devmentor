@@ -1,5 +1,6 @@
 ---
 name: om-apply-upgrade-notes
+disable-model-invocation: true
 description: Apply the skills collection's UPGRADE_NOTES.md after an upgrade. Re-syncs installed tracker and browser-provider descriptors while preserving local edits, reports custom-provider gaps, checks pipeline config and installed artifacts, and summarizes exactly what changed.
 ---
 
