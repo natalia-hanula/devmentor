@@ -52,3 +52,7 @@ next-env.d.ts
 
 # Snapshoty migracji tymczasowych baz z testów integracyjnych
 packages/db/migrations/.snapshot-it_*.json
+.ai/qa/test-env-build-cache.json
+.ai/qa/test-env-app.log
+.ai/qa/test-env.lock/
+packages/db/migrations/.snapshot-devmentor_qa.json
