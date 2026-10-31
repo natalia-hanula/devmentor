@@ -1,42 +1,26 @@
 import { ConnectionException, DriverException } from "@mikro-orm/postgresql";
 import { describe, expect, it } from "vitest";
-import { initOrm, isDatabaseUnavailableError, Technology, User } from "../src";
+import { isDatabaseUnavailableError } from "../src";
 
 function driverError(code?: unknown): DriverException {
   return new DriverException(Object.assign(new Error("błąd sterownika"), { code }));
 }
 
 describe("isDatabaseUnavailableError", () => {
-  it("rozpoznaje odrzucone połączenie z bazą (MikroORM łączy się leniwie)", async () => {
-    // Port 1 — połączenie od razu odrzucone, bez potrzeby działającej bazy.
-    const orm = await initOrm("postgresql://devmentor:devmentor@127.0.0.1:1/devmentor");
-    try {
-      const error = await orm.em
-        .fork()
-        .find(Technology, {})
-        .catch((e: unknown) => e);
+  // Atrapy błędów w kształcie, jaki zgłasza Node przy odrzuconym połączeniu — test nie łączy się z siecią.
+  // Prawdziwą bazę (i odrzucone połączenie) pokrywają testy integracyjne.
+  it("rozpoznaje odrzucone połączenie opakowane przez MikroORM w ConnectionException (zapytanie)", () => {
+    const refused = Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED" });
 
-      expect(isDatabaseUnavailableError(error)).toBe(true);
-    } finally {
-      await orm.close(true);
-    }
+    expect(isDatabaseUnavailableError(new ConnectionException(refused))).toBe(true);
   });
 
-  it.each(["127.0.0.1", "localhost"])(
-    "rozpoznaje niedostępną bazę przy zapisie (flush), gdy sterownik nie opakowuje błędu — host %s",
-    async (host) => {
-      const orm = await initOrm(`postgresql://devmentor:devmentor@${host}:1/devmentor`);
-      try {
-        const em = orm.em.fork();
-        em.create(User, { email: "a@example.com", displayName: "A", passwordHash: null, emailVerifiedAt: null });
-        const error = await em.flush().catch((e: unknown) => e);
-
-        expect(isDatabaseUnavailableError(error)).toBe(true);
-      } finally {
-        await orm.close(true);
-      }
-    },
-  );
+  it.each([
+    ["host 127.0.0.1 (IPv4)", Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), { code: "ECONNREFUSED" })],
+    ["host localhost (IPv4 + IPv6)", Object.assign(new AggregateError([], ""), { code: "ECONNREFUSED" })],
+  ])("rozpoznaje niedostępną bazę przy zapisie (flush), gdy sterownik nie opakowuje błędu — %s", (_name, error) => {
+    expect(isDatabaseUnavailableError(error)).toBe(true);
+  });
 
   it("rozpoznaje ConnectionException, kody sieciowe i SQLSTATE klasy 08", () => {
     expect(isDatabaseUnavailableError(new ConnectionException(new Error("brak połączenia")))).toBe(true);
