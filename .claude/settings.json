@@ -30,17 +30,23 @@
     "allowUnsandboxedCommands": false,
     "filesystem": {
       "denyRead": [
-        "./.env",
-        "./.env.*",
         "**/*.pem",
         "~/.ssh",
         "~/.aws"
       ],
       "allowRead": [
-        "./.env.example"
+        "./.env",
+        "./packages/app/.env"
       ]
     },
+    "excludedCommands": [
+      "gh pr *",
+      "gh issue *",
+      "gh api *",
+      "gh run *"
+    ],
     "network": {
+      "allowLocalBinding": true,
       "allowedDomains": [
         "registry.npmjs.org",
         "github.com",

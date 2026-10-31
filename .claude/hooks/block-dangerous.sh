@@ -36,4 +36,18 @@ check "git reset --hard" "${START}git[[:space:]]+(.*[[:space:]])?reset[[:space:]
 check "curl/wget przekazywane do powłoki" "${START}(curl|wget)[[:space:]].*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z|da|k)?sh([[:space:]]|\$)"
 check "chmod 777" "${START}chmod[[:space:]]+(.*[[:space:]])?(-[a-zA-Z]+[[:space:]]+)*0?777([[:space:]]|\$)"
 
+# Sandbox zezwala procesom (Next) na wczytanie `.env` (`allowRead`), więc agent mógłby go odczytać przez Bash.
+# Trzecia warstwa po `permissions.deny` i `denyRead`: czytniki tekstu na pliku `.env*` (poza `.env.example`).
+ENV_READERS='(cat|head|tail|grep|sed|less|more|awk)'
+env_file_tokens() {
+  # Dzielimy polecenie na słowa (białe znaki i znaki powłoki), bierzemy nazwę pliku bez katalogów.
+  printf '%s' "$command" | tr -s '[:space:];&|<>()"'"'"'=' '\n' | sed -E 's#.*/##' \
+    | grep -E '^\.env(\.[A-Za-z0-9_-]+)*$|^\.env[^/]*[*?[]' | grep -vxF '.env.example'
+}
+if printf '%s' "$command" | grep -Eq -- "${START}${ENV_READERS}[[:space:]]" && [ -n "$(env_file_tokens)" ]; then
+  echo "Zablokowano: odczyt pliku .env przez $(printf '%s' "$command" | grep -Eo "${ENV_READERS}" | head -n 1)" >&2
+  echo "Polecenie: $command" >&2
+  exit 2
+fi
+
 exit 0
