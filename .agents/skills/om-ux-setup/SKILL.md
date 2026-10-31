@@ -1,5 +1,6 @@
 ---
 name: om-ux-setup
+disable-model-invocation: true
 description: Extract the repository's design contract (tokens, component registry, screen archetypes, conventions) into .uxproof/ so every UX skill judges against THIS repo's design system, whatever it is. Run once per repository; re-run to refresh after design-system changes.
 ---
 

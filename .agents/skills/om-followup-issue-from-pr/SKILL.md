@@ -1,5 +1,6 @@
 ---
 name: om-followup-issue-from-pr
+disable-model-invocation: true
 description: Turn a PR into tracked follow-up work — paste a PR or PR-comment link to extract the actionable ask and open a follow-up issue assigned to the @-mention or PR author; for a PR adding a design doc, it opens the missing `Implement:` tracking issue instead. Use for "make a follow-up issue", "create an issue for this", or a pasted PR/comment link with that intent.
 ---
 

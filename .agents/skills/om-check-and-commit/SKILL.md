@@ -1,5 +1,6 @@
 ---
 name: om-check-and-commit
+disable-model-invocation: true
 description: Verify that the current branch is ready to publish by running every configured validation command in order, fix straightforward failures (including locale-file drift when the repo checks it), and once everything passes commit and push the current branch. Use when the user asks to check the branch, make CI-style verification pass, then commit and push.
 ---
 
