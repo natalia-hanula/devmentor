@@ -56,3 +56,4 @@ packages/db/migrations/.snapshot-it_*.json
 .ai/qa/test-env-app.log
 .ai/qa/test-env.lock/
 packages/db/migrations/.snapshot-devmentor_qa.json
+packages/db/migrations/.snapshot-devmentor_integration.json
