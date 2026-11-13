@@ -341,7 +341,7 @@ Każdy krok kończy się zielonym `npm run lint`, `npm run typecheck` i `npm tes
 | Data | Rewizja | Zmiany | Źródło |
 |---|---|---|---|
 | 2026-10-18 | 0 | Pierwsza wersja zaakceptowana (Q1–Q6, review z czystym kontekstem: outbox tylko poza produkcją, fixture kont, `redirectHandler` w primitives). | Natalia |
-| 2026-10-18 | 1 | Limiter: `peek`/`hit` obok `consume` (E01: `login:email` liczy tylko porażki). `isMailDeliveryAvailable(env)` dla ostrzeżenia na `/register` przy `noop`. `redirectHandler` loguje tylko `pathname`; `url`, `*.url` w `LOG_REDACT_PATHS`. | Rewizja 1 E01 (przegląd Gemini i GPT + uwagi Natalii) |
+| 2026-10-18 | 1 | Limiter: `peek`/`hit` obok `consume` (E01: `login:email` liczy tylko porażki). `isMailDeliveryAvailable(env)` dla ostrzeżenia na `/register` przy `noop`. `redirectHandler` loguje tylko `pathname`; `url`, `*.url` w `LOG_REDACT_PATHS`. | Rewizja 1 E01 (przegląd Gemini i GPT — [recenzje](../reviews/2026-10-18-e01-konta-i-role-gemini-gpt.md) — + uwagi Natalii) |
 | 2026-10-18 | 2 | `peek`/`hit` usunięte z `RateLimiter` — jedynym konsumentem był `login:email`, usunięty w rewizji 2 E01; interfejs wraca do samego `consume`. Opis ryzyka IP za proxy zaktualizowany. | Natalia |
 | 2026-10-18 | 3 | Grill-me G2: nowa zmienna `APP_ENV` (`local`/`test`/`staging`/`production`, domyślnie `production`); zabezpieczenie outboxa opiera się na `APP_ENV`, nie na `NODE_ENV` (który `next start` zawsze ustawia na `production`, co blokowało staging z G1 i testy integracyjne). | Natalia (grill-me) |
 | 2026-10-18 | 4 | Grill-me G3: przesuwane wygasanie sesji (odnowienie przy < 12 h z 24 h, w `apiHandler` po udanym handlerze); ryzyko braku bezwzględnego limitu życia sesji w Risks. | Natalia (grill-me) |
