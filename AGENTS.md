@@ -160,6 +160,7 @@ Wszystkie artefakty pracy AI (specyfikacje, logi przebiegów, wnioski, dokumenty
 │   ├── implemented/       # specyfikacje w pełni wdrożone
 │   └── archive/           # specyfikacje porzucone lub zastąpione
 ├── runs/                  # logi autonomicznych przebiegów AI
+├── reviews/               # recenzje specyfikacji wykonane przez inny model niż autor (nazwa pliku z datą recenzji)
 ├── lessons.md             # indeks wniosków — krótkie, jednolinijkowe wpisy
 └── lessons/               # dłuższe opisy wniosków, do których linkuje lessons.md
 ```
