@@ -1,8 +1,8 @@
 # Recenzje speca E01 (Gemini i GPT)
 
-- **Recenzowany spec:** E01 konta i role (`.ai/specs/2026-10-18-e01-konta-i-role.md`), wersja sprzed rewizji 1
+- **Recenzowany spec:** E01 konta i role (`.ai/specs/2026-10-18-e01-konta-i-role.md`), wersja sprzed rewizji 1 (wersja niezacommitowana; pierwszy commit speca `7b45435` zawiera już rewizje 1–4b)
 - **Data recenzji:** 2026-10-18 (GPT o 16:27 czasu polskiego)
-- **Autor speca:** Claude Opus 5.5 (wg trailera commitu `7b45435`)
+- **Autor speca:** Natalia Hanula-Wężyk ze współautorem Claude Opus 5.5 (autor commitu i trailer `Co-Authored-By` w `7b45435`)
 - **Recenzenci:** Gemini 3.8 Thinking oraz GPT 5.6 Terra
 - **Kto zlecił:** Natalia
 - **Źródło:** odpowiedzi skopiowane z historii rozmów 2026-11-13
@@ -126,9 +126,9 @@ Na podstawie speców `.ai/specs/2026-10-18-e01-konta-i-role.md` (dalej „E01”
 | Gemini 4 — usunąć atrapę hasha bcrypt | odrzucona | E01 rew. 1 „Odrzucone: … usunięcie atrapy hasha”; tabela „Odrzucone w przeglądzie (rewizja 1)” (`:373`) |
 | Gemini 5 — tokeny po łączeniu konta z GitHubem | przyjęta; wdrożenie razem z GitHub OAuth (F2) w etapie B | E01 rew. 1 pkt 3; rew. 4 (G9, `:457`); Phasing etap B — F2 (`:391`) |
 | Gemini 6 — brak poprawy literówki w e-mailu | przyjęta; wdrożenie odłożone do etapu B | E01 rew. 1 pkt 10; decyzja Q14 (wyjątek z rewizji 1, `:343`); rew. 4 (G9, `:457`); Phasing etap B „5b zmiana niepotwierdzonego adresu” (`:391`) |
-| Gemini 7 — zużyte tokeny zostają w tabeli | przyjęta | E01 rew. 1 pkt 7; wdrożenie: rew. 8 pkt 5 (`DELETE … RETURNING`, `:465`) |
+| Gemini 7 — zużyte tokeny zostają w tabeli | przyjęta (wariant `DELETE … RETURNING`) | E01 rew. 1 pkt 7; Data Model `:103` (`DELETE … RETURNING`) i `:104` (wygasłe wiersze zostają, bez zadania sprzątającego); wdrożenie: rew. 8 pkt 5 (`DELETE … RETURNING`, `:465`) |
 | GPT 1 — wiązać zaproszenie z e-mailem | odrzucona | E01 rew. 1 „Odrzucone: wiązanie zaproszenia z e-mailem”; tabela odrzuconych (`:372`); decyzja Q15 (`:340`); Risks „Link zaproszenia na okaziciela (Q15)” (`:322`), uzupełnione w rew. 13 pkt 3 (`:470`) |
-| GPT 2 — tokeny w query stringach | przyjęta (tokeny e-mailowe i zaproszeń we fragmencie URL, redakcja `url` w logach, `Referrer-Policy`); `Referrer-Policy` odłożona do etapu B; redakcja query stringu callbacku OAuth na ingressie i w APM — nie ustalono | E01 rew. 1 pkt 8; decyzja R1-1 (`:366`); „Tokeny w linkach — fragment URL, nie query string” (`:75`); kryterium akceptacji (`:440`); PP rew. 1 (`url`, `*.url` w `LOG_REDACT_PATHS`, PP `:344`); Phasing etap B (`:391`) |
+| GPT 2 — tokeny w query stringach | przyjęta (tokeny e-mailowe i zaproszeń we fragmencie URL, redakcja `url` w logach, `Referrer-Policy`); `Referrer-Policy` odłożona do etapu B; ingress i APM: spec ich nie obejmuje; czy świadomie odrzucone — nie ustalono | E01 rew. 1 pkt 8; decyzja R1-1 (`:366`); `LOG_REDACT_PATHS` z `code`, `state`, `url` (`:145`); „Tokeny w linkach — fragment URL, nie query string” (`:75`); kryterium akceptacji (`:440`); PP rew. 1 (`url`, `*.url` w `LOG_REDACT_PATHS`, PP `:344`); Phasing etap B (`:391`) |
 | GPT 3 — ścieżka e-mail + hasło nieużywalna w produkcji | przyjęta, w zmienionej formie: zamiast ukrycia wariantu — warunek startu (poczta + test e2e) i ostrzeżenie na `/register` przy `noop`; ostrzeżenie odłożone do etapu B | E01 rew. 1 pkt 13; decyzja R1-1 (`:366`); rew. 3 (G1, `:449`); Risks „1.0 kursowe = lokalnie lub staging z outboxem” (`:317`) i „Warunek startu z prawdziwymi użytkownikami” (`:318`); PP rew. 1 (`isMailDeliveryAvailable`, PP `:344`); Phasing etap B (`:391`) |
 | GPT 4 — kilka aktywnych zaproszeń na ten sam adres | przyjęta | E01 rew. 1 pkt 5 (jedno aktywne na adres) i pkt 2 (konflikt roli zużywa token); decyzja R1-1 (`:366`); wdrożenie: rew. 12 pkt 1 (`:469`) |
 | GPT 5 — „działa tylko ostatni link” bez atomowości | przyjęta | E01 rew. 1 pkt 6 (upsert po UNIQUE `user_id`, `purpose`) |
