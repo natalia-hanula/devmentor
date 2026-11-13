@@ -160,6 +160,7 @@ Wszystkie artefakty pracy AI (specyfikacje, logi przebiegów, wnioski, dokumenty
 │   ├── implemented/       # specyfikacje w pełni wdrożone
 │   └── archive/           # specyfikacje porzucone lub zastąpione
 ├── runs/                  # logi autonomicznych przebiegów AI
+├── reviews/               # recenzje specyfikacji wykonane przez inny model niż autor (nazwa pliku z datą recenzji)
 ├── lessons.md             # indeks wniosków — krótkie, jednolinijkowe wpisy
 └── lessons/               # dłuższe opisy wniosków, do których linkuje lessons.md
 ```
@@ -169,6 +170,7 @@ Wszystkie artefakty pracy AI (specyfikacje, logi przebiegów, wnioski, dokumenty
 - Pliki w `docs/` mają stałą nazwę bez daty (to dokumenty żywe, aktualizowane w miejscu).
 - Pliki w `specs/` (w tym w podkatalogach), `runs/` i `lessons/` mają nazwę `YYYY-MM-DD-slug.md`, np. `2026-10-18-rezerwacja-sesji.md`.
 - `YYYY-MM-DD` to data utworzenia pliku. Nie zmieniaj jej przy przenoszeniu ani edycji.
+- Pliki w `reviews/` mają nazwę `YYYY-MM-DD-slug.md`, gdzie data to dzień recenzji (wyjątek od daty utworzenia).
 - `slug` pisz małymi literami, bez polskich znaków, ze słowami rozdzielonymi myślnikami (`kebab-case`), i ogranicz go do kilku słów.
 
 ### Przed rozpoczęciem pracy
